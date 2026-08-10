@@ -1,39 +1,73 @@
-# Flow 🌊
+# Flow Package (`pkg/flow`)
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/etl-madness/flow/pkg/flow.svg)](https://pkg.go.dev/github.com/etl-madness/flow/pkg/flow)
-[![Go Report Card](https://goreportcard.com/badge/github.com/etl-madness/flow)](https://goreportcard.com/report/github.com/etl-madness/flow)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-`flow` is a high-performance, modular, and embeddable data pipeline orchestration and stream ETL library for Go. It enables developers to programmatically load, validate, and execute complex pipeline AST nodes (such as loops, parallel batches, and dynamic SQL/Go scripts) from XML configuration files.
-
-> [!NOTE]
-> The engine is designed around **No Global State**, making it highly suitable for concurrent and multi-tenant systems.
+`flow` is a high-performance, modular, and embeddable data pipeline orchestration and stream ETL library for Go. It allows developers to programmatically load, validate, and execute complex pipeline AST nodes (such as loops, parallel batches, and dynamic SQL/Go scripts) from XML configuration files.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-* **No Global State**: Fully isolated execution contexts (`Registry`) allowing you to run multiple pipelines concurrently in the same process without interference.
-* **Direct Streaming ETL**: Copy bulk datasets line-by-line across heterogeneous engines (PostgreSQL, SQLite, MySQL, Oracle, SQL Server) with automatic parameter placeholder syntax correction.
-* **Flexible Flow Controls**: Execution structures for sequential steps, parallel queues, If/Else branching, ForEach loops, and While loops.
-* **Embedded Script Interpreter**: Dynamic runtime Go evaluations via Yaegi with closure-bound environment state injection.
-* **XSD-Validated**: Built-in support for XML parsers and optional XSD schema validations.
+- **No Global State**: Fully isolated execution contexts (`Registry`) allowing you to run multiple pipelines concurrently in the same process without interference.
+- **Dynamic Configuration Decoder**: Built-in support for XML parsers and optional XSD schema schema validations.
+- **Direct Streaming ETL**: Copy bulk datasets line-by-line across heterogeneous engines (PostgreSQL, SQLite, MySQL, Oracle, SQL Server) with automatic parameter placeholder syntax correction.
+- **Flexible Flow Controls**: Execution structures for Sequential steps, Parallel queues, If/Else branching, ForEach loops, and While loops.
+- **Embedded Script Interpreter**: Dynamic runtime Go evaluations via Yaegi with closure-bound environment state injection.
 
 ---
 
-## 📦 Installation
+## Package API Reference
 
-To start using `flow` in your Go project, add it to your `go.mod`:
+### 1. Parsing & Validation
+```go
+// ParseXMLConfig parses a byte stream of XML into structured configuration blocks.
+func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []PipelineNode, error)
 
-```bash
-go get github.com/etl-madness/flow
+// ValidateAST performs semantic structure checks (uniqueness, reference integrity, loop bounds).
+func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error
+
+// ValidateXSD invokes 'xmllint' to validate an XML configuration against schema standards.
+func ValidateXSD(xmlPath string, xsdPath string) error
+```
+
+### 2. State & Context Management
+```go
+// Registry holds thread-safe variable registries and database connection pools.
+type Registry struct { ... }
+
+func NewRegistry() *Registry
+func (r *Registry) InitVariables(configs []VariableConfig) error
+func (r *Registry) InitDatabases(configs []DatabaseConfig) error
+func (r *Registry) CloseDatabases()
+
+// Variables getters & setters
+func (r *Registry) SetVar(name string, value interface{})
+func (r *Registry) GetVar(name string) interface{}
+func (r *Registry) GetVarString(name string) string
+func (r *Registry) GetVarInt(name string) int
+func (r *Registry) GetVarBool(name string) bool
+```
+
+### 3. Pipeline Executor
+```go
+// Executor orchestrates tree node executions.
+type Executor struct { ... }
+
+func NewExecutor(r *Registry) *Executor
+func (e *Executor) Execute(nodes []PipelineNode) ([]ScriptResult, error)
+
+// ScriptResult represents the outcome of an executed script or loop step.
+type ScriptResult struct {
+	ScriptID      string `json:"script_id"`
+	ReturnCode    any    `json:"return_code"`      // 0 on success, or an error string/code on failure
+	ResultsString string `json:"results_string"`    // Output logs/data from query or script
+	Duration      string `json:"duration,omitempty"` // Execution duration (e.g. "14.285ms")
+}
 ```
 
 ---
 
-## 🛠️ Quick Start
+## Quick Start Example
 
-Below is a complete, minimal example showing how to parse, validate, and execute an XML pipeline using `flow`:
+The following example demonstrates how to load, parse, validate, and execute an XML pipeline programmatically from custom Go code.
 
 ```go
 package main
@@ -115,17 +149,23 @@ func main() {
 
 ---
 
-## 📂 Project Structure
+## Advanced: Shared Context Isolation
 
-```
-.
-├── .gitignore          # Git exclusion rules
-├── go.mod              # Go module definition
-├── go.sum              # Go dependencies checksums
-├── pkg/
-│   └── flow/           # Core library containing executor, registry, parser, and streaming ETL
-└── xsd/
-    └── schema.xsd      # XML validation schema
+Since the state of connections and active variables is entirely held inside the `*flow.Registry` object rather than package globals, you can safely initialize multiple independent registries and run them in concurrent threads or separate executors:
+
+```go
+registryA := flow.NewRegistry()
+registryB := flow.NewRegistry()
+
+// Run independent pipelines in parallel
+go flow.NewExecutor(registryA).Execute(nodesA)
+go flow.NewExecutor(registryB).Execute(nodesB)
 ```
 
-For detailed documentation of internal package implementation, check out [pkg/flow README](pkg/flow/README.md).
+---
+
+## Complete CLI Wrapper Example
+
+For a complete, real-world example of how to orchestrate, validate, and execute pipelines programmatically using this library, check out the root application files:
+- [**`main.go`**](../../main.go): The official, production-ready command line driver that utilizes `pkg/flow` to orchestrate multi-engine data pipelines.
+- [**Root `README.md`**](../../README.md): The main guide covering command-line options, database configuration files, and comparative architecture layouts.
