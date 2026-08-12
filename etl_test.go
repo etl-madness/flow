@@ -29,3 +29,4 @@ func TestFormatPlaceholder(t *testing.T) {
 		})
 	}
 }
+

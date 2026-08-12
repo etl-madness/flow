@@ -229,7 +229,15 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 				targetDB = strings.ReplaceAll(targetDB, placeholder, fmt.Sprintf("%v", val))
 			}
 
-			copied, err := StreamETL(e.registry, script.DBName, codeToEval, targetDB, targetTable, script.BatchSize)
+			opts := ETLOptions{
+				BatchSize:        script.BatchSize,
+				Tablock:          script.Tablock,
+				CheckConstraints: script.CheckConstraints,
+				FireTriggers:     script.FireTriggers,
+				KeepNulls:        script.KeepNulls,
+			}
+
+			copied, err := StreamETL(e.registry, script.DBName, codeToEval, targetDB, targetTable, opts)
 			if err != nil {
 				res.ReturnCode = err.Error()
 				appendWithDuration(res)
@@ -268,8 +276,8 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 
 		dbExports := map[string]reflect.Value{
 			"Get": reflect.ValueOf(e.registry.GetDB),
-			"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, batchSize int) (int64, error) {
-				return StreamETL(e.registry, srcDB, query, dstDB, targetTable, batchSize)
+			"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
+				return StreamETL(e.registry, srcDB, query, dstDB, targetTable, opts)
 			}),
 		}
 

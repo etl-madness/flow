@@ -63,3 +63,4 @@ func TestExecutorVerboseMode(t *testing.T) {
 		t.Errorf("expected output to contain finish message, got:\n%s", output)
 	}
 }
+

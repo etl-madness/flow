@@ -90,3 +90,4 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	}
 	return nil
 }
+

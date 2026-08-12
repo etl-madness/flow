@@ -20,3 +20,4 @@ func TestGetSchemaXSD(t *testing.T) {
 		t.Error("expected embedded XSD schema to contain pipeline element definition")
 	}
 }
+

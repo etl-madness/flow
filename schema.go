@@ -11,3 +11,4 @@ var schemaXSD []byte
 func GetSchemaXSD() []byte {
 	return schemaXSD
 }
+

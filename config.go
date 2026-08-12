@@ -29,17 +29,21 @@ type DatabaseConfig struct {
 	ConnectionString string // Driver-specific connection string
 }
 
-// ScriptItem represents a executable script payload (either SQL or Go) with metadata.
+// ScriptItem represents an executable script payload (either SQL or Go) with metadata.
 type ScriptItem struct {
-	ID          string // Unique identifier of the script
-	Language    string // Language identifier (sql or go)
-	DBName      string // Target database identifier for SQL queries
-	TargetDB    string // Destination database identifier for streaming ETL
-	TargetTable string // Destination table name for streaming ETL
-	BatchSize   int    // Maximum rows loaded per parameterized batch insert
-	VarName     string // Input environment variable to pull script code from dynamically
-	OutputVar   string // Environment variable to store the command's outputs or logs into
-	Code        string // Inner script text/payload
+	ID               string // Unique identifier of the script
+	Language         string // Language identifier (sql or go)
+	DBName           string // Target database identifier for SQL queries
+	TargetDB         string // Destination database identifier for streaming ETL
+	TargetTable      string // Destination table name for streaming ETL
+	BatchSize        int    // Maximum rows loaded per batch
+	VarName          string // Input environment variable to pull script code from dynamically
+	OutputVar        string // Environment variable to store the command's outputs or logs into
+	Code             string // Inner script text/payload
+	Tablock          bool   // Acquire table lock for minimal logging on SQL Server
+	CheckConstraints bool   // Evaluate constraints during MSSQL bulk insert
+	FireTriggers     bool   // Execute target table triggers during MSSQL bulk insert
+	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
 }
 
 // NodeKind represents the structural type of a PipelineNode.
@@ -110,7 +114,7 @@ func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []Pipel
 	for {
 		tok, err := decoder.Token()
 		if err == io.EOF {
-			break
+			return vars, dbs, nodes, nil // Directly returns parsed results upon EOF
 		}
 		if err != nil {
 			return nil, nil, nil, err
@@ -173,6 +177,10 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 	case "script":
 		lang, scriptID, dbName, targetDB, targetTable, varName, outputVar := "", "", "", "", "", "", ""
 		batchSize := 0
+		tablock := true // Default TABLOCK to true for high performance bulk copy
+		checkConstraints := false
+		fireTriggers := false
+		keepNulls := false
 
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
@@ -195,6 +203,22 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 				varName = attr.Value
 			case "output_var", "output_variable", "out_var":
 				outputVar = attr.Value
+			case "tablock":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					tablock = b
+				}
+			case "check_constraints":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					checkConstraints = b
+				}
+			case "fire_triggers":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					fireTriggers = b
+				}
+			case "keep_nulls":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					keepNulls = b
+				}
 			}
 		}
 
@@ -210,15 +234,19 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			return &PipelineNode{
 				Kind: NodeScript,
 				Script: &ScriptItem{
-					ID:          scriptID,
-					Language:    lang,
-					DBName:      dbName,
-					TargetDB:    targetDB,
-					TargetTable: targetTable,
-					BatchSize:   batchSize,
-					VarName:     varName,
-					OutputVar:   outputVar,
-					Code:        strings.TrimSpace(content),
+					ID:               scriptID,
+					Language:         lang,
+					DBName:           dbName,
+					TargetDB:         targetDB,
+					TargetTable:      targetTable,
+					BatchSize:        batchSize,
+					VarName:          varName,
+					OutputVar:        outputVar,
+					Code:             strings.TrimSpace(content),
+					Tablock:          tablock,
+					CheckConstraints: checkConstraints,
+					FireTriggers:     fireTriggers,
+					KeepNulls:        keepNulls,
 				},
 			}, nil
 		}
@@ -340,7 +368,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			Language: lang,
 			DBName:   dbName,
 			VarName:  varName,
-			Code:     driverCode, // The actual code will be in the child nodes
+			Code:     driverCode,
 		}
 
 		return &PipelineNode{

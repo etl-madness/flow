@@ -264,6 +264,9 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
         <database name="src_db" driver="sqlite" connection_string="./source.db" />
         <database name="target_db" driver="postgres" connection_string="postgresql://user:pass@localhost/db" />
     </databases>
+	<script id="StreamData_MSSQL" language="sql" db="src_db" target_db="target_db" target_table="customers" batch_size="10000" tablock="true" check_constraints="false" fire_triggers="false" keep_nulls="true">
+    SELECT id, name, email FROM source_customers;
+    </script>
     <scripts>
         <parallel max_threads="2">
             <!-- Loop 1: Import customer records -->
@@ -288,6 +291,47 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
 
 > [!TIP]
 > Use parallel blocks for network-bound tasks, independent bulk database loads, or concurrent loops (like syncing separate data tables) where workflows do not rely on each other's outputs.
+
+---
+
+## 🚀 High-Performance MSSQL Bulk Copy Support
+
+`flow` supports high-performance native bulk stream copy operations when transferring datasets into Microsoft SQL Server (`sqlserver` or `mssql` drivers). When streaming data to a SQL Server target, `flow` bypasses standard parameterized multi-row `INSERT` operations (which are subject to the 2,100 parameter limit) and instead utilizes native TDS Bulk Copy Streams (`mssql.CopyIn`).
+
+### XML Configuration Attributes
+On any streaming `<script>` node (where both `target_db` and `target_table` are defined), you can configure the following bulk copy options:
+
+- **`tablock`** (boolean, optional, default `true`): Acquires a table-level lock during the bulk insert, drastically reducing transaction log overhead and boosting throughput.
+- **`check_constraints`** (boolean, optional, default `false`): Evaluates check and foreign key constraints on the target table during bulk insert.
+- **`fire_triggers`** (boolean, optional, default `false`): Executes any insert triggers defined on the target table during bulk execution.
+- **`keep_nulls`** (boolean, optional, default `false`): Retains explicit `NULL` values from the source dataset instead of utilizing target table default values.
+
+### XML Example
+```xml
+<pipeline>
+    <databases>
+        <database name="src_db" driver="sqlite" connection_string="./source.db" />
+        <database name="dst_mssql" driver="sqlserver" connection_string="sqlserver://user:pass@localhost:1433?database=target_db" />
+    </databases>
+    <scripts>
+        <script id="BulkSync" 
+                language="sql" 
+                db="src_db" 
+                target_db="dst_mssql" 
+                target_table="customers" 
+                batch_size="25000" 
+                tablock="true" 
+                check_constraints="true" 
+                fire_triggers="false" 
+                keep_nulls="true">
+            SELECT id, name, email, signup_date FROM raw_users;
+        </script>
+    </scripts>
+</pipeline>
+```
+
+### Fallback Driver Support
+For non-MSSQL destination databases (e.g. PostgreSQL, MySQL, SQLite), `flow` automatically falls back to standard multi-row parameter-bound batch inserts. The batch sizes for fallback drivers are automatically throttled to ensure they never exceed the maximum 2,100 parameter limit (calculated dynamically as `2100 / column_count`).
 
 ---
 

@@ -232,3 +232,4 @@ func (r *Registry) CopyVariables() map[string]interface{} {
 	}
 	return copyMap
 }
+
