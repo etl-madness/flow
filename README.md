@@ -1,8 +1,10 @@
-# Flow Package (`pkg/flow`)
+# Flow 🌊
 
-`flow` is a high-performance, modular, and embeddable data pipeline orchestration and stream ETL library for Go. It allows developers to programmatically load, validate, and execute complex pipeline AST nodes (such as loops, parallel batches, and dynamic SQL/Go scripts) from XML configuration files.
+`flow` is an SSIS-like and embeddable data pipeline orchestration and stream ETL library for Go. It allows developers to programmatically load, validate, and execute complex pipeline AST nodes (such as loops, parallel batches, and dynamic SQL/Go scripts) from XML configuration files.
 
----
+**go-ETL** is a fully functional implementation that takes and executes XML files, with config.xml overrides, and can be found at [github.com/etl-madness/go-etl](https://github.com/etl-madness/go-etl)
+
+**FLOW** Source code can be found at [github.com/etl-madness/flow](https://github.com/etl-madness/flow)
 
 ## Key Features
 
@@ -26,6 +28,9 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error
 
 // ValidateXSD invokes 'xmllint' to validate an XML configuration against schema standards.
 func ValidateXSD(xmlPath string, xsdPath string) error
+
+// GetSchemaXSD returns the compiled-in, embedded XSD schema file as a byte slice.
+func GetSchemaXSD() []byte
 ```
 
 ### 2. State & Context Management
@@ -53,6 +58,7 @@ type Executor struct { ... }
 
 func NewExecutor(r *Registry) *Executor
 func (e *Executor) Execute(nodes []PipelineNode) ([]ScriptResult, error)
+func (e *Executor) SetVerbose(verbose bool)
 
 // ScriptResult represents the outcome of an executed script or loop step.
 type ScriptResult struct {
@@ -76,11 +82,19 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/etl-madness/flow/pkg/flow"
+	"github.com/etl-madness/flow"
 )
 
 func main() {
+	xsdSchema := flow.GetSchemaXSD() // Load embedded XSD schema for validation
 	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<variables>
+			<variable name="TargetTable" value="processed_logs" />
+			<variable name="Threshold" type="int" value="100" />
+		</variables>
+	</pipeline>`)
+	xmlScript := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 	<pipeline>
 		<variables>
 			<variable name="TargetTable" value="processed_logs" />
@@ -113,7 +127,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Parsing failed: %v", err)
 	}
-
+	if err := flow.ValidateXSD(xmlConfig, string(xsdSchema)); err != nil {
+		log.Fatalf("XSD validation failed: %v", err)
+	}
+	if err := flow.ValidateXSD(xmlScript, string(xsdSchema)); err != nil {
+		log.Fatalf("XSD validation failed: %v", err)
+	}
 	// 2. Perform semantic checks on the AST
 	if err := flow.ValidateAST(nodes, dbConfigs); err != nil {
 		log.Fatalf("Validation failed: %v", err)
@@ -162,10 +181,131 @@ go flow.NewExecutor(registryA).Execute(nodesA)
 go flow.NewExecutor(registryB).Execute(nodesB)
 ```
 
+## 📢 Verbose Execution Logging
+
+To monitor the start, finish, duration, and outcome of each task in real-time as the pipeline processes them, you can enable verbose logging on the `Executor`.
+
+### Enabling Verbose Mode
+By default, the executor runs silently. Use the `SetVerbose(true)` method before triggering your pipeline to output execution summaries directly to the console:
+
+```go
+executor := flow.NewExecutor(registry)
+
+// Enable verbose logging to console
+executor.SetVerbose(true)
+
+results, err := executor.Execute(nodes)
+```
+
+### Console Output Format
+When verbose mode is enabled, the executor logs task lifecycles in the following format:
+
+```text
+Starting execution of script "SetupTable"
+Finished execution of script "SetupTable" (duration: 4.812ms)
+Starting execution of script "VerifyGo"
+Finished execution of script "VerifyGo" (duration: 1.251ms)
+```
+
+If a task encounters an error during execution, the failure details are printed along with the elapsed time:
+
+```text
+Starting execution of script "FailedQuery"
+Finished execution of script "FailedQuery" with error: table 'non_existent_table' not found (duration: 3.125ms)
+```
+
 ---
 
-## Complete CLI Wrapper Example
+## ⚡ Parallel Execution Engine
 
-For a complete, real-world example of how to orchestrate, validate, and execute pipelines programmatically using this library, check out the root application files:
-- [**`main.go`**](../../main.go): The official, production-ready command line driver that utilizes `pkg/flow` to orchestrate multi-engine data pipelines.
-- [**Root `README.md`**](../../README.md): The main guide covering command-line options, database configuration files, and comparative architecture layouts.
+The `<parallel>` block allows you to execute multiple child nodes concurrently. It includes a built-in semaphore-based throttle and thread-safe error-handling behaviors.
+
+### How it Works
+1. **Concurrency Throttle (`max_threads`)**: You can specify the `max_threads` attribute on a `<parallel>` block. If unspecified or set to `<= 0`, it defaults to `4`. The engine uses a buffered channel semaphore to guarantee that no more than `max_threads` goroutines run concurrently.
+2. **Fail-Fast Error Propagation**: If any concurrent child node encounters an error, a thread-safe atomic flag is tripped. Any pending child goroutines in that block will check this flag and immediately skip execution (`fail-fast`), preventing wasted compute resources.
+3. **Thread-Safe Results Accumulation**: All script and task outcomes are safely accumulated into the final results list via internal mutex locking (`resultsMu`).
+
+### XML Configuration Example
+The following XML segment configures a parallel block of 3 tasks running with a maximum concurrency limit of 2:
+
+```xml
+<pipeline>
+    <databases>
+        <database name="main_db" driver="sqlite" connection_string="./mydb.db" />
+    </databases>
+    <scripts>
+        <parallel max_threads="2">
+            <script id="ProcessBatchA" language="sql" db="main_db">
+                UPDATE transactions SET processed = 1 WHERE batch_id = 'A';
+            </script>
+            <script id="ProcessBatchB" language="sql" db="main_db">
+                UPDATE transactions SET processed = 1 WHERE batch_id = 'B';
+            </script>
+            <script id="ProcessBatchC" language="sql" db="main_db">
+                UPDATE transactions SET processed = 1 WHERE batch_id = 'C';
+            </script>
+        </parallel>
+    </scripts>
+</pipeline>
+```
+
+### Concurrently Nesting Loops (e.g. `<foreach>`)
+
+Yes! Since the child elements in a `<parallel>` block are fully parsed as generic pipeline nodes, `<parallel>` natively supports **concurrently running multiple loops (such as `<foreach>`)** or nested structures.
+
+When you nest `<foreach>` blocks inside `<parallel>`, **each loop executes concurrently in parallel** on its own thread, while the individual iterations within each loop run sequentially.
+
+#### Example: Concurrently Running Independent Data Processors
+Below is an XML pipeline configuring two `<foreach>` loops running simultaneously to import customers and products in parallel:
+
+```xml
+<pipeline>
+    <databases>
+        <database name="src_db" driver="sqlite" connection_string="./source.db" />
+        <database name="target_db" driver="postgres" connection_string="postgresql://user:pass@localhost/db" />
+    </databases>
+    <scripts>
+        <parallel max_threads="2">
+            <!-- Loop 1: Import customer records -->
+            <foreach id="SyncCustomers" db="src_db" var="customer_id">
+                SELECT id FROM customers WHERE sync_pending = 1;
+                <script id="MigrateCustomer" language="sql" db="src_db" target_db="target_db" target_table="customers" batch_size="100">
+                    SELECT name, email, country FROM customers WHERE id = {{customer_id}};
+                </script>
+            </foreach>
+
+            <!-- Loop 2: Import product records concurrently -->
+            <foreach id="SyncProducts" db="src_db" var="product_id">
+                SELECT id FROM products WHERE stock &gt; 0;
+                <script id="MigrateProduct" language="sql" db="src_db" target_db="target_db" target_table="products" batch_size="50">
+                    SELECT title, price, SKU FROM products WHERE id = {{product_id}};
+                </script>
+            </foreach>
+        </parallel>
+    </scripts>
+</pipeline>
+```
+
+> [!TIP]
+> Use parallel blocks for network-bound tasks, independent bulk database loads, or concurrent loops (like syncing separate data tables) where workflows do not rely on each other's outputs.
+
+---
+
+## 📂 Project Structure
+
+```
+.
+├── .gitignore          # Git exclusion rules
+├── LICENSE             # MIT License
+├── README.md           # This document
+├── go.mod              # Go module definition
+├── go.sum              # Go dependencies checksums
+├── config.go           # XML parsing and schema validation functions
+├── etl.go              # Database stream copying implementation
+├── etl_test.go         # Core placeholder unit tests
+├── executor.go         # Core AST walker and script runner
+├── registry.go         # Environment variable and connection pool registry
+├── validator.go        # Semantic AST validator rules
+└── xsd/
+    └── schema.xsd      # XML validation schema
+```

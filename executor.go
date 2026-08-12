@@ -13,24 +13,34 @@ import (
 	"github.com/traefik/yaegi/stdlib"
 )
 
+// ScriptResult represents the complete outcome of a single executed script or loop block.
 type ScriptResult struct {
-	ScriptID      string `json:"script_id"`
-	ReturnCode    any    `json:"return_code"`
-	ResultsString string `json:"results_string"`
-	Duration      string `json:"duration,omitempty"`
+	ScriptID      string `json:"script_id"`      // Unique script identifier
+	ReturnCode    any    `json:"return_code"`      // 0 on success, or error details on failure
+	ResultsString string `json:"results_string"`    // Output logs, driver queries, or execution results
+	Duration      string `json:"duration,omitempty"` // Cumulative execution time
 }
 
+// Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
 	registry  *Registry
 	resultsMu sync.Mutex
+	verbose   atomic.Bool
 }
 
+// NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
 	return &Executor{
 		registry: r,
 	}
 }
 
+// SetVerbose sets whether execution start and finish events should be printed to the console.
+func (e *Executor) SetVerbose(verbose bool) {
+	e.verbose.Store(verbose)
+}
+
+// Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
 func (e *Executor) Execute(nodes []PipelineNode) ([]ScriptResult, error) {
 	var results []ScriptResult
 	hasErr := e.executeNodes(nodes, &results)
@@ -174,6 +184,9 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 
 func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
+	if e.verbose.Load() {
+		fmt.Printf("Starting execution of script %q\n", script.ID)
+	}
 	codeToEval := script.Code
 
 	if script.VarName != "" {
@@ -189,7 +202,15 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 	res := ScriptResult{ScriptID: script.ID}
 
 	appendWithDuration := func(r ScriptResult) {
-		r.Duration = time.Since(startTime).String()
+		duration := time.Since(startTime)
+		r.Duration = duration.String()
+		if e.verbose.Load() {
+			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
+				fmt.Printf("Finished execution of script %q with error: %v (duration: %s)\n", script.ID, r.ReturnCode, r.Duration)
+			} else {
+				fmt.Printf("Finished execution of script %q (duration: %s)\n", script.ID, r.Duration)
+			}
+		}
 		e.appendResult(results, r)
 	}
 

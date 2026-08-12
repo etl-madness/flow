@@ -15,11 +15,14 @@ import (
 	_ "modernc.org/sqlite"              // Pure Go SQLite driver
 )
 
+// DBHandle encapsulates an active sql.DB connection pool along with its driver name.
 type DBHandle struct {
-	Conn   *sql.DB
-	Driver string
+	Conn   *sql.DB // Connection pool handle
+	Driver string  // Database driver name (e.g. "sqlite", "mysql")
 }
 
+// Registry is a thread-safe container that manages active database connection pools
+// and dynamic pipeline environment variables.
 type Registry struct {
 	dbRegistry  map[string]DBHandle
 	dbMu        sync.RWMutex
@@ -27,6 +30,7 @@ type Registry struct {
 	varMu       sync.RWMutex
 }
 
+// NewRegistry instantiates and returns an empty Registry context.
 func NewRegistry() *Registry {
 	return &Registry{
 		dbRegistry:  make(map[string]DBHandle),
@@ -34,18 +38,21 @@ func NewRegistry() *Registry {
 	}
 }
 
+// SetVar sets an environment variable value in a thread-safe manner.
 func (r *Registry) SetVar(name string, value interface{}) {
 	r.varMu.Lock()
 	defer r.varMu.Unlock()
 	r.varRegistry[name] = value
 }
 
+// GetVar retrieves an environment variable's raw interface value in a thread-safe manner.
 func (r *Registry) GetVar(name string) interface{} {
 	r.varMu.RLock()
 	defer r.varMu.RUnlock()
 	return r.varRegistry[name]
 }
 
+// GetVarString retrieves a variable and returns its value formatted as a string.
 func (r *Registry) GetVarString(name string) string {
 	val := r.GetVar(name)
 	if val == nil {
@@ -57,6 +64,7 @@ func (r *Registry) GetVarString(name string) string {
 	return fmt.Sprintf("%v", val)
 }
 
+// GetVarInt retrieves a variable and returns its value as an integer (parsing strings if necessary).
 func (r *Registry) GetVarInt(name string) int {
 	val := r.GetVar(name)
 	if val == nil {
@@ -109,6 +117,7 @@ func (r *Registry) parseFloat(val string) (float64, error) {
 	return strconv.ParseFloat(val, 64)
 }
 
+// GetDB returns the direct sql.DB pointer for the requested database name, if registered.
 func (r *Registry) GetDB(name string) (*sql.DB, error) {
 	r.dbMu.RLock()
 	defer r.dbMu.RUnlock()
@@ -120,6 +129,7 @@ func (r *Registry) GetDB(name string) (*sql.DB, error) {
 	return handle.Conn, nil
 }
 
+// GetDBHandle returns the DBHandle wrapper (containing sql.DB and Driver name) for the database.
 func (r *Registry) GetDBHandle(name string) (DBHandle, error) {
 	r.dbMu.RLock()
 	defer r.dbMu.RUnlock()
@@ -131,6 +141,7 @@ func (r *Registry) GetDBHandle(name string) (DBHandle, error) {
 	return handle, nil
 }
 
+// InitVariables registers and parses multiple environment variables based on type configuration.
 func (r *Registry) InitVariables(configs []VariableConfig) error {
 	r.varMu.Lock()
 	defer r.varMu.Unlock()
@@ -162,6 +173,7 @@ func (r *Registry) InitVariables(configs []VariableConfig) error {
 	return nil
 }
 
+// InitDatabases opens connection pools for all supplied DatabaseConfigs with variable interpolation in connection strings.
 func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 	r.dbMu.Lock()
 	defer r.dbMu.Unlock()
@@ -199,6 +211,7 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 	return nil
 }
 
+// CloseDatabases closes all open database connections tracked inside the registry and removes them.
 func (r *Registry) CloseDatabases() {
 	r.dbMu.Lock()
 	defer r.dbMu.Unlock()
@@ -209,6 +222,7 @@ func (r *Registry) CloseDatabases() {
 	}
 }
 
+// CopyVariables creates and returns a thread-safe snapshot map of all current environment variables.
 func (r *Registry) CopyVariables() map[string]interface{} {
 	r.varMu.RLock()
 	defer r.varMu.RUnlock()

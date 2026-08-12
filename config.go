@@ -1,3 +1,7 @@
+// Package flow provides a high-performance, modular, and embeddable data pipeline
+// orchestration and stream ETL library for Go. It allows developers to programmatically
+// load, validate, and execute complex pipeline AST nodes (such as loops, parallel batches,
+// and dynamic SQL/Go scripts) from XML configuration files.
 package flow
 
 import (
@@ -11,52 +15,63 @@ import (
 	"strings"
 )
 
+// VariableConfig represents an individual environment variable loaded from XML.
 type VariableConfig struct {
-	Name  string
-	Type  string
-	Value string
+	Name  string // Name of the variable
+	Type  string // Type of the variable (e.g. string, int, bool, float)
+	Value string // Value of the variable as a raw string
 }
 
+// DatabaseConfig represents a database connection setup defined in the XML.
 type DatabaseConfig struct {
-	Name             string
-	Driver           string
-	ConnectionString string
+	Name             string // Unique identifier for the database
+	Driver           string // Database driver name (e.g. postgres, mysql, sqlite)
+	ConnectionString string // Driver-specific connection string
 }
 
+// ScriptItem represents a executable script payload (either SQL or Go) with metadata.
 type ScriptItem struct {
-	ID          string
-	Language    string
-	DBName      string
-	TargetDB    string
-	TargetTable string
-	BatchSize   int
-	VarName     string
-	OutputVar   string
-	Code        string
+	ID          string // Unique identifier of the script
+	Language    string // Language identifier (sql or go)
+	DBName      string // Target database identifier for SQL queries
+	TargetDB    string // Destination database identifier for streaming ETL
+	TargetTable string // Destination table name for streaming ETL
+	BatchSize   int    // Maximum rows loaded per parameterized batch insert
+	VarName     string // Input environment variable to pull script code from dynamically
+	OutputVar   string // Environment variable to store the command's outputs or logs into
+	Code        string // Inner script text/payload
 }
 
+// NodeKind represents the structural type of a PipelineNode.
 type NodeKind int
 
 const (
+	// NodeScript represents a leaf script execution step.
 	NodeScript NodeKind = iota
+	// NodeGroup represents a simple sequence container of nodes.
 	NodeGroup
+	// NodeIf represents a conditional branching sequence.
 	NodeIf
+	// NodeForEach represents an iterative driver loop.
 	NodeForEach
+	// NodeParallel represents a concurrent block container.
 	NodeParallel
+	// NodeWhile represents a condition-controlled iteration loop.
 	NodeWhile
 )
 
+// PipelineNode is an AST node in the pipeline execution tree.
 type PipelineNode struct {
-	Kind          NodeKind
-	MaxThreads    int
-	MaxIterations int
-	Script        *ScriptItem
-	GroupID       string
-	IfVar         string
-	IfEquals      string
-	ForEachScript *ScriptItem
-	Children      []PipelineNode
-	ElseNodes     []PipelineNode
+	Kind          NodeKind       // Struct/flow type of the node
+	MaxThreads    int            // Concurrency limit (only used for NodeParallel)
+	MaxIterations int            // Infinite loop safety limit (only used for NodeWhile)
+	Script        *ScriptItem    // Leaf script item payload (only used for NodeScript)
+	GroupID       string         // Structural/group name or ID
+	IfVar         string         // Condition driver variable name
+	IfEquals      string         // Expected variable value to match
+	ForEachScript *ScriptItem    // Iterator driver script config (only used for NodeForEach)
+	Children      []PipelineNode // List of sequential child execution steps
+	ElseNodes     []PipelineNode // Else branching steps (only used for NodeIf)
 }
 
 // ValidateXSD invokes 'xmllint' to validate the XML file against the given XSD schema.
