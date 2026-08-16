@@ -15,9 +15,9 @@ import (
 
 // ScriptResult represents the complete outcome of a single executed script or loop block.
 type ScriptResult struct {
-	ScriptID      string `json:"script_id"`      // Unique script identifier
-	ReturnCode    any    `json:"return_code"`      // 0 on success, or error details on failure
-	ResultsString string `json:"results_string"`    // Output logs, driver queries, or execution results
+	ScriptID      string `json:"script_id"`          // Unique script identifier
+	ReturnCode    any    `json:"return_code"`        // 0 on success, or error details on failure
+	ResultsString string `json:"results_string"`     // Output logs, driver queries, or execution results
 	Duration      string `json:"duration,omitempty"` // Cumulative execution time
 }
 
@@ -26,6 +26,7 @@ type Executor struct {
 	registry  *Registry
 	resultsMu sync.Mutex
 	verbose   atomic.Bool
+	goPath    string
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
@@ -33,6 +34,9 @@ func NewExecutor(r *Registry) *Executor {
 	return &Executor{
 		registry: r,
 	}
+}
+func (e *Executor) SetGoPath(goPath string) {
+	e.goPath = goPath
 }
 
 // SetVerbose sets whether execution start and finish events should be printed to the console.
@@ -185,7 +189,17 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	if e.verbose.Load() {
-		fmt.Printf("Starting execution of script %q\n", script.ID)
+		if script.Language == "sql" {
+			if script.DBName != "" && script.TargetTable != "" {
+				fmt.Printf("Starting execution of script %q on database %q and target table %q\n", script.ID, script.DBName, script.TargetTable)
+			} else if script.DBName != "" {
+				fmt.Printf("Starting execution of script %q on database %q\n", script.ID, script.DBName)
+			} else {
+				fmt.Printf("Starting execution of script %q\n", script.ID)
+			}
+		} else {
+			fmt.Printf("Starting execution of script %q\n", script.ID)
+		}
 	}
 	codeToEval := script.Code
 
@@ -263,6 +277,7 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 	} else if script.Language == "go" {
 		var outBuf bytes.Buffer
 		i := interp.New(interp.Options{
+			GoPath: e.goPath,
 			Stdout: &outBuf,
 			Stderr: &outBuf,
 		})
