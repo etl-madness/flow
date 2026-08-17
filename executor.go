@@ -2,6 +2,7 @@ package flow
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -27,6 +28,7 @@ type Executor struct {
 	resultsMu sync.Mutex
 	verbose   atomic.Bool
 	goPath    string
+	activeTxs map[string]*sql.Tx // Track active transactions per database
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
@@ -42,6 +44,14 @@ func (e *Executor) SetGoPath(goPath string) {
 // SetVerbose sets whether execution start and finish events should be printed to the console.
 func (e *Executor) SetVerbose(verbose bool) {
 	e.verbose.Store(verbose)
+}
+
+// getActiveTx returns the active transaction for the specified database if one exists.
+func (e *Executor) getActiveTx(dbName string) *sql.Tx {
+	if e.activeTxs == nil {
+		return nil
+	}
+	return e.activeTxs[dbName]
 }
 
 // Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
@@ -114,14 +124,19 @@ func (e *Executor) executeSQLScript(dbName string, queryStr string) (resultsStri
 		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
 	}
 
-	dbConn, err := e.registry.GetDB(dbName)
-	if err != nil {
-		return "", "", err
+	var rows *sql.Rows
+	var queryErr error
+	if tx := e.getActiveTx(dbName); tx != nil {
+		rows, queryErr = tx.Query(queryStr)
+	} else {
+		dbConn, err := e.registry.GetDB(dbName)
+		if err != nil {
+			return "", "", err
+		}
+		rows, queryErr = dbConn.Query(queryStr)
 	}
-
-	rows, err := dbConn.Query(queryStr)
-	if err != nil {
-		return "", "", err
+	if queryErr != nil {
+		return "", "", queryErr
 	}
 	defer rows.Close()
 
@@ -362,16 +377,22 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 			codeToEval = strings.ReplaceAll(codeToEval, placeholder, fmt.Sprintf("%v", val))
 		}
 
-		dbConn, err := e.registry.GetDB(script.DBName)
-		if err != nil {
-			res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
-			appendWithDuration(res)
-			return true
+		var rows *sql.Rows
+		var queryErr error
+		if tx := e.getActiveTx(script.DBName); tx != nil {
+			rows, queryErr = tx.Query(codeToEval)
+		} else {
+			dbConn, err := e.registry.GetDB(script.DBName)
+			if err != nil {
+				res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
+				appendWithDuration(res)
+				return true
+			}
+			rows, queryErr = dbConn.Query(codeToEval)
 		}
 
-		rows, err := dbConn.Query(codeToEval)
-		if err != nil {
-			res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
+		if queryErr != nil {
+			res := ScriptResult{ScriptID: script.ID, ReturnCode: queryErr.Error()}
 			appendWithDuration(res)
 			return true
 		}
@@ -525,8 +546,60 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 					continue
 				}
 			}
-			if hasErr := e.executeNodes(node.Children, results); hasErr {
-				return true
+			if node.Transaction {
+				if node.DBName == "" {
+					res := ScriptResult{
+						ScriptID:   node.GroupID,
+						ReturnCode: "transaction group is missing 'db' or 'database' attribute",
+					}
+					e.appendResult(results, res)
+					return true
+				}
+				dbConn, err := e.registry.GetDB(node.DBName)
+				if err != nil {
+					res := ScriptResult{
+						ScriptID:   node.GroupID,
+						ReturnCode: fmt.Sprintf("failed to get db connection for transaction: %v", err),
+					}
+					e.appendResult(results, res)
+					return true
+				}
+				tx, err := dbConn.Begin()
+				if err != nil {
+					res := ScriptResult{
+						ScriptID:   node.GroupID,
+						ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
+					}
+					e.appendResult(results, res)
+					return true
+				}
+
+				if e.activeTxs == nil {
+					e.activeTxs = make(map[string]*sql.Tx)
+				}
+				e.activeTxs[node.DBName] = tx
+
+				hasErr := e.executeNodes(node.Children, results)
+
+				delete(e.activeTxs, node.DBName)
+
+				if hasErr {
+					tx.Rollback()
+					return true
+				}
+
+				if err := tx.Commit(); err != nil {
+					res := ScriptResult{
+						ScriptID:   node.GroupID,
+						ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
+					}
+					e.appendResult(results, res)
+					return true
+				}
+			} else {
+				if hasErr := e.executeNodes(node.Children, results); hasErr {
+					return true
+				}
 			}
 
 		case NodeParallel:

@@ -76,6 +76,8 @@ type PipelineNode struct {
 	ForEachScript *ScriptItem    // Iterator driver script config (only used for NodeForEach)
 	Children      []PipelineNode // List of sequential child execution steps
 	ElseNodes     []PipelineNode // Else branching steps (only used for NodeIf)
+	Transaction   bool           // Start transaction for this group
+	DBName        string         // Database name for the transaction
 }
 
 // ValidateXSD invokes 'xmllint' to validate the XML file against the given XSD schema.
@@ -252,7 +254,8 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 		}
 
 	case "group":
-		var groupID, ifVar, ifEquals, condition string
+		var groupID, ifVar, ifEquals, condition, dbName string
+		var transaction bool
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
 			switch attrName {
@@ -264,6 +267,12 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 				ifEquals = attr.Value
 			case "condition", "cond":
 				condition = attr.Value
+			case "transaction":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					transaction = b
+				}
+			case "db", "database":
+				dbName = attr.Value
 			}
 		}
 		if condition != "" && ifVar == "" {
@@ -276,11 +285,13 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 		}
 
 		return &PipelineNode{
-			Kind:     NodeGroup,
-			GroupID:  groupID,
-			IfVar:    ifVar,
-			IfEquals: ifEquals,
-			Children: children,
+			Kind:        NodeGroup,
+			GroupID:     groupID,
+			IfVar:       ifVar,
+			IfEquals:    ifEquals,
+			Children:    children,
+			Transaction: transaction,
+			DBName:      dbName,
 		}, nil
 
 	case "parallel":
