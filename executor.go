@@ -479,7 +479,14 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 		wg.Add(1)
 		sem <- struct{}{}
 
-		go func(childNode PipelineNode) {
+		// Create a worker-isolated Executor with cloned variables
+		workerExec := &Executor{
+			registry: e.registry.Snapshot(),
+			goPath:   e.goPath,
+		}
+		workerExec.verbose.Store(e.verbose.Load())
+
+		go func(childNode PipelineNode, exec *Executor) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
@@ -488,7 +495,7 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 			}
 
 			var localResults []ScriptResult
-			childErr := e.executeNodes([]PipelineNode{childNode}, &localResults)
+			childErr := exec.executeNodes([]PipelineNode{childNode}, &localResults)
 
 			e.resultsMu.Lock()
 			*results = append(*results, localResults...)
@@ -497,7 +504,7 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 			if childErr {
 				hasErr.Store(true)
 			}
-		}(child)
+		}(child, workerExec)
 	}
 
 	wg.Wait()

@@ -232,4 +232,21 @@ func (r *Registry) CopyVariables() map[string]interface{} {
 	}
 	return copyMap
 }
+// Snapshot returns a new Registry instance with isolated variable storage
+// while sharing the underlying database connection handles.
+func (r *Registry) Snapshot() *Registry {
+	r.dbMu.RLock()
+	r.varMu.RLock()
+	defer r.dbMu.RUnlock()
+	defer r.varMu.RUnlock()
 
+	varsCopy := make(map[string]interface{}, len(r.varRegistry))
+	for k, v := range r.varRegistry {
+		varsCopy[k] = v
+	}
+
+	return &Registry{
+		dbRegistry:  r.dbRegistry,
+		varRegistry: varsCopy,
+	}
+}
