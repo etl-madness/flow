@@ -24,11 +24,12 @@ type ScriptResult struct {
 
 // Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
-	registry  *Registry
-	resultsMu sync.Mutex
-	verbose   atomic.Bool
-	goPath    string
-	activeTxs map[string]*sql.Tx // Track active transactions per database
+	registry   *Registry
+	resultsMu  sync.Mutex
+	verbose    atomic.Bool
+	goPath     string
+	activeTxs  map[string]*sql.Tx // Track active transactions per database
+	interpHook func(*interp.Options)
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
@@ -44,6 +45,11 @@ func (e *Executor) SetGoPath(goPath string) {
 // SetVerbose sets whether execution start and finish events should be printed to the console.
 func (e *Executor) SetVerbose(verbose bool) {
 	e.verbose.Store(verbose)
+}
+
+// SetInterpHook registers a callback to customize Yaegi interpreter options.
+func (e *Executor) SetInterpHook(hook func(*interp.Options)) {
+	e.interpHook = hook
 }
 
 // getActiveTx returns the active transaction for the specified database if one exists.
@@ -291,11 +297,15 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 
 	} else if script.Language == "go" {
 		var outBuf bytes.Buffer
-		i := interp.New(interp.Options{
+		opts := interp.Options{
 			GoPath: e.goPath,
 			Stdout: &outBuf,
 			Stderr: &outBuf,
-		})
+		}
+		if e.interpHook != nil {
+			e.interpHook(&opts)
+		}
+		i := interp.New(opts)
 
 		if err := i.Use(stdlib.Symbols); err != nil {
 			res.ReturnCode = 1

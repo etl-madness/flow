@@ -182,6 +182,34 @@ go flow.NewExecutor(registryA).Execute(nodesA)
 go flow.NewExecutor(registryB).Execute(nodesB)
 ```
 
+## 🔧 Customizing Go Interpreter Options
+
+When running dynamic Go scripts, `flow` uses the [Yaegi](https://github.com/traefik/yaegi) interpreter under the hood. You can customize the `interp.Options` struct (e.g., to enable unrestricted code execution) by registering an interpreter configuration hook before executing your pipeline nodes.
+
+### Example: Unrestricted Execution
+
+By default, Yaegi restricts some types of execution for safety. If your scripts require complete system access (like reading files, starting subprocesses, or bypassing other sandbox restrictions), you can enable `Unrestricted: true`:
+
+```go
+import (
+	"github.com/traefik/yaegi/interp"
+	"github.com/etl-madness/flow"
+)
+
+func main() {
+	executor := flow.NewExecutor(registry)
+
+	// Set a hook to modify Yaegi's interpreter options
+	executor.SetInterpHook(func(opts *interp.Options) {
+		opts.Unrestricted = true
+	})
+
+	results, err := executor.Execute(nodes)
+}
+```
+
+---
+
 ## 📢 Verbose Execution Logging
 
 To monitor the start, finish, duration, and outcome of each task in real-time as the pipeline processes them, you can enable verbose logging on the `Executor`.
@@ -350,7 +378,9 @@ For non-MSSQL destination databases (e.g. PostgreSQL, MySQL, SQLite), `flow` aut
 ├── etl_test.go         # Core placeholder unit tests
 ├── executor.go         # Core AST walker and script runner
 ├── registry.go         # Environment variable and connection pool registry
+├── transactions.md     # Documentation on database transactions
 ├── validator.go        # Semantic AST validator rules
+├── variables.md        # Documentation on variable management & usage
 └── xsd/
     └── schema.xsd      # XML validation schema
 ```
