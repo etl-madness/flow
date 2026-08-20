@@ -224,7 +224,11 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			}
 		}
 
-if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" || lang == "powershell" || lang == "bash" {
+if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" || 
+   lang == "powershell" || lang == "pwsh" || lang == "bash" || 
+   lang == "git-bash" || lang == "gitbash" || lang == "zsh" || 
+   lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" || 
+   lang == "fish" || lang == "sh" {
     if scriptID == "" {
         scriptID = fmt.Sprintf("script_%d", *scriptIndex)
         (*scriptIndex)++

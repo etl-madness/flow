@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"os"
 	"os/exec"
 	"reflect"
 	"runtime"
@@ -355,29 +356,53 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
 		appendWithDuration(res)
 
-	} else if script.Language == "shell" || script.Language == "cmd" || script.Language == "powershell" || script.Language == "bash" {
-		// Interpolate dynamic pipeline variables into command string
+	} else if isShellLanguage(script.Language) {
 		variables := e.registry.CopyVariables()
+		envVars := os.Environ()
 		for name, val := range variables {
+			envVars = append(envVars, fmt.Sprintf("%s=%v", name, val))
+			// Still support simple {{Var}} templates if needed
 			placeholder := fmt.Sprintf("{{%s}}", name)
 			codeToEval = strings.ReplaceAll(codeToEval, placeholder, fmt.Sprintf("%v", val))
 		}
 
 		var cmd *exec.Cmd
 		switch script.Language {
+		case "pwsh":
+			cmd = exec.Command("pwsh", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
 		case "powershell":
 			cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
-		case "bash":
-			cmd = exec.Command("bash", "-c", codeToEval)
+		case "bash", "zsh", "ksh", "csh", "tcsh", "dash", "fish", "sh":
+			cmd = exec.Command(script.Language, "-c", codeToEval)
+		case "git-bash", "gitbash":
+			bashExec := "bash"
+			if _, err := exec.LookPath("git-bash"); err == nil {
+				bashExec = "git-bash"
+			} else if _, err := exec.LookPath("bash"); err == nil {
+				bashExec = "bash"
+			} else if _, err := os.Stat(`C:\Program Files\Git\bin\bash.exe`); err == nil {
+				bashExec = `C:\Program Files\Git\bin\bash.exe`
+			}
+			cmd = exec.Command(bashExec, "-c", codeToEval)
 		case "cmd":
 			cmd = exec.Command("cmd", "/C", codeToEval)
-		default: // "shell" fallback based on OS
-			if runtime.GOOS == "windows" {
-				cmd = exec.Command("cmd", "/C", codeToEval)
+		default: // "shell" fallback based on OS / environment
+			if userShell := os.Getenv("SHELL"); userShell != "" {
+				cmd = exec.Command(userShell, "-c", codeToEval)
 			} else {
-				cmd = exec.Command("sh", "-c", codeToEval)
+				switch runtime.GOOS {
+				case "windows":
+					cmd = exec.Command("cmd", "/C", codeToEval)
+				case "darwin": // macOS
+					cmd = exec.Command("zsh", "-c", codeToEval)
+				case "freebsd":
+					cmd = exec.Command("sh", "-c", codeToEval)
+				default: // linux, openbsd, netbsd
+					cmd = exec.Command("sh", "-c", codeToEval)
+				}
 			}
 		}
+		cmd.Env = envVars
 
 		outBytes, err := cmd.CombinedOutput()
 		outStr := string(outBytes)
@@ -681,4 +706,15 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 		}
 	}
 	return false
+}
+
+// Place at the bottom of executor.go
+func isShellLanguage(lang string) bool {
+	switch lang {
+	case "shell", "cmd", "powershell", "pwsh", "bash", "git-bash", "gitbash",
+		"zsh", "ksh", "csh", "tcsh", "dash", "fish", "sh":
+		return true
+	default:
+		return false
+	}
 }

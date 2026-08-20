@@ -1,9 +1,92 @@
 package flow
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 )
 
+// TestShellVariablePassing verifies that output_var variables pass correctly
+// between shell execution steps.
+// TestShellVariablePassing verifies that output_var variables pass correctly
+// between shell execution steps using environment variables.
+func TestShellVariablePassing(t *testing.T) {
+	lang := "bash"
+	varCmd := "echo Data: $GCLOUD_BILLING_JSON"
+
+	if runtime.GOOS == "windows" {
+		lang = "cmd"
+		varCmd = "echo Data: %GCLOUD_BILLING_JSON%"
+	}
+
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<scripts>
+			<script id="extract" language="` + lang + `" output_var="GCLOUD_BILLING_JSON">
+				echo {"account_id": "12345"}
+			</script>
+			<script id="echo_data" language="` + lang + `">
+				` + varCmd + `
+			</script>
+		</scripts>
+	</pipeline>`)
+
+	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(varConfigs); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+	if err := registry.InitDatabases(dbConfigs); err != nil {
+		t.Fatalf("failed to init databases: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(nodes)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 script results, got %d", len(results))
+	}
+
+	outStr := results[1].ResultsString
+	expected := `{"account_id": "12345"}`
+	if runtime.GOOS == "windows" {
+		expected = `{\"account_id\": \"12345\"}`
+	}
+	if !strings.Contains(outStr, expected) {
+		t.Errorf("expected output to contain json string, got: %s", outStr)
+	}
+}
+
+// TestIsShellLanguage tests validation of supported shell language identifiers.
+func TestIsShellLanguage(t *testing.T) {
+	validShells := []string{
+		"shell", "cmd", "powershell", "pwsh", "bash", "git-bash",
+		"gitbash", "zsh", "ksh", "csh", "tcsh", "dash", "fish", "sh",
+	}
+
+	for _, shell := range validShells {
+		if !isShellLanguage(shell) {
+			t.Errorf("expected isShellLanguage('%s') to be true", shell)
+		}
+	}
+
+	invalidShells := []string{"sql", "go", "python", "ruby", "javascript"}
+	for _, shell := range invalidShells {
+		if isShellLanguage(shell) {
+			t.Errorf("expected isShellLanguage('%s') to be false", shell)
+		}
+	}
+}
+
+// TestGroupTransactions verifies transaction commits and rollbacks within group blocks.
 func TestGroupTransactions(t *testing.T) {
 	// Initialize in-memory SQLite database
 	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
