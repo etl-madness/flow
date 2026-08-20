@@ -75,6 +75,10 @@
                         <xs:restriction base="xs:string">
                             <xs:enumeration value="sql" />
                             <xs:enumeration value="go" />
+                            <xs:enumeration value="shell" />
+                            <xs:enumeration value="cmd" />
+                            <xs:enumeration value="powershell" />
+                            <xs:enumeration value="bash" />
                         </xs:restriction>
                     </xs:simpleType>
                 </xs:attribute>

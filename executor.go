@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"os/exec"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -206,7 +208,6 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 		e.registry.SetVar(outputVar, output)
 	}
 }
-
 func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	if e.verbose.Load() {
@@ -353,10 +354,49 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		res.ResultsString = outBuf.String()
 		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
 		appendWithDuration(res)
+
+	} else if script.Language == "shell" || script.Language == "cmd" || script.Language == "powershell" || script.Language == "bash" {
+		// Interpolate dynamic pipeline variables into command string
+		variables := e.registry.CopyVariables()
+		for name, val := range variables {
+			placeholder := fmt.Sprintf("{{%s}}", name)
+			codeToEval = strings.ReplaceAll(codeToEval, placeholder, fmt.Sprintf("%v", val))
+		}
+
+		var cmd *exec.Cmd
+		switch script.Language {
+		case "powershell":
+			cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
+		case "bash":
+			cmd = exec.Command("bash", "-c", codeToEval)
+		case "cmd":
+			cmd = exec.Command("cmd", "/C", codeToEval)
+		default: // "shell" fallback based on OS
+			if runtime.GOOS == "windows" {
+				cmd = exec.Command("cmd", "/C", codeToEval)
+			} else {
+				cmd = exec.Command("sh", "-c", codeToEval)
+			}
+		}
+
+		outBytes, err := cmd.CombinedOutput()
+		outStr := string(outBytes)
+
+		if err != nil {
+			res.ReturnCode = err.Error()
+			res.ResultsString = outStr
+			appendWithDuration(res)
+			return true
+		}
+
+		res.ReturnCode = 0
+		res.ResultsString = outStr
+		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outStr))
+		appendWithDuration(res)
 	}
+
 	return false
 }
-
 func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	script := node.ForEachScript
