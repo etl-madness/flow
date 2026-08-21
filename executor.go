@@ -356,6 +356,55 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
 		appendWithDuration(res)
 
+	} else if script.Language == "dotnet-script" || script.Language == "csx" {
+		tmpFile, err := os.CreateTemp("", "flow_script_*.csx")
+		if err != nil {
+			res.ReturnCode = 1
+			res.ResultsString = fmt.Sprintf("failed to create temp file: %v", err)
+			appendWithDuration(res)
+			return true
+		}
+		tempPath := tmpFile.Name()
+		defer os.Remove(tempPath)
+
+		if _, err := tmpFile.WriteString(codeToEval); err != nil {
+			tmpFile.Close()
+			res.ReturnCode = 1
+			res.ResultsString = fmt.Sprintf("failed to write script content: %v", err)
+			appendWithDuration(res)
+			return true
+		}
+		tmpFile.Close()
+
+		variables := e.registry.CopyVariables()
+		envVars := os.Environ()
+		for name, val := range variables {
+			envVars = append(envVars, fmt.Sprintf("%s=%v", name, val))
+		}
+
+		var cmd *exec.Cmd
+		if _, err := exec.LookPath("dotnet-script"); err == nil {
+			cmd = exec.Command("dotnet-script", tempPath)
+		} else {
+			cmd = exec.Command("dotnet", "script", tempPath)
+		}
+		cmd.Env = envVars
+
+		outBytes, err := cmd.CombinedOutput()
+		outStr := string(outBytes)
+
+		if err != nil {
+			res.ReturnCode = err.Error()
+			res.ResultsString = outStr
+			appendWithDuration(res)
+			return true
+		}
+
+		res.ReturnCode = 0
+		res.ResultsString = outStr
+		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outStr))
+		appendWithDuration(res)
+
 	} else if isShellLanguage(script.Language) {
 		variables := e.registry.CopyVariables()
 		envVars := os.Environ()

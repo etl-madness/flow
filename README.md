@@ -17,12 +17,13 @@
 ---
 ## 🐚 OS Shell & Command Execution
 
-`flow` supports executing native host shell commands and binaries directly on the operating system without passing through the Go interpreter[cite: 4]. Supported `language` options on `<script>` tags include:
+`flow` supports, in addition to database connections, the execution of native host shell commands and binaries directly on the operating system without passing through the Go interpreter[cite: 4]. Supported `language` options on `<script>` tags include:
 
 * **`shell`**: Cross-platform default shell (`cmd /C` on Windows, `sh -c` on Linux/macOS)[cite: 4].
 * **`cmd`**: Windows Command Prompt (`cmd /C`)[cite: 4].
-* **`powershell`**: Windows PowerShell (`powershell -NoProfile -NonInteractive -Command`)[cite: 4].
-* **`bash`**: GNU Bash (`bash -c`)[cite: 4].
+* **`powershell,pwsh`**: Windows PowerShell (`powershell -NoProfile -NonInteractive -Command`)[cite: 4].
+* **`bash,zsh,ksh,csh,tcsh,dash,fish,sh`**: Various Unix shells (`bash -c`, `zsh -c`, etc.)[cite: 4].
+* **`dotnet-script`** (or **`csx`**): Executed using C# script files with `dotnet-script` or `dotnet script`. Allows full inline C# execution including external NuGet package references (`#r "nuget: ..."`). This requires the `dotnet-script` tool to be installed on the host machine and the ability to create temporary files.
 
 ### Key Capabilities
 * **Variable Interpolation**: Use `{{var_name}}` syntax inside script bodies to dynamically inject pipeline variables[cite: 3, 4].

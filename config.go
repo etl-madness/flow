@@ -228,7 +228,7 @@ if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" ||
    lang == "powershell" || lang == "pwsh" || lang == "bash" || 
    lang == "git-bash" || lang == "gitbash" || lang == "zsh" || 
    lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" || 
-   lang == "fish" || lang == "sh" {
+   lang == "fish" || lang == "sh" || lang == "dotnet-script" || lang == "csx" {
     if scriptID == "" {
         scriptID = fmt.Sprintf("script_%d", *scriptIndex)
         (*scriptIndex)++

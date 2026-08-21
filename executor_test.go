@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
@@ -180,3 +181,70 @@ func TestGroupTransactions(t *testing.T) {
 		t.Errorf("expected 2 rows after rolled back group, got %d (cherry was not rolled back)", count)
 	}
 }
+
+// TestDotnetScriptExecution verifies that dotnet script blocks execute, can resolve environment variables,
+// and correctly pass variables out of the script.
+func TestDotnetScriptExecution(t *testing.T) {
+	hasDotnetScript := false
+	if _, err := exec.LookPath("dotnet-script"); err == nil {
+		hasDotnetScript = true
+	} else if _, err := exec.LookPath("dotnet"); err == nil {
+		// check if dotnet script works
+		cmd := exec.Command("dotnet", "script", "--version")
+		if err := cmd.Run(); err == nil {
+			hasDotnetScript = true
+		}
+	}
+
+	if !hasDotnetScript {
+		t.Skip("dotnet-script or dotnet script is not installed/available in PATH")
+	}
+
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<variables>
+			<variable name="TEST_VAR" value="AntigravityPower" />
+		</variables>
+		<scripts>
+			<script id="cs_test" language="dotnet-script" output_var="CS_OUT">
+				using System;
+				var val = Environment.GetEnvironmentVariable("TEST_VAR");
+				Console.Write("CSharpOutput: " + val);
+			</script>
+		</scripts>
+	</pipeline>`)
+
+	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(varConfigs); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+	if err := registry.InitDatabases(dbConfigs); err != nil {
+		t.Fatalf("failed to init databases: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(nodes)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	outStr := results[0].ResultsString
+	if !strings.Contains(outStr, "CSharpOutput: AntigravityPower") {
+		t.Errorf("expected output to contain 'CSharpOutput: AntigravityPower', got: %s", outStr)
+	}
+
+	if registry.GetVarString("CS_OUT") != "CSharpOutput: AntigravityPower" {
+		t.Errorf("expected CS_OUT variable to be 'CSharpOutput: AntigravityPower', got: %v", registry.GetVar("CS_OUT"))
+	}
+}
+

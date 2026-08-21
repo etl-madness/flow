@@ -50,6 +50,17 @@ func main() {
 }
 ```
 
+### C# Scripts (`dotnet-script` / `csx` Environment Variables)
+Inside dynamic C# scripts, all registry variables are loaded directly into the OS process environment. You can retrieve them using:
+
+*   `Environment.GetEnvironmentVariable("VariableName")`
+
+```csharp
+using System;
+string targetTable = Environment.GetEnvironmentVariable("TargetTable");
+Console.WriteLine($"Writing to {targetTable}");
+```
+
 ---
 
 ## 3. Setting Variables in Scripts
@@ -77,6 +88,18 @@ Because the Yaegi host bindings do not expose a variable mutation method, you wr
         // Captured directly by "ResultScore"
         fmt.Printf("%.1f", score)
     }
+</script>
+```
+
+### C# Scripts (`output_var` / Stdout Capture)
+Similar to Go and shell scripts, `dotnet-script` outputs to **stdout** are captured by the `output_var` attribute and stored back into the pipeline variable registry.
+
+```xml
+<script id="CsharpCalc" language="dotnet-script" output_var="ResultSum">
+    using System;
+    int a = 10;
+    int b = 20;
+    Console.Write(a + b); // Captured directly by "ResultSum"
 </script>
 ```
 
@@ -205,3 +228,38 @@ For complex, structured data, you can output a JSON string, capture it, and pars
     </scripts>
 </pipeline>
 ```
+
+### Example C: Inter-operating Go and C# Scripts
+You can easily pass state between dynamic Go interpreter scripts and C# process-executed scripts using variables.
+
+```xml
+<pipeline>
+    <variables>
+        <variable name="Threshold" type="int" value="42" />
+    </variables>
+    <scripts>
+        <!-- Step 1: Read Threshold variable in C#, run calculations, and store output -->
+        <script id="CsharpStep" language="dotnet-script" output_var="CS_Result">
+            using System;
+            string rawThreshold = Environment.GetEnvironmentVariable("Threshold");
+            if (int.TryParse(rawThreshold, out int threshold)) {
+                Console.Write($"Threshold was {threshold}, calculated result is {threshold * 2}");
+            }
+        </script>
+
+        <!-- Step 2: Use the C# result inside a Go script -->
+        <script id="GoStep" language="go">
+            package main
+            import (
+                "fmt"
+                "host/vars/vars"
+            )
+            func main() {
+                csVal := vars.GetString("CS_Result")
+                fmt.Printf("Go received from C#: %s\n", csVal)
+            }
+        </script>
+    </scripts>
+</pipeline>
+```
+
