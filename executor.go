@@ -329,6 +329,8 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 			"GetInt":    reflect.ValueOf(e.registry.GetVarInt),
 			"GetBool":   reflect.ValueOf(e.registry.GetVarBool),
 			"GetFloat":  reflect.ValueOf(e.registry.GetVarFloat),
+			"GetTime":     reflect.ValueOf(e.registry.GetVarTime),
+			"GetDateTime": reflect.ValueOf(e.registry.GetVarTime), // Optional alias for convenience
 		}
 
 		if err := i.Use(interp.Exports{
@@ -609,7 +611,6 @@ func (e *Executor) executeWhileNode(node PipelineNode, results *[]ScriptResult) 
 
 	return false
 }
-
 func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResult) bool {
 	maxThreads := node.MaxThreads
 	if maxThreads <= 0 {
@@ -620,13 +621,19 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 	var wg sync.WaitGroup
 	var hasErr atomic.Bool
 
-	for _, child := range node.Children {
+	// Track worker registries to collect variables after execution
+	workerRegistries := make([]*Registry, len(node.Children))
+
+	for i, child := range node.Children {
 		wg.Add(1)
 		sem <- struct{}{}
 
-		// Create a worker-isolated Executor with cloned variables
+		// Create worker-isolated Executor with cloned variables
+		workerReg := e.registry.Snapshot()
+		workerRegistries[i] = workerReg
+
 		workerExec := &Executor{
-			registry: e.registry.Snapshot(),
+			registry: workerReg,
 			goPath:   e.goPath,
 		}
 		workerExec.verbose.Store(e.verbose.Load())
@@ -653,6 +660,14 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 	}
 
 	wg.Wait()
+
+	// Merge variables from worker threads back into the main pipeline registry
+	for _, wReg := range workerRegistries {
+		if wReg != nil {
+			e.registry.MergeVariables(wReg.CopyVariables())
+		}
+	}
+
 	return hasErr.Load()
 }
 

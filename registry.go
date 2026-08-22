@@ -232,6 +232,49 @@ func (r *Registry) CopyVariables() map[string]interface{} {
 	}
 	return copyMap
 }
+
+// GetVarTime retrieves a variable and returns its value as time.Time (parsing string dates if necessary).
+func (r *Registry) GetVarTime(name string) time.Time {
+	val := r.GetVar(name)
+	if val == nil {
+		return time.Time{}
+	}
+	if t, ok := val.(time.Time); ok {
+		return t
+	}
+	if str, ok := val.(string); ok {
+		str = strings.TrimSpace(str)
+		if str == "" {
+			return time.Time{}
+		}
+
+		// Common SQL, ISO, and standard date/time layouts
+		layouts := []string{
+			"2006-01-02 15:04:05",
+			"2006-01-02 15:04:05.999",
+			"2006-01-02 15:04:05.999999",
+			time.RFC3339,
+			"2006-01-02T15:04:05",
+			"2006-01-02",
+		}
+
+		for _, layout := range layouts {
+			if t, err := time.Parse(layout, str); err == nil {
+				return t
+			}
+		}
+	}
+	return time.Time{}
+}
+
+// MergeVariables copies variable key-value pairs into the parent registry.
+func (r *Registry) MergeVariables(src map[string]interface{}) {
+	r.varMu.Lock()
+	defer r.varMu.Unlock()
+	for k, v := range src {
+		r.varRegistry[k] = v
+	}
+}
 // Snapshot returns a new Registry instance with isolated variable storage
 // while sharing the underlying database connection handles.
 func (r *Registry) Snapshot() *Registry {
