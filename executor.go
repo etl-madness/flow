@@ -334,10 +334,8 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		}
 
 		if err := i.Use(interp.Exports{
-			"host/db/db":          dbExports,
-			"host/db/db/db":       dbExports,
-			"host/vars/vars":      varsExports,
-			"host/vars/vars/vars": varsExports,
+			"host/db":          dbExports,
+			"host/vars":      varsExports,
 		}); err != nil {
 			res.ReturnCode = 1
 			res.ResultsString = fmt.Sprintf("Failed to export packages: %v", err)

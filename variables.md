@@ -27,7 +27,7 @@ For SQL scripts, variables are dynamically interpolated before execution using d
 ```
 
 ### Go Scripts (Yaegi `vars` Exports)
-Inside dynamic Go scripts, variables are retrieved using the built-in host package `"host/vars/vars"`. The package exposes typed getters:
+Inside dynamic Go scripts, variables are retrieved using the built-in host package `"host/vars"`. The package exposes typed getters:
 
 *   `vars.Get(name string) interface{}`
 *   `vars.GetString(name string) string`
@@ -40,7 +40,7 @@ package main
 
 import (
     "fmt"
-    "host/vars/vars"
+    "host/vars"
 )
 
 func main() {
@@ -156,7 +156,7 @@ When you need to output multiple distinct values from a script to be consumed as
                 "fmt"
                 "strings"
                 "strconv"
-                "host/vars/vars"
+                "host/vars"
             )
             func main() {
                 raw := vars.GetString("MultiParams")
@@ -208,7 +208,7 @@ For complex, structured data, you can output a JSON string, capture it, and pars
             import (
                 "encoding/json"
                 "fmt"
-                "host/vars/vars"
+                "host/vars"
             )
             type ConnectionDetails struct {
                 Host string `json:"host"`
@@ -252,7 +252,7 @@ You can easily pass state between dynamic Go interpreter scripts and C# process-
             package main
             import (
                 "fmt"
-                "host/vars/vars"
+                "host/vars"
             )
             func main() {
                 csVal := vars.GetString("CS_Result")

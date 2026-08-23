@@ -150,7 +150,7 @@ func main() {
 				package main
 				import (
 					"fmt"
-					"host/vars/vars"
+					"host/vars"
 				)
 				func main() {
 					tbl := vars.GetString("TargetTable")
