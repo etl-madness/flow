@@ -325,18 +325,20 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		}
 
 		varsExports := map[string]reflect.Value{
-			"Get":       reflect.ValueOf(e.registry.GetVar),
-			"GetString": reflect.ValueOf(e.registry.GetVarString),
-			"GetInt":    reflect.ValueOf(e.registry.GetVarInt),
-			"GetBool":   reflect.ValueOf(e.registry.GetVarBool),
-			"GetFloat":  reflect.ValueOf(e.registry.GetVarFloat),
+			"Get":         reflect.ValueOf(e.registry.GetVar),
+			"GetString":   reflect.ValueOf(e.registry.GetVarString),
+			"GetInt":      reflect.ValueOf(e.registry.GetVarInt),
+			"GetBool":     reflect.ValueOf(e.registry.GetVarBool),
+			"GetFloat":    reflect.ValueOf(e.registry.GetVarFloat),
 			"GetTime":     reflect.ValueOf(e.registry.GetVarTime),
 			"GetDateTime": reflect.ValueOf(e.registry.GetVarTime), // Optional alias for convenience
 		}
 
 		if err := i.Use(interp.Exports{
-			"host/db":          dbExports,
+			"host/db":        dbExports,
 			"host/vars":      varsExports,
+			"host/db/db":     dbExports,
+			"host/vars/vars": varsExports,
 		}); err != nil {
 			res.ReturnCode = 1
 			res.ResultsString = fmt.Sprintf("Failed to export packages: %v", err)
