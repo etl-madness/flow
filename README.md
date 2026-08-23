@@ -95,7 +95,7 @@ func (r *Registry) GetVarBool(name string) bool
 type Executor struct { ... }
 
 func NewExecutor(r *Registry) *Executor
-func (e *Executor) Execute(nodes []PipelineNode) ([]ScriptResult, error)
+func (e *Executor) Execute(ctx context.Context, nodes []PipelineNode) ([]ScriptResult, error)
 func (e *Executor) SetVerbose(verbose bool)
 func (e *Executor) SetGoPath(goPath string) // sets the GOPATH for the embedded Go interpreter (Yaegi) to resolve imports during script execution.
 
@@ -118,6 +118,7 @@ The following example demonstrates how to load, parse, validate, and execute an 
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -189,7 +190,7 @@ func main() {
 
 	// 4. Instantiate Executor and run the pipeline
 	executor := flow.NewExecutor(registry)
-	results, err := executor.Execute(nodes)
+	results, err := executor.Execute(context.Background(), nodes)
 	if err != nil {
 		log.Fatalf("Execution encountered errors: %v", err)
 	}
@@ -216,8 +217,8 @@ registryA := flow.NewRegistry()
 registryB := flow.NewRegistry()
 
 // Run independent pipelines in parallel
-go flow.NewExecutor(registryA).Execute(nodesA)
-go flow.NewExecutor(registryB).Execute(nodesB)
+go flow.NewExecutor(registryA).Execute(context.Background(), nodesA)
+go flow.NewExecutor(registryB).Execute(context.Background(), nodesB)
 ```
 
 ## 🔧 Customizing Go Interpreter Options
@@ -230,6 +231,7 @@ By default, Yaegi restricts some types of execution for safety. If your scripts 
 
 ```go
 import (
+	"context"
 	"github.com/traefik/yaegi/interp"
 	"github.com/etl-madness/flow"
 )
@@ -242,7 +244,7 @@ func main() {
 		opts.Unrestricted = true
 	})
 
-	results, err := executor.Execute(nodes)
+	results, err := executor.Execute(context.Background(), nodes)
 }
 ```
 
@@ -261,7 +263,7 @@ executor := flow.NewExecutor(registry)
 // Enable verbose logging to console
 executor.SetVerbose(true)
 
-results, err := executor.Execute(nodes)
+results, err := executor.Execute(context.Background(), nodes)
 ```
 
 ### Console Output Format
@@ -289,8 +291,13 @@ The `<parallel>` block allows you to execute multiple child nodes concurrently. 
 
 ### How it Works
 1. **Concurrency Throttle (`max_threads`)**: You can specify the `max_threads` attribute on a `<parallel>` block. If unspecified or set to `<= 0`, it defaults to `4`. The engine uses a buffered channel semaphore to guarantee that no more than `max_threads` goroutines run concurrently.
-2. **Fail-Fast Error Propagation**: If any concurrent child node encounters an error, a thread-safe atomic flag is tripped. Any pending child goroutines in that block will check this flag and immediately skip execution (`fail-fast`), preventing wasted compute resources.
-3. **Thread-Safe Results Accumulation**: All script and task outcomes are safely accumulated into the final results list via internal mutex locking (`resultsMu`).
+2. **Fail-Fast Error & Context Cancellation**: If any concurrent child node encounters an error or if the pipeline `context.Context` is cancelled/timed out, execution halts immediately (`fail-fast`), preventing wasted compute resources.
+3. **Variable Isolation & Conflict Resolution**:
+   - Each parallel worker is isolated with a cloned registry snapshot containing the state of variables at the moment of start.
+   - Each worker's registry receives a thread-specific variable named `_THREAD_ID`.
+   - To prevent stale overwrites, only variables actually modified (`dirtyVars`) by a worker are considered during the merge phase.
+   - If multiple parallel workers mutate the same variable name, they are automatically namespaced as `WORKER_<id>_<name>` to prevent race conditions or collisions. Non-colliding keys merge directly back into the parent registry.
+4. **Thread-Safe Results Accumulation**: All script and task outcomes are safely accumulated into the final results list via internal mutex locking (`resultsMu`).
 
 ### XML Configuration Example
 The following XML segment configures a parallel block of 3 tasks running with a maximum concurrency limit of 2:

@@ -28,6 +28,7 @@ type Registry struct {
 	dbMu        sync.RWMutex
 	varRegistry map[string]interface{}
 	varMu       sync.RWMutex
+	dirtyVars   map[string]struct{} // Tracks keys set after snapshotting
 }
 
 // NewRegistry instantiates and returns an empty Registry context.
@@ -35,6 +36,7 @@ func NewRegistry() *Registry {
 	return &Registry{
 		dbRegistry:  make(map[string]DBHandle),
 		varRegistry: make(map[string]interface{}),
+		dirtyVars:   make(map[string]struct{}),
 	}
 }
 
@@ -43,6 +45,9 @@ func (r *Registry) SetVar(name string, value interface{}) {
 	r.varMu.Lock()
 	defer r.varMu.Unlock()
 	r.varRegistry[name] = value
+	if r.dirtyVars != nil {
+		r.dirtyVars[name] = struct{}{}
+	}
 }
 
 // GetVar retrieves an environment variable's raw interface value in a thread-safe manner.
@@ -291,5 +296,6 @@ func (r *Registry) Snapshot() *Registry {
 	return &Registry{
 		dbRegistry:  r.dbRegistry,
 		varRegistry: varsCopy,
+		dirtyVars:   make(map[string]struct{}),
 	}
 }

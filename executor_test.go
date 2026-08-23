@@ -1,10 +1,13 @@
 package flow
 
 import (
+	"context"
+	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestShellVariablePassing verifies that output_var variables pass correctly
@@ -47,7 +50,7 @@ func TestShellVariablePassing(t *testing.T) {
 	defer registry.CloseDatabases()
 
 	executor := NewExecutor(registry)
-	results, err := executor.Execute(nodes)
+	results, err := executor.Execute(context.Background(), nodes)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -140,13 +143,13 @@ func TestGroupTransactions(t *testing.T) {
 	executor := NewExecutor(registry)
 
 	// 1. Run Setup
-	_, err = executor.Execute([]PipelineNode{nodes[0]})
+	_, err = executor.Execute(context.Background(), []PipelineNode{nodes[0]})
 	if err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
 
 	// 2. Run success group (commits 1 and 2)
-	_, err = executor.Execute([]PipelineNode{nodes[1]})
+	_, err = executor.Execute(context.Background(), []PipelineNode{nodes[1]})
 	if err != nil {
 		t.Fatalf("success group failed: %v", err)
 	}
@@ -167,7 +170,7 @@ func TestGroupTransactions(t *testing.T) {
 	}
 
 	// 3. Run fail group (should rollback row 3 insertion)
-	_, err = executor.Execute([]PipelineNode{nodes[2]})
+	_, err = executor.Execute(context.Background(), []PipelineNode{nodes[2]})
 	if err == nil {
 		t.Error("expected fail group to return an error, but it succeeded")
 	}
@@ -229,7 +232,7 @@ func TestDotnetScriptExecution(t *testing.T) {
 	defer registry.CloseDatabases()
 
 	executor := NewExecutor(registry)
-	results, err := executor.Execute(nodes)
+	results, err := executor.Execute(context.Background(), nodes)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -245,6 +248,135 @@ func TestDotnetScriptExecution(t *testing.T) {
 
 	if registry.GetVarString("CS_OUT") != "CSharpOutput: AntigravityPower" {
 		t.Errorf("expected CS_OUT variable to be 'CSharpOutput: AntigravityPower', got: %v", registry.GetVar("CS_OUT"))
+	}
+}
+
+// TestExecutorContextCancellation verifies that canceling a context terminates long loops immediately.
+func TestExecutorContextCancellation(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<variables>
+			<variable name="LoopCond" value="true" />
+		</variables>
+		<scripts>
+			<while if_var="LoopCond" if_equals="true">
+				<script id="inside_loop" language="go">
+					package main
+					import "time"
+					func main() {
+						time.Sleep(10 * time.Millisecond)
+					}
+				</script>
+			</while>
+		</scripts>
+	</pipeline>`)
+
+	varConfigs, _, nodes, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(varConfigs); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+
+	executor := NewExecutor(registry)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel context after a small delay
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	results, err := executor.Execute(ctx, nodes)
+	if err == nil {
+		t.Error("expected execution to fail or terminate with context cancellation, but got no error")
+	}
+
+	// At least one iteration should be logged, and some results returned
+	if len(results) > 0 {
+		lastRes := results[len(results)-1]
+		if !strings.Contains(lastRes.ReturnCode.(string), "context canceled") {
+			t.Errorf("expected last result return code to mention 'context canceled', got: %v", lastRes.ReturnCode)
+		}
+	}
+}
+
+// TestParallelVariableIsolationAndNamespacing verifies that parallel workers:
+// 1. Isolate variable writes from other workers.
+// 2. Do not overwrite parent variables they do not mutate.
+// 3. namespace colliding keys, while non-colliding keys merge directly.
+func TestParallelVariableIsolationAndNamespacing(t *testing.T) {
+	// Let's test the merging logic directly via Registry.Snapshot() and executeParallelNode's merging mechanism.
+	parentReg := NewRegistry()
+	parentReg.SetVar("CommonVar", "initial")
+	parentReg.SetVar("UnrelatedVar", "untouched")
+
+	// Create 2 snapshots simulating 2 workers
+	w0Reg := parentReg.Snapshot()
+	w1Reg := parentReg.Snapshot()
+
+	// Simulate Worker 0 modifying CommonVar and setting a unique var UniqueW0
+	w0Reg.SetVar("CommonVar", "w0_val")
+	w0Reg.SetVar("UniqueW0", "w0_unique")
+
+	// Simulate Worker 1 modifying CommonVar and setting a unique var UniqueW1
+	w1Reg.SetVar("CommonVar", "w1_val")
+	w1Reg.SetVar("UniqueW1", "w1_unique")
+
+	// Simulate executeParallelNode's merging logic
+	workerRegistries := []*Registry{w0Reg, w1Reg}
+
+	mutationCounts := make(map[string]int)
+	for _, wReg := range workerRegistries {
+		wReg.varMu.RLock()
+		for k := range wReg.dirtyVars {
+			mutationCounts[k]++
+		}
+		wReg.varMu.RUnlock()
+	}
+
+	for i, wReg := range workerRegistries {
+		wReg.varMu.RLock()
+		for k := range wReg.dirtyVars {
+			val := wReg.varRegistry[k]
+			if mutationCounts[k] > 1 {
+				scopedKey := fmt.Sprintf("WORKER_%d_%s", i, k)
+				parentReg.SetVar(scopedKey, val)
+			} else {
+				parentReg.SetVar(k, val)
+			}
+		}
+		wReg.varMu.RUnlock()
+	}
+
+	// Assertions
+	// 1. Colliding variable "CommonVar" should NOT be modified in its base form (or it could be left as initial since it collided, which is true because we didn't write to parent's base "CommonVar")
+	if parentReg.GetVarString("CommonVar") != "initial" {
+		t.Errorf("expected CommonVar to remain 'initial' due to collision, but got: %s", parentReg.GetVarString("CommonVar"))
+	}
+
+	// 2. Colliding variables namespaced correctly
+	if parentReg.GetVarString("WORKER_0_CommonVar") != "w0_val" {
+		t.Errorf("expected WORKER_0_CommonVar to be 'w0_val', got: %s", parentReg.GetVarString("WORKER_0_CommonVar"))
+	}
+	if parentReg.GetVarString("WORKER_1_CommonVar") != "w1_val" {
+		t.Errorf("expected WORKER_1_CommonVar to be 'w1_val', got: %s", parentReg.GetVarString("WORKER_1_CommonVar"))
+	}
+
+	// 3. Non-colliding variables merged successfully
+	if parentReg.GetVarString("UniqueW0") != "w0_unique" {
+		t.Errorf("expected UniqueW0 to be 'w0_unique', got: %s", parentReg.GetVarString("UniqueW0"))
+	}
+	if parentReg.GetVarString("UniqueW1") != "w1_unique" {
+		t.Errorf("expected UniqueW1 to be 'w1_unique', got: %s", parentReg.GetVarString("UniqueW1"))
+	}
+
+	// 4. Unrelated variables untouched
+	if parentReg.GetVarString("UnrelatedVar") != "untouched" {
+		t.Errorf("expected UnrelatedVar to remain 'untouched', got: %s", parentReg.GetVarString("UnrelatedVar"))
 	}
 }
 

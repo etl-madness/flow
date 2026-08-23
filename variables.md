@@ -11,7 +11,7 @@ Variables are kept in a single unified registry, but their behavior and scope ch
 | Scope | Context | Behavior |
 | :--- | :--- | :--- |
 | **Global / Registry** | Sequential execution | Read and write actions are immediate and shared. Scripts executing in a sequence (inside a standard group or root block) can read variables written by preceding scripts. |
-| **Thread-Isolated** | `<parallel>` blocks | When running concurrent branches, Flow **snapshots (clones)** the registry's variables for each worker thread. Changes made to variables inside a parallel worker remain isolated to that worker and do not leak back or interfere with other concurrent workers. |
+| **Thread-Isolated** | `<parallel>` blocks | When running concurrent branches, Flow **snapshots (clones)** the registry's variables for each worker thread, injecting a unique thread-specific `_THREAD_ID` variable (starting from `0`). Only variables mutated by a worker (`dirty` variables) are merged back to the parent. If multiple parallel workers mutate the same key, a conflict-resolution routine namespaces them into `WORKER_<id>_<key>` to prevent race conditions or overwriting concurrent edits with stale values. |
 
 ---
 

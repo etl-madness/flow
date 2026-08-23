@@ -2,6 +2,7 @@ package flow
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -64,9 +65,9 @@ func (e *Executor) getActiveTx(dbName string) *sql.Tx {
 }
 
 // Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
-func (e *Executor) Execute(nodes []PipelineNode) ([]ScriptResult, error) {
+func (e *Executor) Execute(ctx context.Context, nodes []PipelineNode) ([]ScriptResult, error) {
 	var results []ScriptResult
-	hasErr := e.executeNodes(nodes, &results)
+	hasErr := e.executeNodes(ctx, nodes, &results)
 	if hasErr {
 		return results, fmt.Errorf("pipeline execution encountered errors")
 	}
@@ -122,7 +123,7 @@ func (e *Executor) evalCondition(varName string, expectedVal string) bool {
 	}
 }
 
-func (e *Executor) executeSQLScript(dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
+func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
 	if dbName == "" {
 		return "", "", fmt.Errorf("missing 'db' attribute on <script language=\"sql\"> tag")
 	}
@@ -136,13 +137,13 @@ func (e *Executor) executeSQLScript(dbName string, queryStr string) (resultsStri
 	var rows *sql.Rows
 	var queryErr error
 	if tx := e.getActiveTx(dbName); tx != nil {
-		rows, queryErr = tx.Query(queryStr)
+		rows, queryErr = tx.QueryContext(ctx, queryStr)
 	} else {
 		dbConn, err := e.registry.GetDB(dbName)
 		if err != nil {
 			return "", "", err
 		}
-		rows, queryErr = dbConn.Query(queryStr)
+		rows, queryErr = dbConn.QueryContext(ctx, queryStr)
 	}
 	if queryErr != nil {
 		return "", "", queryErr
@@ -209,7 +210,7 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 		e.registry.SetVar(outputVar, output)
 	}
 }
-func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult) bool {
+func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	if e.verbose.Load() {
 		if script.Language == "sql" {
@@ -274,7 +275,7 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 				KeepNulls:        script.KeepNulls,
 			}
 
-			copied, err := StreamETL(e.registry, script.DBName, codeToEval, targetDB, targetTable, opts)
+			copied, err := StreamETL(ctx, e.registry, script.DBName, codeToEval, targetDB, targetTable, opts)
 			if err != nil {
 				res.ReturnCode = err.Error()
 				appendWithDuration(res)
@@ -285,7 +286,7 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 			e.storeScriptOutput(script.OutputVar, fmt.Sprintf("%d", copied))
 			appendWithDuration(res)
 		} else {
-			logOutput, rawOutput, err := e.executeSQLScript(script.DBName, codeToEval)
+			logOutput, rawOutput, err := e.executeSQLScript(ctx, script.DBName, codeToEval)
 			res.ResultsString = logOutput
 			if err != nil {
 				res.ReturnCode = err.Error()
@@ -319,7 +320,7 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		dbExports := map[string]reflect.Value{
 			"Get": reflect.ValueOf(e.registry.GetDB),
 			"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
-				return StreamETL(e.registry, srcDB, query, dstDB, targetTable, opts)
+				return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts)
 			}),
 		}
 
@@ -384,9 +385,9 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 
 		var cmd *exec.Cmd
 		if _, err := exec.LookPath("dotnet-script"); err == nil {
-			cmd = exec.Command("dotnet-script", tempPath)
+			cmd = exec.CommandContext(ctx, "dotnet-script", tempPath)
 		} else {
-			cmd = exec.Command("dotnet", "script", tempPath)
+			cmd = exec.CommandContext(ctx, "dotnet", "script", tempPath)
 		}
 		cmd.Env = envVars
 
@@ -418,11 +419,11 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 		var cmd *exec.Cmd
 		switch script.Language {
 		case "pwsh":
-			cmd = exec.Command("pwsh", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
+			cmd = exec.CommandContext(ctx, "pwsh", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
 		case "powershell":
-			cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
+			cmd = exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", codeToEval)
 		case "bash", "zsh", "ksh", "csh", "tcsh", "dash", "fish", "sh":
-			cmd = exec.Command(script.Language, "-c", codeToEval)
+			cmd = exec.CommandContext(ctx, script.Language, "-c", codeToEval)
 		case "git-bash", "gitbash":
 			bashExec := "bash"
 			if _, err := exec.LookPath("git-bash"); err == nil {
@@ -432,22 +433,22 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 			} else if _, err := os.Stat(`C:\Program Files\Git\bin\bash.exe`); err == nil {
 				bashExec = `C:\Program Files\Git\bin\bash.exe`
 			}
-			cmd = exec.Command(bashExec, "-c", codeToEval)
+			cmd = exec.CommandContext(ctx, bashExec, "-c", codeToEval)
 		case "cmd":
-			cmd = exec.Command("cmd", "/C", codeToEval)
+			cmd = exec.CommandContext(ctx, "cmd", "/C", codeToEval)
 		default: // "shell" fallback based on OS / environment
 			if userShell := os.Getenv("SHELL"); userShell != "" {
-				cmd = exec.Command(userShell, "-c", codeToEval)
+				cmd = exec.CommandContext(ctx, userShell, "-c", codeToEval)
 			} else {
 				switch runtime.GOOS {
 				case "windows":
-					cmd = exec.Command("cmd", "/C", codeToEval)
+					cmd = exec.CommandContext(ctx, "cmd", "/C", codeToEval)
 				case "darwin": // macOS
-					cmd = exec.Command("zsh", "-c", codeToEval)
+					cmd = exec.CommandContext(ctx, "zsh", "-c", codeToEval)
 				case "freebsd":
-					cmd = exec.Command("sh", "-c", codeToEval)
+					cmd = exec.CommandContext(ctx, "sh", "-c", codeToEval)
 				default: // linux, openbsd, netbsd
-					cmd = exec.Command("sh", "-c", codeToEval)
+					cmd = exec.CommandContext(ctx, "sh", "-c", codeToEval)
 				}
 			}
 		}
@@ -471,7 +472,7 @@ func (e *Executor) executeScriptNode(script ScriptItem, results *[]ScriptResult)
 
 	return false
 }
-func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult) bool {
+func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	script := node.ForEachScript
 	if script == nil {
@@ -504,7 +505,7 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 		var rows *sql.Rows
 		var queryErr error
 		if tx := e.getActiveTx(script.DBName); tx != nil {
-			rows, queryErr = tx.Query(codeToEval)
+			rows, queryErr = tx.QueryContext(ctx, codeToEval)
 		} else {
 			dbConn, err := e.registry.GetDB(script.DBName)
 			if err != nil {
@@ -512,7 +513,7 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 				appendWithDuration(res)
 				return true
 			}
-			rows, queryErr = dbConn.Query(codeToEval)
+			rows, queryErr = dbConn.QueryContext(ctx, codeToEval)
 		}
 
 		if queryErr != nil {
@@ -531,6 +532,14 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 
 		loopIdx := 0
 		for rows.Next() {
+			select {
+			case <-ctx.Done():
+				res := ScriptResult{ScriptID: script.ID, ReturnCode: ctx.Err().Error()}
+				appendWithDuration(res)
+				return true
+			default:
+			}
+
 			vals := make([]interface{}, len(cols))
 			valPtrs := make([]interface{}, len(cols))
 			for i := range vals {
@@ -558,7 +567,7 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 				e.registry.SetVar(strings.ToUpper(col), strVal)
 			}
 
-			if hasErr := e.executeNodes(node.Children, results); hasErr {
+			if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
 				return true
 			}
 
@@ -581,7 +590,7 @@ func (e *Executor) executeForEachNode(node PipelineNode, results *[]ScriptResult
 	return false
 }
 
-func (e *Executor) executeWhileNode(node PipelineNode, results *[]ScriptResult) bool {
+func (e *Executor) executeWhileNode(ctx context.Context, node PipelineNode, results *[]ScriptResult) bool {
 	iterations := 0
 	maxLimit := node.MaxIterations
 	if maxLimit <= 0 {
@@ -589,6 +598,17 @@ func (e *Executor) executeWhileNode(node PipelineNode, results *[]ScriptResult) 
 	}
 
 	for e.evalCondition(node.IfVar, node.IfEquals) {
+		select {
+		case <-ctx.Done():
+			res := ScriptResult{
+				ScriptID:   node.GroupID,
+				ReturnCode: ctx.Err().Error(),
+			}
+			e.appendResult(results, res)
+			return true
+		default:
+		}
+
 		if iterations >= maxLimit {
 			res := ScriptResult{
 				ScriptID:   node.GroupID,
@@ -600,7 +620,7 @@ func (e *Executor) executeWhileNode(node PipelineNode, results *[]ScriptResult) 
 
 		e.registry.SetVar("WHILE_INDEX", iterations)
 
-		if hasErr := e.executeNodes(node.Children, results); hasErr {
+		if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
 			return true
 		}
 
@@ -609,7 +629,7 @@ func (e *Executor) executeWhileNode(node PipelineNode, results *[]ScriptResult) 
 
 	return false
 }
-func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResult) bool {
+func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, results *[]ScriptResult) bool {
 	maxThreads := node.MaxThreads
 	if maxThreads <= 0 {
 		maxThreads = 4
@@ -630,6 +650,9 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 		workerReg := e.registry.Snapshot()
 		workerRegistries[i] = workerReg
 
+		// Inject worker-specific context variable
+		workerReg.SetVar("_THREAD_ID", i)
+
 		workerExec := &Executor{
 			registry: workerReg,
 			goPath:   e.goPath,
@@ -640,12 +663,12 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			if hasErr.Load() {
+			if hasErr.Load() || ctx.Err() != nil {
 				return
 			}
 
 			var localResults []ScriptResult
-			childErr := exec.executeNodes([]PipelineNode{childNode}, &localResults)
+			childErr := exec.executeNodes(ctx, []PipelineNode{childNode}, &localResults)
 
 			e.resultsMu.Lock()
 			*results = append(*results, localResults...)
@@ -659,21 +682,52 @@ func (e *Executor) executeParallelNode(node PipelineNode, results *[]ScriptResul
 
 	wg.Wait()
 
-	// Merge variables from worker threads back into the main pipeline registry
+	// Merge variables from worker threads back into the main pipeline registry using conflict resolution
+	mutationCounts := make(map[string]int)
 	for _, wReg := range workerRegistries {
-		if wReg != nil {
-			e.registry.MergeVariables(wReg.CopyVariables())
+		if wReg == nil {
+			continue
 		}
+		wReg.varMu.RLock()
+		for k := range wReg.dirtyVars {
+			mutationCounts[k]++
+		}
+		wReg.varMu.RUnlock()
 	}
 
-	return hasErr.Load()
+	for i, wReg := range workerRegistries {
+		if wReg == nil {
+			continue
+		}
+		wReg.varMu.RLock()
+		for k := range wReg.dirtyVars {
+			val := wReg.varRegistry[k]
+			if mutationCounts[k] > 1 {
+				// Collision detected! Apply namespace
+				scopedKey := fmt.Sprintf("WORKER_%d_%s", i, k)
+				e.registry.SetVar(scopedKey, val)
+			} else {
+				// Safe merge
+				e.registry.SetVar(k, val)
+			}
+		}
+		wReg.varMu.RUnlock()
+	}
+
+	return hasErr.Load() || ctx.Err() != nil
 }
 
-func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) bool {
+func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, results *[]ScriptResult) bool {
 	for _, node := range nodes {
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+		}
+
 		switch node.Kind {
 		case NodeScript:
-			if hasErr := e.executeScriptNode(*node.Script, results); hasErr {
+			if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
 				return true
 			}
 
@@ -701,7 +755,7 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 					e.appendResult(results, res)
 					return true
 				}
-				tx, err := dbConn.Begin()
+				tx, err := dbConn.BeginTx(ctx, nil)
 				if err != nil {
 					res := ScriptResult{
 						ScriptID:   node.GroupID,
@@ -716,7 +770,7 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 				}
 				e.activeTxs[node.DBName] = tx
 
-				hasErr := e.executeNodes(node.Children, results)
+				hasErr := e.executeNodes(ctx, node.Children, results)
 
 				delete(e.activeTxs, node.DBName)
 
@@ -734,13 +788,13 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 					return true
 				}
 			} else {
-				if hasErr := e.executeNodes(node.Children, results); hasErr {
+				if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
 					return true
 				}
 			}
 
 		case NodeParallel:
-			if hasErr := e.executeParallelNode(node, results); hasErr {
+			if hasErr := e.executeParallelNode(ctx, node, results); hasErr {
 				return true
 			}
 
@@ -752,17 +806,17 @@ func (e *Executor) executeNodes(nodes []PipelineNode, results *[]ScriptResult) b
 			} else {
 				target = node.ElseNodes
 			}
-			if hasErr := e.executeNodes(target, results); hasErr {
+			if hasErr := e.executeNodes(ctx, target, results); hasErr {
 				return true
 			}
 
 		case NodeForEach:
-			if hasErr := e.executeForEachNode(node, results); hasErr {
+			if hasErr := e.executeForEachNode(ctx, node, results); hasErr {
 				return true
 			}
 
 		case NodeWhile:
-			if hasErr := e.executeWhileNode(node, results); hasErr {
+			if hasErr := e.executeWhileNode(ctx, node, results); hasErr {
 				return true
 			}
 		}

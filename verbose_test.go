@@ -2,6 +2,7 @@ package flow
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -43,7 +44,7 @@ func TestExecutorVerboseMode(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	_, err = executor.Execute(nodes)
+	_, err = executor.Execute(context.Background(), nodes)
 	w.Close()
 	os.Stdout = oldStdout
 

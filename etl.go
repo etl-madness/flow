@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -35,12 +36,12 @@ func formatPlaceholder(driver string, paramIdx int) string {
 }
 
 // flushMSSQLBatch performs a native TDS bulk stream copy into MSSQL with configured BulkOptions.
-func flushMSSQLBatch(dstDB *sql.DB, targetTable string, cols []string, batchRows [][]interface{}, opts ETLOptions) error {
+func flushMSSQLBatch(ctx context.Context, dstDB *sql.DB, targetTable string, cols []string, batchRows [][]interface{}, opts ETLOptions) error {
 	if len(batchRows) == 0 {
 		return nil
 	}
 
-	tx, err := dstDB.Begin()
+	tx, err := dstDB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -55,20 +56,20 @@ func flushMSSQLBatch(dstDB *sql.DB, targetTable string, cols []string, batchRows
 	}
 
 	bulkStmt := mssql.CopyIn(targetTable, bulkOpts, cols...)
-	stmt, err := tx.Prepare(bulkStmt)
+	stmt, err := tx.PrepareContext(ctx, bulkStmt)
 	if err != nil {
 		return fmt.Errorf("failed to prepare bulk insert: %w", err)
 	}
 	defer stmt.Close()
 
 	for _, row := range batchRows {
-		if _, err := stmt.Exec(row...); err != nil {
+		if _, err := stmt.ExecContext(ctx, row...); err != nil {
 			return fmt.Errorf("bulk copy row execution error: %w", err)
 		}
 	}
 
 	// Finalize bulk copy stream
-	if _, err := stmt.Exec(); err != nil {
+	if _, err := stmt.ExecContext(ctx); err != nil {
 		return fmt.Errorf("failed to finalize bulk insert: %w", err)
 	}
 
@@ -76,7 +77,7 @@ func flushMSSQLBatch(dstDB *sql.DB, targetTable string, cols []string, batchRows
 }
 
 // StreamETL streams query results line-by-line from a source database into a target database table.
-func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, opts ETLOptions) (int64, error) {
+func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName, targetTable string, opts ETLOptions) (int64, error) {
 	batchSize := opts.BatchSize
 	if batchSize <= 0 {
 		batchSize = 10000
@@ -101,7 +102,7 @@ func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, 
 	dstDB := dstHandle.Conn
 	dstDriver := dstHandle.Driver
 
-	rows, err := srcDB.Query(queryStr)
+	rows, err := srcDB.QueryContext(ctx, queryStr)
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}
@@ -139,7 +140,7 @@ func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, 
 		}
 
 		if isMSSQL {
-			if err := flushMSSQLBatch(dstDB, targetTable, cols, batchRows, opts); err != nil {
+			if err := flushMSSQLBatch(ctx, dstDB, targetTable, cols, batchRows, opts); err != nil {
 				return fmt.Errorf("batch bulk copy error on table '%s': %w", targetTable, err)
 			}
 		} else {
@@ -158,7 +159,7 @@ func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, 
 			}
 
 			insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", targetTable, colList, strings.Join(valuePlaceholders, ", "))
-			_, err := dstDB.Exec(insertSQL, valueArgs...)
+			_, err := dstDB.ExecContext(ctx, insertSQL, valueArgs...)
 			if err != nil {
 				return fmt.Errorf("batch insert error on table '%s': %w", targetTable, err)
 			}
@@ -197,7 +198,12 @@ func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, 
 					rowCopy[i] = v
 				}
 			}
-			rowChan <- rowCopy
+			select {
+			case <-ctx.Done():
+				readErr = ctx.Err()
+				return
+			case rowChan <- rowCopy:
+			}
 		}
 		if err := rows.Err(); err != nil {
 			readErr = fmt.Errorf("rows iteration error: %w", err)
@@ -205,6 +211,17 @@ func StreamETL(r *Registry, srcDBName, queryStr, dstDBName, targetTable string, 
 	}()
 
 	for row := range rowChan {
+		select {
+		case <-ctx.Done():
+			// Drain channel to prevent producer goroutine leak
+			go func() {
+				for range rowChan {
+				}
+			}()
+			wg.Wait()
+			return totalInserted, ctx.Err()
+		default:
+		}
 		batchRows = append(batchRows, row)
 		if len(batchRows) >= batchSize {
 			if err := flushBatch(); err != nil {

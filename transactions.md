@@ -87,6 +87,15 @@ When running concurrent tasks in a `<parallel>` block:
 
 ---
 
+## 3.5 Context Propagation & Automatic Rollback
+
+All transactions in Flow are fully contextualized using Go's `context.Context` API:
+*   Transactions are initiated with `BeginTx(ctx, nil)`.
+*   If the pipeline's active context is cancelled or times out, the active transactions are automatically aborted and safely rolled back.
+*   This prevents database locks, stale transactions, and uncommitted orphaned states across timeouts and unexpected cancellations.
+
+---
+
 ## 4. Interaction with SQL Server Bulk Copy (`StreamETL`)
 
 Flow has high-performance support for Microsoft SQL Server native TDS bulk streaming copy via the `StreamETL` function (`<script target_table="...">` tag). 
