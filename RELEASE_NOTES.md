@@ -20,6 +20,16 @@ Isolated executions inside `<parallel>` queues are now robustly tracked and merg
 - **Automatic Namespacing:** If multiple parallel branches modify the exact same variable, a conflict resolution mechanism automatically namespaces them inside the parent registry as `WORKER_<id>_<variable_name>`. Non-colliding keys merge directly back into the parent registry.
 - **Thread ID Injection:** A thread-specific `_THREAD_ID` variable is injected into each parallel worker's snapshot.
 
+### 3. Highly Configurable `<http_client>` Node & Unified Identifiers (`id`)
+To expand the pipeline engine's capabilities to external integrations, we have introduced a powerful new node type along with unified tracking support:
+- **Unified Identifiers (`id` attribute):** Every major pipeline node or step now supports a unique `id` attribute. This drastically improves debuggability, verbose logging output, and schema validation error reporting.
+- **Advanced `<http_client>` Node:** Fully exposes the Go HTTP standard library client and transport properties inside the XML pipeline AST, including:
+  - Custom timeouts, redirect constraints, and session tracking (`cookie_jar`).
+  - TLS specifications such as certificate verification overrides (`tls_insecure_skip_verify`), SNI ServerName, and min/max protocol restrictions (TLS 1.0 up to TLS 1.3).
+  - Rich transport settings: customizable HTTP proxying, buffer sizes, connection pool limiters, keep-alive controls, and forced HTTP/2 negotiation.
+  - Automatic template/variable interpolation (`{{VarName}}`) in URLs, headers, and request body content (either from `data` attribute or inner body text).
+  - Response payload and integer status code persistence back to environment variables.
+
 ---
 
 ## 🛠️ API & Configuration Updates

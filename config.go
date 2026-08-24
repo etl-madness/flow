@@ -62,6 +62,8 @@ const (
 	NodeParallel
 	// NodeWhile represents a condition-controlled iteration loop.
 	NodeWhile
+	// NodeHTTPClient represents an HTTP client execution step.
+	NodeHTTPClient // Added NodeHTTPClient enum
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -70,6 +72,7 @@ type PipelineNode struct {
 	MaxThreads    int            // Concurrency limit (only used for NodeParallel)
 	MaxIterations int            // Infinite loop safety limit (only used for NodeWhile)
 	Script        *ScriptItem    // Leaf script item payload (only used for NodeScript)
+	HTTPClient    *HTTPClientElement // Added HTTP payload
 	GroupID       string         // Structural/group name or ID
 	IfVar         string         // Condition driver variable name
 	IfEquals      string         // Expected variable value to match
@@ -176,6 +179,21 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 	elemName := strings.ToLower(se.Name.Local)
 
 	switch elemName {
+	// In config.go -> parseNodeElement switch elemName
+
+	case "http_client", "http-client":
+		var elem HTTPClientElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("http_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{
+			Kind:       NodeHTTPClient,
+			HTTPClient: &elem,
+		}, nil
 	case "script":
 		lang, scriptID, dbName, targetDB, targetTable, varName, outputVar := "", "", "", "", "", "", ""
 		batchSize := 0

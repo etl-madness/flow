@@ -19,6 +19,19 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	inspect = func(nodes []PipelineNode) {
 		for _, node := range nodes {
 			switch node.Kind {
+				// In validator.go -> ValidateAST inspect function switch node.Kind
+
+			case NodeHTTPClient:
+				h := node.HTTPClient
+				if h.ID != "" {
+					if knownIDs[h.ID] {
+						errs = append(errs, fmt.Sprintf("duplicate script/HTTP ID found: '%s'", h.ID))
+					}
+					knownIDs[h.ID] = true
+				}
+				if h.URI == "" && h.URL == "" {
+					errs = append(errs, fmt.Sprintf("HTTP_CLIENT '%s' is missing 'uri' or 'url' attribute", h.ID))
+				}
 			case NodeScript:
 				s := node.Script
 				if s.ID != "" {

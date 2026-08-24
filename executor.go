@@ -5,13 +5,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	"github.com/traefik/yaegi/interp"
@@ -728,6 +732,10 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 		}
 
 		switch node.Kind {
+		case NodeHTTPClient:
+			if hasErr := e.executeHTTPClientNode(ctx, *node.HTTPClient, results); hasErr {
+				return true
+			}
 		case NodeScript:
 			if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
 				return true
@@ -835,4 +843,103 @@ func isShellLanguage(lang string) bool {
 	default:
 		return false
 	}
+}
+
+var placeholderRegex = regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_]+)\s*\}\}`)
+
+func (e *Executor) executeHTTPClientNode(ctx context.Context, elem HTTPClientElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	if e.verbose.Load() {
+		fmt.Printf("Starting execution of HTTP_CLIENT %q\n", elem.ID)
+	}
+
+	variables := e.registry.CopyVariables()
+
+	// 1. Interpolate attribute placeholders
+	elem.URI = interpolateVars(elem.URI, variables)
+	elem.URL = interpolateVars(elem.URL, variables)
+	elem.Headers = interpolateVars(elem.Headers, variables)
+	elem.ContentType = interpolateVars(elem.ContentType, variables)
+
+	// 2. Resolve POST/Request Payload (data attribute or element body text)
+	rawBody := elem.Data
+	if rawBody == "" {
+		rawBody = strings.TrimSpace(elem.BodyContent)
+	}
+
+	if rawBody != "" {
+		// Convert {{VarName}} to standard Go template {{.VarName}}
+		templateText := placeholderRegex.ReplaceAllString(rawBody, "{{.$1}}")
+
+		tmpl, err := template.New("http_body").Option("missingkey=zero").Parse(templateText)
+		if err == nil {
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, variables); err == nil {
+				elem.Data = buf.String()
+			} else {
+				elem.Data = interpolateVars(rawBody, variables)
+			}
+		} else {
+			elem.Data = interpolateVars(rawBody, variables)
+		}
+	}
+
+	// 3. Construct HTTP Client and Request
+	client, req, err := BuildClientAndRequest(elem)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 4. Send Request
+	resp, err := client.Do(req.WithContext(ctx))
+	if err != nil {
+		res.ReturnCode = err.Error()
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to read response body: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	bodyStr := string(bodyBytes)
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("HTTP %d - %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	res.Duration = time.Since(startTime).String()
+
+	// 5. Store Output Variables
+	e.storeScriptOutput(elem.GetOutputVariable(), strings.TrimSpace(bodyStr))
+	if statusVar := elem.GetStatusCodeVariable(); statusVar != "" {
+		e.registry.SetVar(statusVar, resp.StatusCode)
+	}
+
+	if e.verbose.Load() {
+		fmt.Printf("Finished execution of HTTP_CLIENT %q (duration: %s)\n", elem.ID, res.Duration)
+	}
+
+	e.appendResult(results, res)
+	return false
+}
+
+// Helper to replace {{VarName}} placeholders directly
+func interpolateVars(input string, variables map[string]interface{}) string {
+	if input == "" {
+		return ""
+	}
+	for name, val := range variables {
+		placeholder := fmt.Sprintf("{{%s}}", name)
+		input = strings.ReplaceAll(input, placeholder, fmt.Sprintf("%v", val))
+	}
+	return input
 }

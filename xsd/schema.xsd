@@ -20,6 +20,7 @@
     </xs:complexType>
 
     <xs:complexType name="VariableType">
+        <xs:attribute name="id" type="xs:string" use="optional" />
         <xs:attribute name="name" type="xs:string" use="required" />
         <xs:attribute name="type" use="optional" default="string">
             <xs:simpleType>
@@ -32,6 +33,8 @@
                     <xs:enumeration value="float" />
                     <xs:enumeration value="double" />
                     <xs:enumeration value="float64" />
+                    <xs:enumeration value="datetime" />
+                    <xs:enumeration value="date" />
                 </xs:restriction>
             </xs:simpleType>
         </xs:attribute>
@@ -46,6 +49,7 @@
     </xs:complexType>
 
     <xs:complexType name="DatabaseType">
+        <xs:attribute name="id" type="xs:string" use="optional" />
         <xs:attribute name="name" type="xs:string" use="required" />
         <xs:attribute name="driver" type="xs:string" use="optional" />
         <xs:attribute name="type" type="xs:string" use="optional" />
@@ -62,6 +66,9 @@
             <xs:element name="foreach" type="ForEachType" />
             <xs:element name="loop" type="ForEachType" />
             <xs:element name="while" type="WhileType" />
+            <xs:element name="http_client" type="HttpClientType" />
+            <xs:element name="http-client" type="HttpClientType" />
+            <xs:element name="HTTP_CLIENT" type="HttpClientType" />
         </xs:choice>
     </xs:complexType>
 
@@ -114,6 +121,75 @@
         </xs:simpleContent>
     </xs:complexType>
 
+    <!-- HTTP CLIENT NODE -->
+    <xs:complexType name="HttpClientType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <!-- Core Request Attributes -->
+                <xs:attribute name="id" type="xs:string" use="optional" />
+                <xs:attribute name="uri" type="xs:string" use="required" />
+                <xs:attribute name="url" type="xs:string" use="optional" />
+                <xs:attribute name="method" use="optional" default="GET">
+                    <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                            <xs:enumeration value="GET" />
+                            <xs:enumeration value="POST" />
+                            <xs:enumeration value="PUT" />
+                            <xs:enumeration value="DELETE" />
+                            <xs:enumeration value="PATCH" />
+                            <xs:enumeration value="HEAD" />
+                            <xs:enumeration value="OPTIONS" />
+                            <xs:enumeration value="TRACE" />
+                            <xs:enumeration value="CONNECT" />
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:attribute>
+                <xs:attribute name="data" type="xs:string" use="optional" />
+                <xs:attribute name="headers" type="xs:string" use="optional" />
+                <xs:attribute name="content_type" type="xs:string" use="optional" />
+
+                <!-- Variable Assignment Attributes (Inherited from ScriptType) -->
+                <xs:attribute name="var" type="xs:string" use="optional" />
+                <xs:attribute name="variable" type="xs:string" use="optional" />
+                <xs:attribute name="output_var" type="xs:string" use="optional" />
+                <xs:attribute name="output_variable" type="xs:string" use="optional" />
+                <xs:attribute name="out_var" type="xs:string" use="optional" />
+
+                <!-- Status Code Assignment Attributes -->
+                <xs:attribute name="status_code_var" type="xs:string" use="optional" />
+                <xs:attribute name="status_code_variable" type="xs:string" use="optional" />
+                <xs:attribute name="status_var" type="xs:string" use="optional" />
+                <xs:attribute name="status_variable" type="xs:string" use="optional" />
+
+                <!-- Go http.Client Options -->
+                <xs:attribute name="timeout" type="xs:string" use="optional" />
+                <xs:attribute name="max_redirects" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="follow_redirects" type="xs:boolean" use="optional" default="true" />
+                <xs:attribute name="cookie_jar" type="xs:boolean" use="optional" default="false" />
+
+                <!-- Go http.Transport Options -->
+                <xs:attribute name="proxy" type="xs:string" use="optional" />
+                <xs:attribute name="tls_insecure_skip_verify" type="xs:boolean" use="optional" default="false" />
+                <xs:attribute name="tls_handshake_timeout" type="xs:string" use="optional" />
+                <xs:attribute name="tls_server_name" type="xs:string" use="optional" />
+                <xs:attribute name="tls_min_version" type="xs:string" use="optional" />
+                <xs:attribute name="tls_max_version" type="xs:string" use="optional" />
+                <xs:attribute name="disable_keep_alives" type="xs:boolean" use="optional" />
+                <xs:attribute name="disable_compression" type="xs:boolean" use="optional" />
+                <xs:attribute name="max_idle_conns" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="max_idle_conns_per_host" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="max_conns_per_host" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="idle_conn_timeout" type="xs:string" use="optional" />
+                <xs:attribute name="response_header_timeout" type="xs:string" use="optional" />
+                <xs:attribute name="expect_continue_timeout" type="xs:string" use="optional" />
+                <xs:attribute name="max_response_header_bytes" type="xs:long" use="optional" />
+                <xs:attribute name="write_buffer_size" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="read_buffer_size" type="xs:nonNegativeInteger" use="optional" />
+                <xs:attribute name="force_attempt_http2" type="xs:boolean" use="optional" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
     <!-- GROUP NODE -->
     <xs:complexType name="GroupType">
         <xs:complexContent>
@@ -160,8 +236,12 @@
                 <xs:element name="foreach" type="ForEachType" />
                 <xs:element name="loop" type="ForEachType" />
                 <xs:element name="while" type="WhileType" />
+                <xs:element name="http_client" type="HttpClientType" />
+                <xs:element name="http-client" type="HttpClientType" />
+                <xs:element name="HTTP_CLIENT" type="HttpClientType" />
             </xs:choice>
         </xs:sequence>
+        <xs:attribute name="id" type="xs:string" use="optional" />
         <xs:attribute name="var" type="xs:string" use="optional" />
         <xs:attribute name="if_var" type="xs:string" use="optional" />
         <xs:attribute name="equals" type="xs:string" use="optional" />
