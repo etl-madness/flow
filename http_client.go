@@ -16,7 +16,7 @@ import (
 
 // HTTPClientElement maps all attributes from the HttpClientType XML schema[cite: 1].
 type HTTPClientElement struct {
-	XMLName xml.Name `xml:"HTTP_CLIENT"`
+	XMLName xml.Name `xml:"-"`
 
 	// Core Request Attributes
 	ID          string `xml:"id,attr"`
