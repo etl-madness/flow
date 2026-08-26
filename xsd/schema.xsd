@@ -287,5 +287,141 @@
             </xs:extension>
         </xs:complexContent>
     </xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="template" type="TemplateType" />
 
+<!-- Add element definition -->
+<xs:complexType name="TemplateType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="name" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="optional" />
+            <xs:attribute name="engine" type="xs:string" use="optional" default="text" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+            <xs:attribute name="output_var" type="xs:string" use="optional" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="file_save" type="FileSaveType" />
+<xs:element name="file-save" type="FileSaveType" />
+<xs:element name="FILE_SAVE" type="FileSaveType" />
+
+<!-- Add element definition -->
+<xs:complexType name="FileSaveType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="optional" />
+            <xs:attribute name="path" type="xs:string" use="optional" />
+            <xs:attribute name="filename" type="xs:string" use="optional" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+            <xs:attribute name="variable" type="xs:string" use="optional" />
+            <xs:attribute name="append" type="xs:boolean" use="optional" default="false" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="file_read" type="FileReadType" />
+<xs:element name="file-read" type="FileReadType" />
+<xs:element name="FILE_READ" type="FileReadType" />
+
+<!-- Add element definition -->
+<xs:complexType name="FileReadType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="optional" />
+            <xs:attribute name="path" type="xs:string" use="optional" />
+            <xs:attribute name="filename" type="xs:string" use="optional" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+            <xs:attribute name="variable" type="xs:string" use="optional" />
+            <xs:attribute name="output_var" type="xs:string" use="optional" />
+            <xs:attribute name="output_variable" type="xs:string" use="optional" />
+            <xs:attribute name="out_var" type="xs:string" use="optional" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="excel_read" type="ExcelReadType" />
+<xs:element name="excel-read" type="ExcelReadType" />
+<xs:element name="EXCEL_READ" type="ExcelReadType" />
+
+<xs:element name="excel_write" type="ExcelWriteType" />
+<xs:element name="excel-write" type="ExcelWriteType" />
+<xs:element name="EXCEL_WRITE" type="ExcelWriteType" />
+
+<!-- Add element definitions -->
+<xs:complexType name="ExcelReadType">
+    <xs:attribute name="id" type="xs:string" use="optional" />
+    <xs:attribute name="file" type="xs:string" use="required" />
+    <xs:attribute name="sheet" type="xs:string" use="optional" default="Sheet1" />
+    <xs:attribute name="header" type="xs:boolean" use="optional" default="true" />
+    <xs:attribute name="var" type="xs:string" use="optional" />
+    <xs:attribute name="output_var" type="xs:string" use="optional" />
+</xs:complexType>
+
+<xs:complexType name="ExcelWriteType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="required" />
+            <xs:attribute name="sheet" type="xs:string" use="optional" default="Sheet1" />
+            <xs:attribute name="db" type="xs:string" use="optional" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+<xs:element name="xml_xpath" type="XmlXPathType" />
+<xs:element name="xml-xpath" type="XmlXPathType" />
+<xs:element name="XML_XPATH" type="XmlXPathType" />
+<xs:complexType name="XmlXPathType">
+    <xs:attribute name="id" type="xs:string" use="optional" />
+    <xs:attribute name="file" type="xs:string" use="optional" />
+    <xs:attribute name="var" type="xs:string" use="optional" />
+    <xs:attribute name="xpath" type="xs:string" use="required" />
+    <xs:attribute name="mode" type="xs:string" use="optional" default="text" />
+    <xs:attribute name="output_var" type="xs:string" use="required" />
+</xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="json_path" type="JsonPathType" />
+<xs:element name="json-path" type="JsonPathType" />
+<xs:element name="JSON_PATH" type="JsonPathType" />
+
+<!-- Add element definition -->
+<xs:complexType name="JsonPathType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="optional" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+            <xs:attribute name="path" type="xs:string" use="optional" />
+            <xs:attribute name="jsonpath" type="xs:string" use="optional" />
+            <xs:attribute name="mode" type="xs:string" use="optional" default="value" />
+            <xs:attribute name="output_var" type="xs:string" use="optional" />
+            <xs:attribute name="out_var" type="xs:string" use="optional" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+<!-- Add inside <xs:complexType name="PipelineNodesType"><xs:choice> -->
+<xs:element name="yaml_path" type="YamlPathType" />
+<xs:element name="yaml-path" type="YamlPathType" />
+<xs:element name="YAML_PATH" type="YamlPathType" />
+
+<!-- Add element definition -->
+<xs:complexType name="YamlPathType">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="id" type="xs:string" use="optional" />
+            <xs:attribute name="file" type="xs:string" use="optional" />
+            <xs:attribute name="var" type="xs:string" use="optional" />
+            <xs:attribute name="path" type="xs:string" use="optional" />
+            <xs:attribute name="yamlpath" type="xs:string" use="optional" />
+            <xs:attribute name="mode" type="xs:string" use="optional" default="value" />
+            <xs:attribute name="output_var" type="xs:string" use="optional" />
+            <xs:attribute name="out_var" type="xs:string" use="optional" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
 </xs:schema>

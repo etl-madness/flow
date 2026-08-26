@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -17,9 +19,12 @@ import (
 	"sync/atomic"
 	"text/template"
 	"time"
-
+"gopkg.in/yaml.v3"
+	"github.com/antchfx/xmlquery"
+	"github.com/spyzhov/ajson"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
+	"github.com/xuri/excelize/v2"
 )
 
 // ScriptResult represents the complete outcome of a single executed script or loop block.
@@ -732,6 +737,38 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 		}
 
 		switch node.Kind {
+		case NodeYAMLPath:
+			if hasErr := e.executeYAMLPathNode(ctx, *node.YamlPath, results); hasErr {
+				return true
+			}
+		case NodeJSONPath:
+			if hasErr := e.executeJSONPathNode(ctx, *node.JsonPath, results); hasErr {
+				return true
+			}
+		case NodeExcelRead:
+			if hasErr := e.executeExcelReadNode(ctx, *node.ExcelRead, results); hasErr {
+				return true
+			}
+		case NodeExcelWrite:
+			if hasErr := e.executeExcelWriteNode(ctx, *node.ExcelWrite, results); hasErr {
+				return true
+			}
+		case NodeFileRead:
+			if hasErr := e.executeFileReadNode(ctx, *node.FileRead, results); hasErr {
+				return true
+			}
+		case NodeFileSave:
+			if hasErr := e.executeFileSaveNode(ctx, *node.FileSave, results); hasErr {
+				return true
+			}
+		case NodeTemplate:
+			if hasErr := e.executeTemplateNode(ctx, *node.Template, results); hasErr {
+				return true
+			}
+		case NodeXMLXPath:
+			if hasErr := e.executeXMLXPathNode(ctx, *node.XmlXPath, results); hasErr {
+				return true
+			}
 		case NodeHTTPClient:
 			if hasErr := e.executeHTTPClientNode(ctx, *node.HTTPClient, results); hasErr {
 				return true
@@ -942,4 +979,648 @@ func interpolateVars(input string, variables map[string]interface{}) string {
 		input = strings.ReplaceAll(input, placeholder, fmt.Sprintf("%v", val))
 	}
 	return input
+}
+func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	var templateText string
+	if elem.File != "" {
+		filePath := interpolateVars(elem.File, variables)
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read template file %s: %v", filePath, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		templateText = string(fileBytes)
+	} else {
+		templateText = strings.TrimSpace(elem.Content)
+	}
+
+	tmplName := elem.Name
+	if tmplName == "" {
+		tmplName = elem.ID
+	}
+
+	tmpl, err := template.New(tmplName).Option("missingkey=zero").Parse(templateText)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, variables); err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to execute template: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outputStr := buf.String()
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Successfully rendered template %q (%d bytes)", tmplName, len(outputStr))
+	res.Duration = time.Since(startTime).String()
+
+	e.storeScriptOutput(elem.GetOutputVar(), outputStr)
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeFileSaveNode(ctx context.Context, elem FileSaveElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	filePath := interpolateVars(elem.GetFilePath(), variables)
+	if filePath == "" {
+		res.ReturnCode = "missing target file path attribute (file, path, or filename)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 1. Determine content source (either from a variable or inline body text)
+	var contentToWrite string
+	inputVar := elem.GetInputVar()
+	if inputVar != "" {
+		val := e.registry.GetVar(inputVar)
+		if val != nil {
+			contentToWrite = fmt.Sprintf("%v", val)
+		}
+	} else {
+		contentToWrite = interpolateVars(strings.TrimSpace(elem.Content), variables)
+	}
+
+	// 2. Automatically create parent directories if needed
+	dir := filepath.Dir(filePath)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to create directory structure %s: %v", dir, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+	}
+
+	// 3. Open file in append or overwrite mode
+	flags := os.O_WRONLY | os.O_CREATE
+	if elem.Append != nil && *elem.Append {
+		flags |= os.O_APPEND
+	} else {
+		flags |= os.O_TRUNC
+	}
+
+	file, err := os.OpenFile(filePath, flags, 0644)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to open destination file %s: %v", filePath, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+	defer file.Close()
+
+	n, err := file.WriteString(contentToWrite)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to write file contents to %s: %v", filePath, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Wrote %d bytes to %s", n, filePath)
+	res.Duration = time.Since(startTime).String()
+
+	if e.verbose.Load() {
+		fmt.Printf("Finished execution of FILE_SAVE %q (wrote %d bytes to %s)\n", elem.ID, n, filePath)
+	}
+
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeFileReadNode(ctx context.Context, elem FileReadElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	filePath := interpolateVars(elem.GetFilePath(), variables)
+	if filePath == "" {
+		res.ReturnCode = "missing target file path attribute (file, path, or filename)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outVar := elem.GetOutputVar()
+	if outVar == "" {
+		res.ReturnCode = "missing output variable attribute (var, variable, output_var, out_var)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// Read file contents from disk
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to read file %s: %v", filePath, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	contentStr := string(fileBytes)
+
+	// Save to pipeline variables
+	e.storeScriptOutput(outVar, contentStr)
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Successfully read %d bytes from %s into variable %q", len(fileBytes), filePath, outVar)
+	res.Duration = time.Since(startTime).String()
+
+	if e.verbose.Load() {
+		fmt.Printf("Finished execution of FILE_READ %q (read %d bytes from %s)\n", elem.ID, len(fileBytes), filePath)
+	}
+
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeExcelReadNode(ctx context.Context, elem ExcelReadElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	filePath := interpolateVars(elem.File, variables)
+
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to open excel file %s: %v", filePath, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+	defer f.Close()
+
+	sheet := elem.Sheet
+	if sheet == "" {
+		sheet = f.GetSheetName(0)
+	}
+
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to read sheet %s: %v", sheet, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	hasHeader := elem.Header == nil || *elem.Header
+	var records []map[string]string
+
+	if hasHeader && len(rows) > 0 {
+		headers := rows[0]
+		for _, row := range rows[1:] {
+			record := make(map[string]string)
+			for i, colCell := range row {
+				if i < len(headers) {
+					record[headers[i]] = colCell
+				}
+			}
+			records = append(records, record)
+		}
+	}
+
+	jsonBytes, err := json.Marshal(records)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to serialize excel data to JSON: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outVar := elem.GetOutputVar()
+	e.storeScriptOutput(outVar, string(jsonBytes))
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Read %d row(s) from sheet %q into %q", len(records), sheet, outVar)
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	filePath := interpolateVars(elem.File, variables)
+	sheet := elem.Sheet
+	if sheet == "" {
+		sheet = "Sheet1"
+	}
+
+	f := excelize.NewFile()
+	sheetIdx, _ := f.NewSheet(sheet)
+	f.SetActiveSheet(sheetIdx)
+
+	var rowCount int
+
+	if elem.DBName != "" && elem.Query != "" {
+		// Export directly from Database Query
+		dbConn, err := e.registry.GetDB(elem.DBName)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("db connection error: %v", err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+
+		queryStr := interpolateVars(strings.TrimSpace(elem.Query), variables)
+		rows, err := dbConn.QueryContext(ctx, queryStr)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("query error: %v", err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		defer rows.Close()
+
+		cols, _ := rows.Columns()
+		for i, col := range cols {
+			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue(sheet, cell, col)
+		}
+
+		rowIdx := 2
+		for rows.Next() {
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
+			if err := rows.Scan(valPtrs...); err != nil {
+				res.ReturnCode = fmt.Sprintf("scan error: %v", err)
+				res.Duration = time.Since(startTime).String()
+				e.appendResult(results, res)
+				return true
+			}
+
+			for i, val := range vals {
+				cell, _ := excelize.CoordinatesToCellName(i+1, rowIdx)
+				if b, ok := val.([]byte); ok {
+					f.SetCellValue(sheet, cell, string(b))
+				} else {
+					f.SetCellValue(sheet, cell, val)
+				}
+			}
+			rowIdx++
+		}
+		rowCount = rowIdx - 2
+	}
+
+	// Ensure destination directory exists
+	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
+		os.MkdirAll(dir, 0755)
+	}
+
+	if err := f.SaveAs(filePath); err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to save excel file: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Wrote %d row(s) to Excel file %s (sheet: %s)", rowCount, filePath, sheet)
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
+}
+
+func (e *Executor) executeXMLXPathNode(ctx context.Context, elem XmlXPathElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+
+	// 1. Resolve XPath from attribute or body content
+	xpathQuery := interpolateVars(elem.GetXPath(), variables)
+	if xpathQuery == "" {
+		res.ReturnCode = "missing XPath expression: specify 'xpath' attribute or inner body text"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 2. Determine XML Source
+	var rawXML string
+	if elem.File != "" {
+		filePath := interpolateVars(elem.File, variables)
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read xml file: %v", err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		rawXML = string(fileBytes)
+	} else if elem.Var != "" {
+		rawXML = e.registry.GetVarString(elem.Var)
+	}
+
+	// 3. Parse XML & Execute Query
+	doc, err := xmlquery.Parse(strings.NewReader(rawXML))
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("xml parse error: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	nodes, err := xmlquery.QueryAll(doc, xpathQuery)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("invalid xpath query %q: %v", xpathQuery, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 4. Format Results
+	var resultsArray []string
+	for _, n := range nodes {
+		if elem.Mode == "xml" {
+			resultsArray = append(resultsArray, n.OutputXML(true))
+		} else {
+			resultsArray = append(resultsArray, n.InnerText())
+		}
+	}
+
+	var finalOutput string
+	if elem.Mode == "json_array" {
+		jsonBytes, _ := json.Marshal(resultsArray)
+		finalOutput = string(jsonBytes)
+	} else {
+		finalOutput = strings.Join(resultsArray, "\n")
+	}
+
+	e.storeScriptOutput(elem.OutputVar, finalOutput)
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("XPath query matched %d node(s)", len(nodes))
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeJSONPathNode(ctx context.Context, elem JsonPathElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+
+	// 1. Resolve JSONPath expression from attribute or inner body text
+	jsonPathQuery := interpolateVars(elem.GetJSONPath(), variables)
+	if jsonPathQuery == "" {
+		res.ReturnCode = "missing JSONPath expression: specify 'path' attribute or inner body text"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outVar := elem.GetOutputVar()
+	if outVar == "" {
+		res.ReturnCode = "missing output variable attribute (output_var or out_var)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 2. Determine JSON source content (file or variable)
+	var rawJSON string
+	if elem.File != "" {
+		filePath := interpolateVars(elem.File, variables)
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read json file %s: %v", filePath, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		rawJSON = string(fileBytes)
+	} else if elem.Var != "" {
+		rawJSON = e.registry.GetVarString(elem.Var)
+	}
+
+	if strings.TrimSpace(rawJSON) == "" {
+		res.ReturnCode = "source JSON string is empty"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 3. Evaluate JSONPath query
+	nodes, err := ajson.JSONPath([]byte(rawJSON), jsonPathQuery)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("invalid JSONPath query %q: %v", jsonPathQuery, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 4. Format outputs based on mode
+	var finalOutput string
+	mode := strings.ToLower(elem.Mode)
+
+	if mode == "json_array" || mode == "json" {
+		var values []interface{}
+		for _, node := range nodes {
+			nodeBytes, err := ajson.Marshal(node)
+			var val interface{}
+			if err == nil {
+				_ = json.Unmarshal(nodeBytes, &val)
+			} else {
+				val, _ = node.Value()
+			}
+			values = append(values, val)
+		}
+		if mode == "json" && len(values) == 1 {
+			jsonBytes, _ := json.Marshal(values[0])
+			finalOutput = string(jsonBytes)
+		} else {
+			jsonBytes, _ := json.Marshal(values)
+			finalOutput = string(jsonBytes)
+		}
+	} else { // Default "value" mode: scalar string or multiline text
+		var resultsArray []string
+		for _, node := range nodes {
+			if node.IsString() {
+				s, _ := node.GetString()
+				resultsArray = append(resultsArray, s)
+			} else {
+				resultsArray = append(resultsArray, node.String())
+			}
+		}
+		finalOutput = strings.Join(resultsArray, "\n")
+	}
+
+	e.storeScriptOutput(outVar, finalOutput)
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("JSONPath query %q matched %d node(s)", jsonPathQuery, len(nodes))
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
+}
+func convertYAMLMap(i interface{}) interface{} {
+	switch x := i.(type) {
+	case map[interface{}]interface{}:
+		m2 := make(map[string]interface{})
+		for k, v := range x {
+			m2[fmt.Sprintf("%v", k)] = convertYAMLMap(v)
+		}
+		return m2
+	case map[string]interface{}:
+		m2 := make(map[string]interface{})
+		for k, v := range x {
+			m2[k] = convertYAMLMap(v)
+		}
+		return m2
+	case []interface{}:
+		for idx, v := range x {
+			x[idx] = convertYAMLMap(v)
+		}
+	}
+	return i
+}
+func (e *Executor) executeYAMLPathNode(ctx context.Context, elem YamlPathElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+
+	// 1. Resolve path query from attribute or inner body text
+	pathQuery := interpolateVars(elem.GetYAMLPath(), variables)
+	if pathQuery == "" {
+		res.ReturnCode = "missing path expression: specify 'path' attribute or inner body text"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outVar := elem.GetOutputVar()
+	if outVar == "" {
+		res.ReturnCode = "missing output variable attribute (output_var or out_var)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 2. Load source YAML content
+	var rawYAML string
+	if elem.File != "" {
+		filePath := interpolateVars(elem.File, variables)
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read yaml file %s: %v", filePath, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		rawYAML = string(fileBytes)
+	} else if elem.Var != "" {
+		rawYAML = e.registry.GetVarString(elem.Var)
+	}
+
+	if strings.TrimSpace(rawYAML) == "" {
+		res.ReturnCode = "source YAML string is empty"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 3. Convert YAML into normalized JSON
+	var yamlObj interface{}
+	if err := yaml.Unmarshal([]byte(rawYAML), &yamlObj); err != nil {
+		res.ReturnCode = fmt.Sprintf("yaml unmarshal error: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	normalizedObj := convertYAMLMap(yamlObj)
+	jsonBytes, err := json.Marshal(normalizedObj)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to convert YAML to JSON: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 4. Evaluate path against converted JSON
+	nodes, err := ajson.JSONPath(jsonBytes, pathQuery)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("invalid path query %q: %v", pathQuery, err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	// 5. Format output based on mode
+	var finalOutput string
+	mode := strings.ToLower(elem.Mode)
+
+	if mode == "json_array" || mode == "json" {
+		var values []interface{}
+		for _, node := range nodes {
+			nodeBytes, err := ajson.Marshal(node)
+			var val interface{}
+			if err == nil {
+				_ = json.Unmarshal(nodeBytes, &val)
+			} else {
+				val, _ = node.Value()
+			}
+			values = append(values, val)
+		}
+		if mode == "json" && len(values) == 1 {
+			outB, _ := json.Marshal(values[0])
+			finalOutput = string(outB)
+		} else {
+			outB, _ := json.Marshal(values)
+			finalOutput = string(outB)
+		}
+	} else if mode == "yaml" {
+		var values []interface{}
+		for _, node := range nodes {
+			nodeBytes, err := ajson.Marshal(node)
+			var val interface{}
+			if err == nil {
+				_ = json.Unmarshal(nodeBytes, &val)
+			} else {
+				val, _ = node.Value()
+			}
+			values = append(values, val)
+		}
+		yBytes, _ := yaml.Marshal(values)
+		finalOutput = string(yBytes)
+	} else { // Default "value" mode
+		var resultsArray []string
+		for _, node := range nodes {
+			if node.IsString() {
+				s, _ := node.GetString()
+				resultsArray = append(resultsArray, s)
+			} else {
+				resultsArray = append(resultsArray, node.String())
+			}
+		}
+		finalOutput = strings.Join(resultsArray, "\n")
+	}
+
+	e.storeScriptOutput(outVar, finalOutput)
+
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("YAML path query %q matched %d node(s)", pathQuery, len(nodes))
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
 }

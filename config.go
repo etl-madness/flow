@@ -64,24 +64,151 @@ const (
 	NodeWhile
 	// NodeHTTPClient represents an HTTP client execution step.
 	NodeHTTPClient // Added NodeHTTPClient enum
+	// NodeTemplate represents a template inclusion step.
+	NodeTemplate // New enum item
+	// NodeFileSave represents a file save operation step.
+	NodeFileSave // New enum item
+	// NodeFileRead represents a file read operation step.
+	NodeFileRead // New enum item
+	NodeExcelRead  // New enum item
+	NodeExcelWrite // New enum item
+	NodeXMLXPath // New enum item
+	NodeJSONPath // New enum item
+	NodeYAMLPath // New enum item
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
 type PipelineNode struct {
-	Kind          NodeKind       // Struct/flow type of the node
-	MaxThreads    int            // Concurrency limit (only used for NodeParallel)
-	MaxIterations int            // Infinite loop safety limit (only used for NodeWhile)
-	Script        *ScriptItem    // Leaf script item payload (only used for NodeScript)
+	Kind          NodeKind           // Struct/flow type of the node
+	MaxThreads    int                // Concurrency limit (only used for NodeParallel)
+	MaxIterations int                // Infinite loop safety limit (only used for NodeWhile)
+	Script        *ScriptItem        // Leaf script item payload (only used for NodeScript)
 	HTTPClient    *HTTPClientElement // Added HTTP payload
-	GroupID       string         // Structural/group name or ID
-	IfVar         string         // Condition driver variable name
-	IfEquals      string         // Expected variable value to match
-	ForEachScript *ScriptItem    // Iterator driver script config (only used for NodeForEach)
-	Children      []PipelineNode // List of sequential child execution steps
-	ElseNodes     []PipelineNode // Else branching steps (only used for NodeIf)
-	Transaction   bool           // Start transaction for this group
-	DBName        string         // Database name for the transaction
+	GroupID       string             // Structural/group name or ID
+	IfVar         string             // Condition driver variable name
+	IfEquals      string             // Expected variable value to match
+	ForEachScript *ScriptItem        // Iterator driver script config (only used for NodeForEach)
+	Children      []PipelineNode     // List of sequential child execution steps
+	ElseNodes     []PipelineNode     // Else branching steps (only used for NodeIf)
+	Transaction   bool               // Start transaction for this group
+	DBName        string             // Database name for the transaction
+	Template      *TemplateElement   // New payload field for template inclusion step
+	FileSave      *FileSaveElement   // New payload field for file save operation
+	FileRead      *FileReadElement   // New payload field for file read operation
+	ExcelRead     *ExcelReadElement  // New payload field for Excel read operation
+	ExcelWrite    *ExcelWriteElement // New payload field for Excel write operation
+	XmlXPath      *XmlXPathElement // New payload field for XML XPath extraction
+	JsonPath 	  *JsonPathElement // New payload field for JSON path extraction
+	YamlPath     *YamlPathElement // New payload field for YAML path extraction
 }
+type YamlPathElement struct {
+	ID        string `xml:"id,attr"`
+	File      string `xml:"file,attr"`
+	Var       string `xml:"var,attr"`
+	Path      string `xml:"path,attr"`
+	YAMLPath  string `xml:"yamlpath,attr"`
+	Content   string `xml:",chardata"` // Captures inner element body text
+	Mode      string `xml:"mode,attr"` // "value", "json", "json_array", "yaml"
+	OutputVar string `xml:"output_var,attr"`
+	OutVar    string `xml:"out_var,attr"`
+}
+type JsonPathElement struct {
+	ID        string `xml:"id,attr"`
+	File      string `xml:"file,attr"`
+	Var       string `xml:"var,attr"`
+	Path      string `xml:"path,attr"`
+	JSONPath  string `xml:"jsonpath,attr"`
+	Content   string `xml:",chardata"` // Captures inner element body text
+	Mode      string `xml:"mode,attr"` // "value", "json", "json_array"
+	OutputVar string `xml:"output_var,attr"`
+	OutVar    string `xml:"out_var,attr"`
+}
+type XmlXPathElement struct {
+	ID        string `xml:"id,attr"`
+	File      string `xml:"file,attr"`
+	Var       string `xml:"var,attr"`
+	XPath     string `xml:"xpath,attr"`
+	Content   string `xml:",chardata"` // Captures inner element body text
+	Mode      string `xml:"mode,attr"` // "text", "xml", "json_array"
+	OutputVar string `xml:"output_var,attr"`
+}
+type TemplateElement struct {
+	ID        string `xml:"id,attr"`
+	Name      string `xml:"name,attr"`
+	File      string `xml:"file,attr"`
+	Engine    string `xml:"engine,attr"`
+	OutputVar string `xml:"output_var,attr"`
+	Var       string `xml:"var,attr"`
+	Content   string `xml:",chardata"`
+}
+
+type FileSaveElement struct {
+	ID       string `xml:"id,attr"`
+	File     string `xml:"file,attr"`
+	Path     string `xml:"path,attr"`
+	Filename string `xml:"filename,attr"`
+	Var      string `xml:"var,attr"`
+	Variable string `xml:"variable,attr"`
+	Append   *bool  `xml:"append,attr"`
+	Content  string `xml:",chardata"`
+}
+type FileReadElement struct {
+	ID             string `xml:"id,attr"`
+	File           string `xml:"file,attr"`
+	Path           string `xml:"path,attr"`
+	Filename       string `xml:"filename,attr"`
+	Var            string `xml:"var,attr"`
+	Variable       string `xml:"variable,attr"`
+	OutputVar      string `xml:"output_var,attr"`
+	OutputVariable string `xml:"output_variable,attr"`
+	OutVar         string `xml:"out_var,attr"`
+}
+type ExcelReadElement struct {
+	ID        string `xml:"id,attr"`
+	File      string `xml:"file,attr"`
+	Sheet     string `xml:"sheet,attr"`
+	Header    *bool  `xml:"header,attr"`
+	Var       string `xml:"var,attr"`
+	OutputVar string `xml:"output_var,attr"`
+}
+type ExcelWriteElement struct {
+	ID      string `xml:"id,attr"`
+	File    string `xml:"file,attr"`
+	Sheet   string `xml:"sheet,attr"`
+	DBName  string `xml:"db,attr"`
+	Var     string `xml:"var,attr"`
+	Query   string `xml:",chardata"`
+}
+func (f *FileSaveElement) GetFilePath() string {
+	if f.File != "" {
+		return f.File
+	}
+	if f.Path != "" {
+		return f.Path
+	}
+	return f.Filename
+}
+
+func (f *FileSaveElement) GetInputVar() string {
+	if f.Var != "" {
+		return f.Var
+	}
+	return f.Variable
+}
+
+func (t *TemplateElement) GetOutputVar() string {
+	if t.OutputVar != "" {
+		return t.OutputVar
+	}
+	return t.Var
+}
+func (e *ExcelReadElement) GetOutputVar() string {
+	if e.OutputVar != "" {
+		return e.OutputVar
+	}
+	return e.Var
+}
+
 
 // ValidateXSD invokes 'xmllint' to validate the XML file against the given XSD schema.
 func ValidateXSD(xmlPath string, xsdPath string) error {
@@ -180,7 +307,92 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
+	case "yaml_path", "yaml-path", "YAML_PATH":
+		var elem YamlPathElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("yaml_path_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{Kind: NodeYAMLPath, YamlPath: &elem}, nil
+	case "json_path", "json-path", "JSON_PATH":
+		var elem JsonPathElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("json_path_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{Kind: NodeJSONPath, JsonPath: &elem}, nil
+	case "xml_xpath", "xml-xpath":
+		var elem XmlXPathElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		return &PipelineNode{Kind: NodeXMLXPath, XmlXPath: &elem}, nil
+	case "excel_read", "excel-read", "EXCEL_READ":
+		var elem ExcelReadElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("excel_read_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{Kind: NodeExcelRead, ExcelRead: &elem}, nil
 
+	case "excel_write", "excel-write", "EXCEL_WRITE":
+		var elem ExcelWriteElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("excel_write_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{Kind: NodeExcelWrite, ExcelWrite: &elem}, nil
+	case "file_save", "file-save", "FILE_SAVE":
+		var elem FileSaveElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("file_save_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{
+			Kind:     NodeFileSave,
+			FileSave: &elem,
+		}, nil
+	case "file_read", "file-read", "FILE_READ":
+		var elem FileReadElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("file_read_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{
+			Kind:     NodeFileRead,
+			FileRead: &elem,
+		}, nil
+	case "template":
+		var elem TemplateElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("template_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{
+			Kind:     NodeTemplate,
+			Template: &elem,
+		}, nil
 	case "http_client", "http-client":
 		var elem HTTPClientElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
@@ -242,15 +454,15 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			}
 		}
 
-if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" || 
-   lang == "powershell" || lang == "pwsh" || lang == "bash" || 
-   lang == "git-bash" || lang == "gitbash" || lang == "zsh" || 
-   lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" || 
-   lang == "fish" || lang == "sh" || lang == "dotnet-script" || lang == "csx" {
-    if scriptID == "" {
-        scriptID = fmt.Sprintf("script_%d", *scriptIndex)
-        (*scriptIndex)++
-    }
+		if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" ||
+			lang == "powershell" || lang == "pwsh" || lang == "bash" ||
+			lang == "git-bash" || lang == "gitbash" || lang == "zsh" ||
+			lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" ||
+			lang == "fish" || lang == "sh" || lang == "dotnet-script" || lang == "csx" {
+			if scriptID == "" {
+				scriptID = fmt.Sprintf("script_%d", *scriptIndex)
+				(*scriptIndex)++
+			}
 			var content string
 			if err := decoder.DecodeElement(&content, &se); err != nil {
 				return nil, err
@@ -563,4 +775,60 @@ func parseIfChildren(decoder *xml.Decoder, scriptIndex *int) ([]PipelineNode, []
 			}
 		}
 	}
+}
+func (f *FileReadElement) GetFilePath() string {
+	if f.File != "" {
+		return f.File
+	}
+	if f.Path != "" {
+		return f.Path
+	}
+	return f.Filename
+}
+
+func (f *FileReadElement) GetOutputVar() string {
+	for _, v := range []string{f.Var, f.Variable, f.OutputVar, f.OutputVariable, f.OutVar} {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+ func (x *XmlXPathElement) GetXPath() string {
+	if x.XPath != "" {
+		return x.XPath
+	}
+	return strings.TrimSpace(x.Content)
+}
+func (j *JsonPathElement) GetJSONPath() string {
+	if j.Path != "" {
+		return j.Path
+	}
+	if j.JSONPath != "" {
+		return j.JSONPath
+	}
+	return strings.TrimSpace(j.Content)
+}
+
+func (j *JsonPathElement) GetOutputVar() string {
+	if j.OutputVar != "" {
+		return j.OutputVar
+	}
+	return j.OutVar
+}
+func (y *YamlPathElement) GetYAMLPath() string {
+	if y.Path != "" {
+		return y.Path
+	}
+	if y.YAMLPath != "" {
+		return y.YAMLPath
+	}
+	return strings.TrimSpace(y.Content)
+}
+
+func (y *YamlPathElement) GetOutputVar() string {
+	if y.OutputVar != "" {
+		return y.OutputVar
+	}
+	return y.OutVar
 }
