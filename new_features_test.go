@@ -502,4 +502,106 @@ store:
 	}
 }
 
+func TestExcelMultiTabs(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "flow_test_excel_tabs")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	excelFilePath := filepath.Join(tmpDir, "report.xlsx")
+
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="excel_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<variables>
+			<variable name="excel_path" type="string" value="` + strings.ReplaceAll(excelFilePath, `\`, `/`) + `" />
+		</variables>
+		
+		<scripts>
+			<script id="setup_db" language="sql" db="excel_test_db">
+				CREATE TABLE users (id INTEGER, name TEXT, role TEXT);
+				INSERT INTO users (id, name, role) VALUES (1, 'Alice', 'Admin');
+				INSERT INTO users (id, name, role) VALUES (2, 'Bob', 'User');
+
+				CREATE TABLE products (sku TEXT, name TEXT, price REAL);
+				INSERT INTO products (sku, name, price) VALUES ('P001', 'Widget A', 10.99);
+				INSERT INTO products (sku, name, price) VALUES ('P002', 'Gadget B', 20.49);
+			</script>
+		</scripts>
+
+		<!-- Write Tab 1: UsersList -->
+		<excel_write id="write_users" file="{{excel_path}}" db="excel_test_db" sheet="UsersList">
+			SELECT id, name, role FROM users ORDER BY id ASC
+		</excel_write>
+
+		<!-- Write Tab 2: ProductsList -->
+		<excel_write id="write_products" file="{{excel_path}}" db="excel_test_db" sheet="ProductsList">
+			SELECT sku, name, price FROM products ORDER BY sku ASC
+		</excel_write>
+
+		<!-- Read both tabs to verify -->
+		<excel_read id="read_users" file="{{excel_path}}" sheet="UsersList" header="true" output_var="users_json" />
+		<excel_read id="read_products" file="{{excel_path}}" sheet="ProductsList" header="true" output_var="products_json" />
+	</pipeline>`)
+
+	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(varConfigs); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+	if err := registry.InitDatabases(dbConfigs); err != nil {
+		t.Fatalf("failed to init databases: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), nodes)
+	if err != nil {
+		for _, res := range results {
+			t.Logf("Result - ScriptID: %s, ReturnCode: %v, ResultsString: %s", res.ScriptID, res.ReturnCode, res.ResultsString)
+		}
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	// Verify users_json
+	usersJson := registry.GetVar("users_json")
+	if usersJson == nil {
+		t.Fatal("users_json variable is nil")
+	}
+	var users []map[string]string
+	if err := json.Unmarshal([]byte(usersJson.(string)), &users); err != nil {
+		t.Fatalf("failed to unmarshal users JSON: %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("expected 2 user records, got %d", len(users))
+	}
+	if users[0]["name"] != "Alice" || users[1]["name"] != "Bob" {
+		t.Errorf("unexpected users data: %v", users)
+	}
+
+	// Verify products_json
+	productsJson := registry.GetVar("products_json")
+	if productsJson == nil {
+		t.Fatal("products_json variable is nil")
+	}
+	var products []map[string]string
+	if err := json.Unmarshal([]byte(productsJson.(string)), &products); err != nil {
+		t.Fatalf("failed to unmarshal products JSON: %v", err)
+	}
+	if len(products) != 2 {
+		t.Fatalf("expected 2 product records, got %d", len(products))
+	}
+	if products[0]["name"] != "Widget A" || products[1]["name"] != "Gadget B" {
+		t.Errorf("unexpected products data: %v", products)
+	}
+}
+
+
 

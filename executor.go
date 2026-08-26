@@ -738,6 +738,12 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 		}
 
 		switch node.Kind {
+		case NodeSQL, NodeSQLBulk:
+			if node.Script != nil {
+				if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
+					return true
+				}
+			}
 		case NodeYAMLPath:
 			if hasErr := e.executeYAMLPathNode(ctx, *node.YamlPath, results); hasErr {
 				return true

@@ -41,6 +41,7 @@ To streamline file manipulation, payload generation, and document processing, th
 Direct spreadsheet capabilities have been integrated to bridge relational database tables, workflow variables, and business reporting:
 * **Excel Extraction (`<excel_read>`):** Parses specified worksheets (`sheet` attribute) from `.xlsx` files directly into JSON strings assigned to pipeline variables (`output_var` / `var`). Automatically processes row headers (`header="true"`) into object keys.
 * **Database Query Export (`<excel_write>`):** Executes inline SQL queries against configured database connections (`db` attribute) and streams the query results directly into formatted `.xlsx` workbooks on disk (`file` attribute).
+* **Multi-Tab Output Support:** Supports appending and writing different database queries into separate tabs/sheets of the same Excel workbook by specifying the same file path across sequential `<excel_write>` nodes with different `sheet` attributes.
 * **Automated Directory Creation & Interpolation:** Destination paths automatically create missing directory structures and evaluate variable placeholders (`{{VarName}}`).
 
 ### 6. Native XML XPath Extraction (`<xml_xpath>`)
@@ -54,12 +55,16 @@ To handle lightweight modern data serialization formats:
 - **Source Selection:** Queries raw JSON payloads sourced from disk files (`file` attribute) or environment variables (`var` attribute).
 - **Flexible JSONPath Syntax:** Parses JSONPath expressions specified directly in attributes (`jsonpath` / `path`) or in the element body text.
 - **Configurable Modes:** Supports default extraction as raw scalars/lines (`mode="value"`), a single JSON node (`mode="json"`), or serialized JSON arrays (`mode="json_array"`).
-
 ### 8. Native YAMLPath Extraction (`<yaml_path>`)
 To query highly structured infrastructure and configuration payloads:
 - **Unified Processing:** Loads YAML documents from disk (`file` attribute) or variables (`var` attribute), normalizing it into a JSON-compatible format internally.
 - **Advanced Querying:** Runs powerful YAML path patterns defined in attributes (`yamlpath` / `path`) or tag body texts.
 - **Rich Representation Modes:** Extracts queries into raw scalars (`mode="value"`), serialized JSON arrays (`mode="json_array"`), or formats nested subsets back into clean YAML format block strings (`mode="yaml"`).
+
+### 9. Native SQL and Bulk Streaming SQL Nodes (`<sql>`, `<sql-bulk>`)
+To streamline database execution and high-performance cross-database data synchronization:
+- **Unified `<sql>` Node:** Directly executes SQL commands (DDL/DML or queries) against any target database. Supports capturing output streams into pipeline variables via `output_var`.
+- **Streaming `<sql-bulk>` Node:** Automatically handles streaming query results from a source database directly to a destination table with batching configurations (`batch_size`, `tablock`, etc.), resolving high-volume ETL overhead.
 
 ---
 ---
@@ -84,7 +89,9 @@ These enhancements are covered by a suite of tests inside [`executor_test.go`](.
 2. Concurrent parallel variable isolation, non-colliding variable merging, and correct `WORKER_<id>_<key>` namespacing on key collisions (`TestParallelVariableIsolationAndNamespacing`).
 3. Correct filesystem behaviors: writing dynamic payloads to paths, auto-creating directory trees, appending to files, and reading disk contents into state variables (`TestFileSaveAndRead`).
 4. Template rendering: evaluating inline body text and loading external template documents with full path/variable interpolation (`TestTemplate`).
-5. Native spreadsheet interoperability: executing database queries directly to Excel sheets, saving formatted spreadsheets, and parsing worksheets back into raw JSON object arrays (`TestExcelReadAndWrite`).
+5. Native spreadsheet interoperability: executing database queries directly to Excel sheets, saving formatted spreadsheets, writing multiple sequential tabs to a single workbook, and parsing worksheets back into raw JSON object arrays (`TestExcelReadAndWrite`, `TestExcelMultiTabs`).
 6. XPath node extraction: reading file-based or variable-based XML, matching node trees with XPath query patterns, and formatting outputs as plaintext, raw XML, or JSON lists (`TestXMLXPath`).
 7. JSONPath value extraction: reading JSON payloads from variables or files, executing JSONPath matches, and formatting values in scalar, single JSON, or array representations (`TestJSONPath`).
 8. YAMLPath extraction and formatting: querying structures from files or memory, formatting values into scalar joins, JSON lists, or marshalling nested maps back to clean YAML representations (`TestYAMLPath`).
+9. Native SQL and bulk database synchronization: executing standard DDL/DML, and streaming high-performance bulk operations (`TestSQLAndSQLBulk`).
+

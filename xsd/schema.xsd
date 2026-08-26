@@ -440,4 +440,46 @@
         </xs:simpleContent>
     </xs:complexType>
 
+    <!-- Add to <xs:complexType name="PipelineNodesType"><xs:choice> -->
+    <xs:element name="sql" type="SqlType" />
+    <xs:element name="sql_bulk" type="SqlBulkType" />
+    <xs:element name="sql-bulk" type="SqlBulkType" />
+    <xs:element name="SQL_BULK" type="SqlBulkType" />
+
+    <!-- Add element definitions -->
+    <xs:complexType name="SqlType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="id" type="xs:string" use="optional" />
+                <xs:attribute name="db" type="xs:string" use="optional" />
+                <xs:attribute name="database" type="xs:string" use="optional" />
+                <xs:attribute name="var" type="xs:string" use="optional" />
+                <xs:attribute name="variable" type="xs:string" use="optional" />
+                <xs:attribute name="output_var" type="xs:string" use="optional" />
+                <xs:attribute name="out_var" type="xs:string" use="optional" />
+                <xs:attribute name="description" type="xs:string" use="optional" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="SqlBulkType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="id" type="xs:string" use="optional" />
+                <xs:attribute name="db" type="xs:string" use="optional" />
+                <xs:attribute name="database" type="xs:string" use="optional" />
+                <xs:attribute name="target_db" type="xs:string" use="optional" />
+                <xs:attribute name="target_database" type="xs:string" use="optional" />
+                <xs:attribute name="target_table" type="xs:string" use="required" />
+                <xs:attribute name="batch_size" type="xs:positiveInteger" use="optional" />
+                <xs:attribute name="var" type="xs:string" use="optional" />
+                <xs:attribute name="output_var" type="xs:string" use="optional" />
+                <xs:attribute name="tablock" type="xs:boolean" use="optional" />
+                <xs:attribute name="check_constraints" type="xs:boolean" use="optional" />
+                <xs:attribute name="fire_triggers" type="xs:boolean" use="optional" />
+                <xs:attribute name="keep_nulls" type="xs:boolean" use="optional" />
+                <xs:attribute name="description" type="xs:string" use="optional" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
 </xs:schema>

@@ -67,14 +67,16 @@ const (
 	// NodeTemplate represents a template inclusion step.
 	NodeTemplate // New enum item
 	// NodeFileSave represents a file save operation step.
-	NodeFileSave // New enum item
+	NodeFileSave // New enum item for file save operation
 	// NodeFileRead represents a file read operation step.
-	NodeFileRead // New enum item
-	NodeExcelRead  // New enum item
-	NodeExcelWrite // New enum item
-	NodeXMLXPath // New enum item
-	NodeJSONPath // New enum item
-	NodeYAMLPath // New enum item
+	NodeFileRead // New enum item for file read operation
+	NodeExcelRead  // New enum item for Excel read operation
+	NodeExcelWrite // New enum item for Excel write operation
+	NodeXMLXPath // New enum item for XML XPath extraction
+	NodeJSONPath // New enum item for JSON path extraction
+	NodeYAMLPath // New enum item for YAML path extraction
+	NodeSQL         // New enum item for standard SQL execution
+    NodeSQLBulk // New enum item for bulk SQL execution
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -307,6 +309,59 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
+	case "sql":
+    s := ScriptItem{Language: "sql", Tablock: true}
+    for _, attr := range se.Attr {
+        switch strings.ToLower(attr.Name.Local) {
+        case "id": s.ID = attr.Value
+        case "db", "database": s.DBName = attr.Value
+        case "var", "variable": s.VarName = attr.Value
+        case "output_var", "out_var", "output_variable": s.OutputVar = attr.Value
+        }
+    }
+    if s.ID == "" {
+        s.ID = fmt.Sprintf("sql_%d", *scriptIndex)
+        (*scriptIndex)++
+    }
+    var content string
+    if err := decoder.DecodeElement(&content, &se); err != nil {
+        return nil, err
+    }
+    s.Code = strings.TrimSpace(content)
+    return &PipelineNode{Kind: NodeSQL, Script: &s}, nil
+
+case "sql_bulk", "sql-bulk", "SQL_BULK":
+    s := ScriptItem{Language: "sql", Tablock: true}
+    for _, attr := range se.Attr {
+        switch strings.ToLower(attr.Name.Local) {
+        case "id": s.ID = attr.Value
+        case "db", "database": s.DBName = attr.Value
+        case "target_db", "target_database": s.TargetDB = attr.Value
+        case "target_table": s.TargetTable = attr.Value
+        case "batch_size":
+            if b, err := strconv.Atoi(attr.Value); err == nil { s.BatchSize = b }
+        case "var", "variable": s.VarName = attr.Value
+        case "output_var", "out_var": s.OutputVar = attr.Value
+        case "tablock":
+            if b, err := strconv.ParseBool(attr.Value); err == nil { s.Tablock = b }
+        case "check_constraints":
+            if b, err := strconv.ParseBool(attr.Value); err == nil { s.CheckConstraints = b }
+        case "fire_triggers":
+            if b, err := strconv.ParseBool(attr.Value); err == nil { s.FireTriggers = b }
+        case "keep_nulls":
+            if b, err := strconv.ParseBool(attr.Value); err == nil { s.KeepNulls = b }
+        }
+    }
+    if s.ID == "" {
+        s.ID = fmt.Sprintf("sql_bulk_%d", *scriptIndex)
+        (*scriptIndex)++
+    }
+    var content string
+    if err := decoder.DecodeElement(&content, &se); err != nil {
+        return nil, err
+    }
+    s.Code = strings.TrimSpace(content)
+    return &PipelineNode{Kind: NodeSQLBulk, Script: &s}, nil
 	case "yaml_path", "yaml-path", "YAML_PATH":
 		var elem YamlPathElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {

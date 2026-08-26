@@ -380,3 +380,72 @@ func TestParallelVariableIsolationAndNamespacing(t *testing.T) {
 	}
 }
 
+func TestSQLAndSQLBulk(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="test_sql_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<scripts>
+			<!-- Test standard <sql> tag for table setup -->
+			<sql id="setup_tables" db="test_sql_db">
+				CREATE TABLE src_table (id INTEGER PRIMARY KEY, name TEXT);
+				CREATE TABLE dest_table (id INTEGER PRIMARY KEY, name TEXT);
+				INSERT INTO src_table (id, name) VALUES (1, 'Alice');
+				INSERT INTO src_table (id, name) VALUES (2, 'Bob');
+			</sql>
+
+			<!-- Test <sql-bulk> tag to stream from src_table to dest_table -->
+			<sql-bulk id="bulk_copy" db="test_sql_db" target_db="test_sql_db" target_table="dest_table" batch_size="1">
+				SELECT id, name FROM src_table ORDER BY id ASC
+			</sql-bulk>
+
+			<!-- Test <sql> tag with output_var to fetch records -->
+			<sql id="select_dest" db="test_sql_db" output_var="dest_content">
+				SELECT name FROM dest_table ORDER BY id ASC
+			</sql>
+		</scripts>
+	</pipeline>`)
+
+	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(varConfigs); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+	if err := registry.InitDatabases(dbConfigs); err != nil {
+		t.Fatalf("failed to init databases: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), nodes)
+	if err != nil {
+		for _, res := range results {
+			t.Logf("Result - ScriptID: %s, ReturnCode: %v, ResultsString: %s", res.ScriptID, res.ReturnCode, res.ResultsString)
+		}
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	// Verify the destination content
+	destContent := registry.GetVar("dest_content")
+	if destContent == nil {
+		t.Fatal("dest_content variable is nil")
+	}
+
+	expectedResult := "name\nAlice\nBob"
+	cleanResult := strings.TrimSpace(strings.ReplaceAll(destContent.(string), "\r", ""))
+	if cleanResult != expectedResult {
+		t.Errorf("expected %q, got %q", expectedResult, cleanResult)
+	}
+
+	// Double check results count
+	if len(results) != 3 {
+		t.Fatalf("expected 3 script results, got %d", len(results))
+	}
+}
+
+
