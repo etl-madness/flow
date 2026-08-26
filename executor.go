@@ -19,12 +19,13 @@ import (
 	"sync/atomic"
 	"text/template"
 	"time"
-"gopkg.in/yaml.v3"
+
 	"github.com/antchfx/xmlquery"
 	"github.com/spyzhov/ajson"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 	"github.com/xuri/excelize/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // ScriptResult represents the complete outcome of a single executed script or loop block.
@@ -1221,14 +1222,33 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 		sheet = "Sheet1"
 	}
 
-	f := excelize.NewFile()
-	sheetIdx, _ := f.NewSheet(sheet)
+	var f *excelize.File
+	var err error
+
+	// 1. Open existing file if present, otherwise create a new workbook
+	if _, statErr := os.Stat(filePath); statErr == nil {
+		f, err = excelize.OpenFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to open existing excel file %s: %v", filePath, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+	} else {
+		f = excelize.NewFile()
+	}
+	defer f.Close()
+
+	// 2. Create the sheet if it doesn't exist, or select it if it does
+	sheetIdx, _ := f.GetSheetIndex(sheet)
+	if sheetIdx == -1 {
+		sheetIdx, _ = f.NewSheet(sheet)
+	}
 	f.SetActiveSheet(sheetIdx)
 
 	var rowCount int
 
 	if elem.DBName != "" && elem.Query != "" {
-		// Export directly from Database Query
 		dbConn, err := e.registry.GetDB(elem.DBName)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("db connection error: %v", err)
@@ -1280,7 +1300,6 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 		rowCount = rowIdx - 2
 	}
 
-	// Ensure destination directory exists
 	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
 		os.MkdirAll(dir, 0755)
 	}
