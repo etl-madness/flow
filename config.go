@@ -69,14 +69,14 @@ const (
 	// NodeFileSave represents a file save operation step.
 	NodeFileSave // New enum item for file save operation
 	// NodeFileRead represents a file read operation step.
-	NodeFileRead // New enum item for file read operation
+	NodeFileRead   // New enum item for file read operation
 	NodeExcelRead  // New enum item for Excel read operation
 	NodeExcelWrite // New enum item for Excel write operation
-	NodeXMLXPath // New enum item for XML XPath extraction
-	NodeJSONPath // New enum item for JSON path extraction
-	NodeYAMLPath // New enum item for YAML path extraction
-	NodeSQL         // New enum item for standard SQL execution
-    NodeSQLBulk // New enum item for bulk SQL execution
+	NodeXMLXPath   // New enum item for XML XPath extraction
+	NodeJSONPath   // New enum item for JSON path extraction
+	NodeYAMLPath   // New enum item for YAML path extraction
+	NodeSQL        // New enum item for standard SQL execution
+	NodeSQLBulk    // New enum item for bulk SQL execution
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -99,9 +99,9 @@ type PipelineNode struct {
 	FileRead      *FileReadElement   // New payload field for file read operation
 	ExcelRead     *ExcelReadElement  // New payload field for Excel read operation
 	ExcelWrite    *ExcelWriteElement // New payload field for Excel write operation
-	XmlXPath      *XmlXPathElement // New payload field for XML XPath extraction
-	JsonPath 	  *JsonPathElement // New payload field for JSON path extraction
-	YamlPath     *YamlPathElement // New payload field for YAML path extraction
+	XmlXPath      *XmlXPathElement   // New payload field for XML XPath extraction
+	JsonPath      *JsonPathElement   // New payload field for JSON path extraction
+	YamlPath      *YamlPathElement   // New payload field for YAML path extraction
 }
 type YamlPathElement struct {
 	ID        string `xml:"id,attr"`
@@ -174,13 +174,14 @@ type ExcelReadElement struct {
 	OutputVar string `xml:"output_var,attr"`
 }
 type ExcelWriteElement struct {
-	ID      string `xml:"id,attr"`
-	File    string `xml:"file,attr"`
-	Sheet   string `xml:"sheet,attr"`
-	DBName  string `xml:"db,attr"`
-	Var     string `xml:"var,attr"`
-	Query   string `xml:",chardata"`
+	ID     string `xml:"id,attr"`
+	File   string `xml:"file,attr"`
+	Sheet  string `xml:"sheet,attr"`
+	DBName string `xml:"db,attr"`
+	Var    string `xml:"var,attr"`
+	Query  string `xml:",chardata"`
 }
+
 func (f *FileSaveElement) GetFilePath() string {
 	if f.File != "" {
 		return f.File
@@ -210,7 +211,6 @@ func (e *ExcelReadElement) GetOutputVar() string {
 	}
 	return e.Var
 }
-
 
 // ValidateXSD invokes 'xmllint' to validate the XML file against the given XSD schema.
 func ValidateXSD(xmlPath string, xsdPath string) error {
@@ -287,7 +287,7 @@ func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []Pipel
 				if dbCfg.Name != "" && dbCfg.ConnectionString != "" {
 					dbs = append(dbs, dbCfg)
 				}
-			} else if elemName == "scripts" || elemName == "config" || elemName == "variables" || elemName == "databases" {
+			} else if elemName == "flow" || elemName == "scripts" || elemName == "config" || elemName == "variables" || elemName == "databases" {
 				continue
 			} else {
 				node, err := parseNodeElement(decoder, se, &scriptIndex)
@@ -310,58 +310,78 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
 	case "sql":
-    s := ScriptItem{Language: "sql", Tablock: true}
-    for _, attr := range se.Attr {
-        switch strings.ToLower(attr.Name.Local) {
-        case "id": s.ID = attr.Value
-        case "db", "database": s.DBName = attr.Value
-        case "var", "variable": s.VarName = attr.Value
-        case "output_var", "out_var", "output_variable": s.OutputVar = attr.Value
-        }
-    }
-    if s.ID == "" {
-        s.ID = fmt.Sprintf("sql_%d", *scriptIndex)
-        (*scriptIndex)++
-    }
-    var content string
-    if err := decoder.DecodeElement(&content, &se); err != nil {
-        return nil, err
-    }
-    s.Code = strings.TrimSpace(content)
-    return &PipelineNode{Kind: NodeSQL, Script: &s}, nil
+		s := ScriptItem{Language: "sql", Tablock: true}
+		for _, attr := range se.Attr {
+			switch strings.ToLower(attr.Name.Local) {
+			case "id":
+				s.ID = attr.Value
+			case "db", "database":
+				s.DBName = attr.Value
+			case "var", "variable":
+				s.VarName = attr.Value
+			case "output_var", "out_var", "output_variable":
+				s.OutputVar = attr.Value
+			}
+		}
+		if s.ID == "" {
+			s.ID = fmt.Sprintf("sql_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		var content string
+		if err := decoder.DecodeElement(&content, &se); err != nil {
+			return nil, err
+		}
+		s.Code = strings.TrimSpace(content)
+		return &PipelineNode{Kind: NodeSQL, Script: &s}, nil
 
-case "sql_bulk", "sql-bulk", "SQL_BULK":
-    s := ScriptItem{Language: "sql", Tablock: true}
-    for _, attr := range se.Attr {
-        switch strings.ToLower(attr.Name.Local) {
-        case "id": s.ID = attr.Value
-        case "db", "database": s.DBName = attr.Value
-        case "target_db", "target_database": s.TargetDB = attr.Value
-        case "target_table": s.TargetTable = attr.Value
-        case "batch_size":
-            if b, err := strconv.Atoi(attr.Value); err == nil { s.BatchSize = b }
-        case "var", "variable": s.VarName = attr.Value
-        case "output_var", "out_var": s.OutputVar = attr.Value
-        case "tablock":
-            if b, err := strconv.ParseBool(attr.Value); err == nil { s.Tablock = b }
-        case "check_constraints":
-            if b, err := strconv.ParseBool(attr.Value); err == nil { s.CheckConstraints = b }
-        case "fire_triggers":
-            if b, err := strconv.ParseBool(attr.Value); err == nil { s.FireTriggers = b }
-        case "keep_nulls":
-            if b, err := strconv.ParseBool(attr.Value); err == nil { s.KeepNulls = b }
-        }
-    }
-    if s.ID == "" {
-        s.ID = fmt.Sprintf("sql_bulk_%d", *scriptIndex)
-        (*scriptIndex)++
-    }
-    var content string
-    if err := decoder.DecodeElement(&content, &se); err != nil {
-        return nil, err
-    }
-    s.Code = strings.TrimSpace(content)
-    return &PipelineNode{Kind: NodeSQLBulk, Script: &s}, nil
+	case "sql_bulk", "sql-bulk", "SQL_BULK":
+		s := ScriptItem{Language: "sql", Tablock: true}
+		for _, attr := range se.Attr {
+			switch strings.ToLower(attr.Name.Local) {
+			case "id":
+				s.ID = attr.Value
+			case "db", "database":
+				s.DBName = attr.Value
+			case "target_db", "target_database":
+				s.TargetDB = attr.Value
+			case "target_table":
+				s.TargetTable = attr.Value
+			case "batch_size":
+				if b, err := strconv.Atoi(attr.Value); err == nil {
+					s.BatchSize = b
+				}
+			case "var", "variable":
+				s.VarName = attr.Value
+			case "output_var", "out_var":
+				s.OutputVar = attr.Value
+			case "tablock":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					s.Tablock = b
+				}
+			case "check_constraints":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					s.CheckConstraints = b
+				}
+			case "fire_triggers":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					s.FireTriggers = b
+				}
+			case "keep_nulls":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					s.KeepNulls = b
+				}
+			}
+		}
+		if s.ID == "" {
+			s.ID = fmt.Sprintf("sql_bulk_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		var content string
+		if err := decoder.DecodeElement(&content, &se); err != nil {
+			return nil, err
+		}
+		s.Code = strings.TrimSpace(content)
+		return &PipelineNode{Kind: NodeSQLBulk, Script: &s}, nil
 	case "yaml_path", "yaml-path", "YAML_PATH":
 		var elem YamlPathElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
@@ -849,7 +869,7 @@ func (f *FileReadElement) GetOutputVar() string {
 	}
 	return ""
 }
- func (x *XmlXPathElement) GetXPath() string {
+func (x *XmlXPathElement) GetXPath() string {
 	if x.XPath != "" {
 		return x.XPath
 	}
