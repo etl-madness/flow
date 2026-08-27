@@ -2,20 +2,20 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <!-- ROOT ELEMENT -->
-<!-- ROOT ELEMENT -->
-<xs:element name="pipeline">
-    <xs:complexType>
-        <xs:sequence>
-            <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
-            <xs:choice minOccurs="0" maxOccurs="unbounded">
-                <xs:element name="flow" type="PipelineNodesType" />
-                <xs:element name="scripts" type="PipelineNodesType" />
-            </xs:choice>
-        </xs:sequence>
-        <xs:attribute name="description" type="xs:string" use="optional" />
-    </xs:complexType>
-</xs:element>
+    <!-- ROOT ELEMENT -->
+    <xs:element name="pipeline">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
+                <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="flow" type="PipelineNodesType" />
+                    <xs:element name="scripts" type="PipelineNodesType" />
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="description" type="xs:string" use="optional" />
+        </xs:complexType>
+    </xs:element>
 
     <!-- VARIABLE DEFINITIONS -->
     <xs:complexType name="VariablesType">
@@ -102,7 +102,25 @@
             <xs:element name="YAML_PATH" type="YamlPathType" />
         </xs:choice>
     </xs:complexType>
+    <xs:element name="assert" type="AssertType" />
 
+    <xs:complexType name="AssertType">
+        <xs:sequence>
+            <!-- Optional child execution block to run on failure -->
+            <xs:element name="on_failure" type="PipelineNodesType" minOccurs="0" maxOccurs="1" />
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:string" use="optional" />
+        <xs:attribute name="var" type="xs:string" use="required" />
+        <xs:attribute name="equals" type="xs:string" use="optional" />
+        <xs:attribute name="value" type="xs:string" use="optional" />
+        <xs:attribute name="operator" type="xs:string" use="optional" default="eq" />
+        <xs:attribute name="message" type="xs:string" use="optional" />
+
+        <!-- Action upon failure: halt, warn, continue, or set_var -->
+        <xs:attribute name="on_failure" type="xs:string" use="optional" default="halt" />
+        <xs:attribute name="fail_var" type="xs:string" use="optional" />
+        <xs:attribute name="fail_val" type="xs:string" use="optional" default="true" />
+    </xs:complexType>
     <!-- SCRIPT NODE -->
     <xs:complexType name="ScriptType">
         <xs:simpleContent>

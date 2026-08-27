@@ -77,6 +77,7 @@ const (
 	NodeYAMLPath   // New enum item for YAML path extraction
 	NodeSQL        // New enum item for standard SQL execution
 	NodeSQLBulk    // New enum item for bulk SQL execution
+	NodeAssert      // New enum item for assert operation
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -102,6 +103,19 @@ type PipelineNode struct {
 	XmlXPath      *XmlXPathElement   // New payload field for XML XPath extraction
 	JsonPath      *JsonPathElement   // New payload field for JSON path extraction
 	YamlPath      *YamlPathElement   // New payload field for YAML path extraction
+	Assert    *AssertElement 	 // New enum item for assert operation
+}
+type AssertElement struct {
+    ID          string         `xml:"id,attr"`
+    Var         string         `xml:"var,attr"`
+    Equals      string         `xml:"equals,attr"`
+    Value       string         `xml:"value,attr"`
+    Operator    string         `xml:"operator,attr"`
+    Message     string         `xml:"message,attr"`
+    OnFailure   string         `xml:"on_failure,attr"` // "halt", "warn", "continue", "set_var"
+    FailVar     string         `xml:"fail_var,attr"`
+    FailVal     string         `xml:"fail_val,attr"`
+    FailureNodes []PipelineNode // Nodes inside <on_failure> block
 }
 type YamlPathElement struct {
 	ID        string `xml:"id,attr"`
@@ -309,6 +323,45 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
+	case "assert":
+    var elem AssertElement
+    for _, attr := range se.Attr {
+        switch strings.ToLower(attr.Name.Local) {
+        case "id": elem.ID = attr.Value
+        case "var": elem.Var = attr.Value
+        case "equals": elem.Equals = attr.Value
+        case "value": elem.Value = attr.Value
+        case "operator": elem.Operator = attr.Value
+        case "message": elem.Message = attr.Value
+        case "on_failure": elem.OnFailure = attr.Value
+        case "fail_var": elem.FailVar = attr.Value
+        case "fail_val": elem.FailVal = attr.Value
+        }
+    }
+    if elem.ID == "" {
+        elem.ID = fmt.Sprintf("assert_%d", *scriptIndex)
+        (*scriptIndex)++
+    }
+
+    // Parse inner tags (such as <on_failure>)
+    for {
+        tok, err := decoder.Token()
+        if err == io.EOF || err != nil { break }
+
+        if end, ok := tok.(xml.EndElement); ok && strings.EqualFold(end.Name.Local, "assert") {
+            break
+        }
+
+        if start, ok := tok.(xml.StartElement); ok {
+            if strings.EqualFold(start.Name.Local, "on_failure") {
+                nodes, err := parseChildrenUntil(decoder, "on_failure", scriptIndex)
+                if err != nil { return nil, err }
+                elem.FailureNodes = nodes
+            }
+        }
+    }
+
+    return &PipelineNode{Kind: NodeAssert, Assert: &elem}, nil
 	case "sql":
 		s := ScriptItem{Language: "sql", Tablock: true}
 		for _, attr := range se.Attr {

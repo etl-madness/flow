@@ -19,7 +19,24 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	inspect = func(nodes []PipelineNode) {
 		for _, node := range nodes {
 			switch node.Kind {
-				// In validator.go -> ValidateAST inspect function switch node.Kind
+			// In validator.go -> ValidateAST inspect function switch node.Kind
+			case NodeAssert:
+				a := node.Assert
+				if a != nil {
+					if a.ID != "" {
+						if knownIDs[a.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", a.ID))
+						}
+						knownIDs[a.ID] = true
+					}
+					if a.Var == "" {
+						errs = append(errs, fmt.Sprintf("assert node '%s' is missing required 'var' attribute", a.ID))
+					}
+					// Recursively inspect nodes inside <on_failure>
+					if len(a.FailureNodes) > 0 {
+						inspect(a.FailureNodes)
+					}
+				}
 			case NodeSQL, NodeSQLBulk:
 				s := node.Script
 				if s != nil {
@@ -126,4 +143,3 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	}
 	return nil
 }
-

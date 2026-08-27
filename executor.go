@@ -738,6 +738,12 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 		}
 
 		switch node.Kind {
+		case NodeAssert:
+			if node.Assert != nil {
+				if hasErr := e.executeAssertNode(ctx, *node.Assert, results); hasErr {
+					return true
+				}
+			}
 		case NodeSQL, NodeSQLBulk:
 			if node.Script != nil {
 				if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
@@ -1648,4 +1654,68 @@ func (e *Executor) executeYAMLPathNode(ctx context.Context, elem YamlPathElement
 	res.Duration = time.Since(startTime).String()
 	e.appendResult(results, res)
 	return false
+}
+func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, results *[]ScriptResult) bool {
+    startTime := time.Now()
+    res := ScriptResult{ScriptID: elem.ID}
+
+    expectedVal := elem.Equals
+    if expectedVal == "" {
+        expectedVal = elem.Value
+    }
+
+    // 1. Evaluate Condition using engine's evalCondition[cite: 4]
+    passed := e.evalCondition(elem.Var, expectedVal)
+
+    if !passed {
+        errMsg := elem.Message
+        if errMsg == "" {
+            errMsg = fmt.Sprintf("Assertion failed for variable %q (expected: %q)", elem.Var, expectedVal)
+        }
+
+        // 2. Action A: Set a Failure Flag Variable if specified
+        if elem.FailVar != "" {
+            valToSet := elem.FailVal
+            if valToSet == "" { valToSet = "true" }
+            e.registry.SetVar(elem.FailVar, valToSet)
+        }
+
+        // 3. Action B: Execute nested <on_failure> nodes (e.g., Slack alert, SQL cleanup)
+        if len(elem.FailureNodes) > 0 {
+            if e.verbose.Load() {
+                fmt.Printf("Assertion %q failed. Executing fallback <on_failure> block...\n", elem.ID)
+            }
+            // Execute nested child nodes recursively[cite: 4]
+            _ = e.executeNodes(ctx, elem.FailureNodes, results)
+        }
+
+        actionStr := strings.ToLower(elem.OnFailure)
+        res.Duration = time.Since(startTime).String()
+
+        // 4. Action C: Determine whether to Halt or Continue
+        switch actionStr {
+        case "warn", "continue":
+            // Log as a warning but DO NOT halt execution (return false)[cite: 4]
+            res.ReturnCode = 0
+            res.ResultsString = fmt.Sprintf("WARNING: %s (Pipeline continuing)", errMsg)
+            e.appendResult(results, res)
+            return false
+
+        case "halt", "":
+            fallthrough
+        default:
+            // Default Fail-Fast behavior: halt pipeline (return true)[cite: 4]
+            res.ReturnCode = errMsg
+            res.ResultsString = fmt.Sprintf("CRITICAL ASSERTION FAILURE: %s", errMsg)
+            e.appendResult(results, res)
+            return true 
+        }
+    }
+
+    // Assertion Passed
+    res.ReturnCode = 0
+    res.ResultsString = fmt.Sprintf("Assertion passed on variable %q", elem.Var)
+    res.Duration = time.Since(startTime).String()
+    e.appendResult(results, res)
+    return false
 }
