@@ -16,7 +16,7 @@ Transactions are declared at the `<group>` node level using two attributes:
     <databases>
         <database name="sales_db" driver="postgres" connection_string="postgresql://..." />
     </databases>
-    <scripts>
+    <flow>
         <group id="update_sales_txn" transaction="true" db="sales_db">
             <script id="deduct_inventory" language="sql" db="sales_db">
                 UPDATE inventory SET stock = stock - 1 WHERE item_id = 42;
@@ -25,7 +25,7 @@ Transactions are declared at the `<group>` node level using two attributes:
                 INSERT INTO sales (item_id, qty) VALUES (42, 1);
             </script>
         </group>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -37,7 +37,7 @@ If a group with `transaction="true"` is placed inside a `<foreach>` loop, Flow b
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- Loop driver gets item IDs -->
         <foreach id="process_items" language="sql" db="sales_db">
             SELECT item_id, price FROM active_promotions;
@@ -52,7 +52,7 @@ If a group with `transaction="true"` is placed inside a `<foreach>` loop, Flow b
                 </script>
             </group>
         </foreach>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -67,7 +67,7 @@ When running concurrent tasks in a `<parallel>` block:
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <parallel max_threads="2">
             <!-- Branch 1: isolated txn on sales_db -->
             <group transaction="true" db="sales_db">
@@ -81,7 +81,7 @@ When running concurrent tasks in a `<parallel>` block:
                 <script language="sql" db="sales_db">UPDATE stats SET count = count + 1;</script>
             </group>
         </parallel>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 

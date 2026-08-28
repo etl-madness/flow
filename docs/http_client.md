@@ -100,7 +100,7 @@ Inside a `<while>` loop, `<http_client>` can poll remote job status endpoints un
         <variable name="JobID" type="string" value="JOB-99201" />
     </variables>
 
-    <scripts>
+    <flow>
         <while id="PollStatus" var="JobState" equals="RUNNING" max_iterations="20">
             <http_client 
                 id="CheckStatus"
@@ -114,7 +114,7 @@ Inside a `<while>` loop, `<http_client>` can poll remote job status endpoints un
                 func main() { time.Sleep(2 * time.Second) }
             </script>
         </while>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -140,7 +140,7 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
 #### Example A: SQL -> HTTP POST -> Go Response Parser
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- 1. Extract JSON payload from database -->
         <script id="GetPayload" language="sql" db="analytics_db" output_var="JsonPayload">
             SELECT JSON_OBJECT('sensor_id': id, 'reading': value) 
@@ -173,14 +173,14 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
                 fmt.Printf("Uploaded with status %d: %s\n", status, resp)
             }
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 
 ```
 #### Example B: Secure Enterprise Connection (TLS & Proxy Setup)
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <http_client 
             id="SecureEnterprisePost"
             uri="[https://secure.partner.com/api/v2/ingest](https://secure.partner.com/api/v2/ingest)"
@@ -200,7 +200,7 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
                 "environment": "production"
             }
         </http_client>
-    </scripts>
+    </flow>
 </pipeline>
 
 ```

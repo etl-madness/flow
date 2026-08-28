@@ -47,9 +47,10 @@ Extracts simple scalar values from an external file and joins the matched result
   <variables>
     <variable name="src_file" type="string" value="books.json" />
   </variables>
-
+<flow>
   <!-- Query all titles in default text-join mode -->
   <json_path id="get_titles" file="{{src_file}}" jsonpath="$.store.books[*].title" output_var="book_titles" />
+</flow>
 </pipeline>
 ```
 
@@ -67,12 +68,14 @@ Extracts and serialized matched objects or numeric arrays as a structured JSON a
 **XML Pipeline Definition:**
 ```xml
 <pipeline>
+  <flow>
   <!-- Extract all book categories as a serialized JSON string array -->
   <json_path id="get_categories" 
              file="books.json" 
              jsonpath="$.store.books[*].category" 
              mode="json_array" 
              output_var="categories_json" />
+  </flow>
 </pipeline>
 ```
 
@@ -89,12 +92,14 @@ Extracts a specific nested object node and serializes it directly to a clean JSO
 **XML Pipeline Definition:**
 ```xml
 <pipeline>
+  <flow>
   <!-- Extract only the first book object -->
   <json_path id="get_first_book" 
              file="books.json" 
              jsonpath="$.store.books[0]" 
              mode="json" 
              output_var="first_book" />
+  </flow>
 </pipeline>
 ```
 
@@ -125,11 +130,13 @@ Combines expression-based filtering (such as price filters) with dynamic variabl
     <variable name="max_price" type="string" value="25.00" />
   </variables>
 
-  <!-- Select only items with price less than the max_price variable value -->
-  <json_path id="filter_by_price" 
-             file="store.json" 
-             jsonpath="$.store.*[?(@.price &lt; {{max_price}})].color" 
-             output_var="cheap_colors" />
+  <flow>
+    <!-- Select only items with price less than the max_price variable value -->
+    <json_path id="filter_by_price" 
+               file="store.json" 
+               jsonpath="$.store.*[?(@.price &lt; {{max_price}})].color" 
+               output_var="cheap_colors" />
+  </flow>
 </pipeline>
 ```
 
@@ -149,11 +156,12 @@ For complex JSONPath syntax that contains many special characters, specify the q
   <variables>
     <variable name="raw_payload" type="string" value='{"employees": [{"name": "Alice", "role": "developer"}, {"name": "Bob", "role": "manager"}]}' />
   </variables>
-
+  <flow>
   <!-- Uses chardata body text as the JSONPath expression and stores output variables -->
   <json_path id="get_developers" var="raw_payload" output_var="dev_names">
     $.employees[?(@.role == "developer")].name
   </json_path>
+  </flow>
 </pipeline>
 ```
 

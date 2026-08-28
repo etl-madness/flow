@@ -13,7 +13,7 @@ This section provides an example of how to describe a pipeline, including its pu
                   description="Primary Analytics Database" />
     </databases>
 
-    <scripts>
+    <flow>
         <!-- Tab 1: Executive Summary -->
         <excel_write id="export_summary" 
                      file="reports/Monthly_Executive_Report.xlsx" 
@@ -57,6 +57,6 @@ This section provides an example of how to describe a pipeline, including its pu
                 reorder_level
             FROM warehouse_inventory;
         </excel-write>
-    </scripts>
+    </flow>
 </pipeline>
 ```

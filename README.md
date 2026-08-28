@@ -36,7 +36,7 @@
     <variables>
         <variable name="export_dir" value="C:\exports" />
     </variables>
-    <scripts>
+    <flow>
         <!-- Run external executable and store output in variable -->
         <script id="ExtractData" language="shell" output_var="GCLOUD_BILLING_JSON">
             ..\bqBilling.exe
@@ -51,7 +51,7 @@
         <script id="ArchiveLogs" language="bash" output_var="ARCHIVE_LOG">
             tar -czvf {{export_dir}}/archive.tar.gz {{export_dir}}/*.csv
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 ## Package API Reference
@@ -143,7 +143,7 @@ func main() {
 		<databases>
 			<database name="sqlite_db" driver="sqlite" connection_string="./mydb.db" />
 		</databases>
-		<scripts>
+		<flow>
 			<script id="SetupTable" language="sql" db="sqlite_db">
 				CREATE TABLE IF NOT EXISTS processed_logs (id INTEGER PRIMARY KEY, status TEXT);
 			</script>
@@ -159,7 +159,7 @@ func main() {
 					fmt.Printf("Configured target table: %s with limit: %d\n", tbl, thresh)
 				}
 			</script>
-		</scripts>
+		</flow>
 	</pipeline>`)
 
 	// 1. Parse XML to Pipeline AST
@@ -307,7 +307,7 @@ The following XML segment configures a parallel block of 3 tasks running with a 
     <databases>
         <database name="main_db" driver="sqlite" connection_string="./mydb.db" />
     </databases>
-    <scripts>
+    <flow>
         <parallel max_threads="2">
             <script id="ProcessBatchA" language="sql" db="main_db">
                 UPDATE transactions SET processed = 1 WHERE batch_id = 'A';
@@ -319,7 +319,7 @@ The following XML segment configures a parallel block of 3 tasks running with a 
                 UPDATE transactions SET processed = 1 WHERE batch_id = 'C';
             </script>
         </parallel>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -341,7 +341,7 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
 	<script id="StreamData_MSSQL" language="sql" db="src_db" target_db="target_db" target_table="customers" batch_size="10000" tablock="true" check_constraints="false" fire_triggers="false" keep_nulls="true">
     SELECT id, name, email FROM source_customers;
     </script>
-    <scripts>
+    <flow>
         <parallel max_threads="2">
             <!-- Loop 1: Import customer records -->
             <foreach id="SyncCustomers" db="src_db" var="customer_id">
@@ -359,7 +359,7 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
                 </script>
             </foreach>
         </parallel>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -387,7 +387,7 @@ On any streaming `<script>` node (where both `target_db` and `target_table` are 
         <database name="src_db" driver="sqlite" connection_string="./source.db" />
         <database name="dst_mssql" driver="sqlserver" connection_string="sqlserver://user:pass@localhost:1433?database=target_db" />
     </databases>
-    <scripts>
+    <flow>
         <script id="BulkSync" 
                 language="sql" 
                 db="src_db" 
@@ -400,7 +400,7 @@ On any streaming `<script>` node (where both `target_db` and `target_table` are 
                 keep_nulls="true">
             SELECT id, name, email, signup_date FROM raw_users;
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 

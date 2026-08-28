@@ -1,4 +1,12 @@
-# Release Notes: Flow Engine Enhancements 🌊
+# Release Notes: Flow Engine Enhancements v1.2.15🌊
+
+## Key Enhancements
+
+- **Native Assert Extraction (`<assert>`):** Introduced a new assertion mechanism to enforce validation rules and handle assertion failures within ETL flows. Supports basic assertions, failure handling, automatic ID assignment, and failure variables.
+- **New Flow Node Types:** Added support for new flow high level node, to add semantic clarity and improve readability of ETL/workflow pipelines. The original scripts is still supported but deprecated in favor of the new high-level flow node.
+
+
+# Release Notes: Flow Engine Enhancements v1.2.14🌊
 
 We are pleased to introduce major architectural enhancements to the Flow Pipeline Engine: **Comprehensive `context.Context` Propagation**, **Thread-Isolated Parallel Variable Merging with Conflict Resolution**, **Dynamic Template Rendering**, and **Filesystem I/O Nodes**.
 
@@ -66,8 +74,12 @@ To streamline database execution and high-performance cross-database data synchr
 - **Unified `<sql>` Node:** Directly executes SQL commands (DDL/DML or queries) against any target database. Supports capturing output streams into pipeline variables via `output_var`.
 - **Streaming `<sql-bulk>` Node:** Automatically handles streaming query results from a source database directly to a destination table with batching configurations (`batch_size`, `tablock`, etc.), resolving high-volume ETL overhead.
 
----
----
+### 10. Native Assert Extraction (`<assert>`)
+To enforce validation rules and handle assertion failures within ETL flows:
+- **Basic Assertions:** Checks conditions on pipeline variables using attributes like `var`, `equals`, `operator`, and `message`.
+- **Failure Handling:** Supports immediate failure actions via `on_failure` attribute (`halt`, `warn`, etc.) and child `<on_failure>` blocks for custom scripts.
+- **Automatic ID Assignment:** Generates unique IDs for assertions when the `id` attribute is omitted.
+- **Failure Variables:** Allows specifying `fail_var` and `fail_val` to capture assertion failure states programmatically.
 
 ## 🛠️ API & Configuration Updates
 

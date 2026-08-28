@@ -49,9 +49,10 @@ Retrieves the text inside targeted tags and joins the results together with newl
   <variables>
     <variable name="xml_file" type="string" value="inventory.xml" />
   </variables>
-
+<flow>
   <!-- Query names in default plaintext join mode -->
   <xml_xpath id="get_names" file="{{xml_file}}" xpath="//item/name" output_var="item_names" />
+  </flow>
 </pipeline>
 ```
 
@@ -69,12 +70,14 @@ Selects whole node trees and outputs them with their XML tags preserved.
 **XML Pipeline Definition:**
 ```xml
 <pipeline>
-  <!-- Select the full raw XML structures for all items -->
-  <xml_xpath id="get_raw_items" 
-             file="inventory.xml" 
-             xpath="//item" 
-             mode="xml" 
-             output_var="raw_items" />
+  <flow>
+    <!-- Select the full raw XML structures for all items -->
+    <xml_xpath id="get_raw_items" 
+               file="inventory.xml" 
+               xpath="//item" 
+               mode="xml" 
+               output_var="raw_items" />
+  </flow>
 </pipeline>
 ```
 
@@ -92,12 +95,14 @@ Extracts attribute values or text nodes and packs them into a marshalled JSON st
 **XML Pipeline Definition:**
 ```xml
 <pipeline>
-  <!-- Query the 'id' attribute values of all items and output as JSON list -->
-  <xml_xpath id="get_ids" 
-             file="inventory.xml" 
-             xpath="//item/@id" 
-             mode="json_array" 
-             output_var="item_ids_json" />
+  <flow>
+    <!-- Query the 'id' attribute values of all items and output as JSON list -->
+    <xml_xpath id="get_ids" 
+               file="inventory.xml" 
+               xpath="//item/@id" 
+               mode="json_array" 
+               output_var="item_ids_json" />
+  </flow>
 </pipeline>
 ```
 
@@ -117,12 +122,13 @@ Leverages runtime pipeline variables inside the XPath query itself for dynamic f
   <variables>
     <variable name="target_id" type="string" value="102" />
   </variables>
-
-  <!-- Query item name dynamically using target_id variable -->
-  <xml_xpath id="get_target_name" 
-             file="inventory.xml" 
-             xpath="//item[@id='{{target_id}}']/name" 
-             output_var="target_name" />
+  <flow>
+    <!-- Query item name dynamically using target_id variable -->
+    <xml_xpath id="get_target_name" 
+               file="inventory.xml" 
+               xpath="//item[@id='{{target_id}}']/name" 
+               output_var="target_name" />
+  </flow>
 </pipeline>
 ```
 
@@ -147,6 +153,7 @@ Allows writing long, complex, or formatted XPath expressions cleanly inside the 
   <xml_xpath id="query_admins" var="raw_xml" output_var="admin_users">
     //user[@role='admin']
   </xml_xpath>
+  </flow>
 </pipeline>
 ```
 

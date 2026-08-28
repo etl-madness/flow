@@ -27,7 +27,7 @@ Load a service configuration file and extract a scalar database connection strin
         <variable name="CONFIG_FILE" type="string" value="./config/app.yaml" />
     </variables>
 
-    <scripts>
+    <flow>
         <!-- Extract the database host string into variable DB_HOST -->
         <yaml_path 
             file="{{CONFIG_FILE}}" 
@@ -37,7 +37,7 @@ Load a service configuration file and extract a scalar database connection strin
         <script lang="bash">
             echo "Connecting to database at: $DB_HOST"
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -46,7 +46,7 @@ Extract a sub-map or configuration block from a YAML file directly into a JSON s
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- Extract the entire telemetry configuration block as JSON -->
         <yaml_path 
             file="./config/services.yaml" 
@@ -59,7 +59,7 @@ Extract a sub-map or configuration block from a YAML file directly into a JSON s
             uri="[https://api.example.com/v1/config](https://api.example.com/v1/config)" 
             content_type="application/json" 
             data="{{METRICS_CONFIG_JSON}}" />
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -72,14 +72,14 @@ Place dynamic or complex path queries directly inside the element body using tem
         <variable name="ENVIRONMENT" type="string" value="production" />
     </variables>
 
-    <scripts>
+    <flow>
         <file_read file="./config/deployments.yaml" output_var="MANIFEST_YAML" />
 
         <!-- Filter deployment settings based on pipeline environment -->
         <yaml_path var="MANIFEST_YAML" output_var="ACTIVE_REPLICAS">
             $.environments[?(@.name == '{{ENVIRONMENT}}')].replicaCount
         </yaml_path>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -88,7 +88,7 @@ Extract a list of container images from a Kubernetes manifest file as a clean JS
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- Query all container images across all specs -->
         <yaml_path 
             file="./k8s/deployment.yaml" 
@@ -100,7 +100,7 @@ Extract a list of container images from a Kubernetes manifest file as a clean JS
         <script lang="bash">
             echo "Deployed Images Array: $CONTAINER_IMAGES"
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -109,7 +109,7 @@ Extract a sub-section of a larger YAML document and output it formatted as valid
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <file_read file="./config/cluster.yaml" output_var="FULL_CLUSTER_YAML" />
 
         <!-- Extract storage spec back out as pure YAML -->
@@ -121,6 +121,6 @@ Extract a sub-section of a larger YAML document and output it formatted as valid
 
         <!-- Write the isolated storage configuration to a new file -->
         <file_save file="./output/storage_spec.yaml" var="STORAGE_YAML" />
-    </scripts>
+    </flow>
 </pipeline>
 ```

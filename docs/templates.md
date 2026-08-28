@@ -21,7 +21,7 @@ Use the template element to quickly generate text using pipeline variables.
         <variable name="USER_NAME" type="string" value="Alice" />
         <variable name="ROLE" type="string" value="Admin" />
     </variables>
-    <scripts>
+    <flow>
         <template id="welcome_msg" output_var="EMAIL_BODY">
             Hello {{.USER_NAME}}, 
             Welcome back! Your current role is: {{.ROLE}}.
@@ -29,7 +29,7 @@ Use the template element to quickly generate text using pipeline variables.
         <script lang="bash">
             echo "$EMAIL_BODY"
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -42,9 +42,9 @@ For larger templates (like HTML emails or complex configurations), you can point
         <variable name="REPORT_DATE" type="string" value="2026-08-25" />
         <variable name="TOTAL_SALES" type="float" value="15430.50" />
     </variables>
-    <scripts>
+    <flow>
         <template id="gen_report" file="templates/monthly_report.tmpl" output_var="HTML_REPORT" />
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -57,7 +57,7 @@ Because it uses Go's `text/template`, you can use native template logic like `if
         <variable name="IS_PREMIUM" type="bool" value="true" />
         <variable name="USER" type="string" value="Bob" />
     </variables>
-    <scripts>
+    <flow>
         <template id="promo_msg" output_var="PROMO_TEXT">
             Hi {{.USER}},
             {{if .IS_PREMIUM}}
@@ -66,7 +66,7 @@ Because it uses Go's `text/template`, you can use native template logic like `if
             Upgrade to premium today to get exclusive discounts!
             {{end}}
         </template>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -79,7 +79,7 @@ A great use case for templates is cleanly generating JSON bodies for subsequent 
         <variable name="ORDER_ID" type="int" value="9924" />
         <variable name="STATUS" type="string" value="SHIPPED" />
     </variables>
-    <scripts>
+    <flow>
         <template id="build_json" output_var="REQ_BODY">
             {
                 "order_id": {{.ORDER_ID}},
@@ -89,7 +89,7 @@ A great use case for templates is cleanly generating JSON bodies for subsequent 
         </template>
         
         <http-client method="POST" uri="https://api.example.com/webhook" content_type="application/json" data="{{REQ_BODY}}" />
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -102,7 +102,7 @@ You can render complex SQL statements and pass them into SQL scripts or stream E
         <variable name="TARGET_TABLE" type="string" value="sales_q3" />
         <variable name="MIN_AMOUNT" type="int" value="1000" />
     </variables>
-    <scripts>
+    <flow>
         <template id="build_sql" output_var="DYNAMIC_SQL">
             SELECT id, amount, customer_id 
             FROM dbo.raw_sales 
@@ -112,6 +112,6 @@ You can render complex SQL statements and pass them into SQL scripts or stream E
         
         <!-- Assuming your script supports reading from a var -->
         <script lang="sql" db="analytics" var="DYNAMIC_SQL" />
-    </scripts>
+    </flow>
 </pipeline>
 ```

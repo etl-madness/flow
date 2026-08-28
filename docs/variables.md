@@ -136,7 +136,7 @@ When you need to output multiple distinct values from a script to be consumed as
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- Step 1: Export a delimited config from Go -->
         <script id="GenerateParams" language="go" output_var="MultiParams">
             package main
@@ -169,7 +169,7 @@ When you need to output multiple distinct values from a script to be consumed as
                 }
             }
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -178,7 +178,7 @@ For complex, structured data, you can output a JSON string, capture it, and pars
 
 ```xml
 <pipeline>
-    <scripts>
+    <flow>
         <!-- Step 1: Query database config details, formatting output as JSON -->
         <script id="FetchServiceConfig" language="go" output_var="ServiceJSON">
             package main
@@ -225,7 +225,7 @@ For complex, structured data, you can output a JSON string, capture it, and pars
                 fmt.Printf("Successfully established connection to %s:%d (SSL: %t)\n", cfg.Host, cfg.Port, cfg.SSL)
             }
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
@@ -237,7 +237,7 @@ You can easily pass state between dynamic Go interpreter scripts and C# process-
     <variables>
         <variable name="Threshold" type="int" value="42" />
     </variables>
-    <scripts>
+    <flow>
         <!-- Step 1: Read Threshold variable in C#, run calculations, and store output -->
         <script id="CsharpStep" language="dotnet-script" output_var="CS_Result">
             using System;
@@ -259,7 +259,7 @@ You can easily pass state between dynamic Go interpreter scripts and C# process-
                 fmt.Printf("Go received from C#: %s\n", csVal)
             }
         </script>
-    </scripts>
+    </flow>
 </pipeline>
 ```
 
