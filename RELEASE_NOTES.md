@@ -1,3 +1,12 @@
+# Release Notes: Flow Engine Enhancements v1.2.17
+
+## Key Enhancements
+
+- **Added Support for Preflight**: Introduced a new preflight check mechanism to validate pipeline configurations and dependencies before execution, ensuring smoother and error-free ETL flows.
+
+## Bug Fixes
+- **Removed Extra carriage returns**: Fixed an issue where unnecessary carriage return or new line characters (`\r`,`\n`) were present in the output, ensuring cleaner and more consistent formatting.
+
 # Release Notes: Flow Engine Enhancements v1.2.15🌊
 
 ## Key Enhancements

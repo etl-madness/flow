@@ -225,14 +225,14 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 	if e.verbose.Load() {
 		if script.Language == "sql" {
 			if script.DBName != "" && script.TargetTable != "" {
-				fmt.Printf("Starting execution of script %q on database %q and target table %q\n", script.ID, script.DBName, script.TargetTable)
+				fmt.Printf("Starting execution of script %q on database %q and target table %q", script.ID, script.DBName, script.TargetTable)
 			} else if script.DBName != "" {
-				fmt.Printf("Starting execution of script %q on database %q\n", script.ID, script.DBName)
+				fmt.Printf("Starting execution of script %q on database %q", script.ID, script.DBName)
 			} else {
-				fmt.Printf("Starting execution of script %q\n", script.ID)
+				fmt.Printf("Starting execution of script %q", script.ID)
 			}
 		} else {
-			fmt.Printf("Starting execution of script %q\n", script.ID)
+			fmt.Printf("Starting execution of script %q", script.ID)
 		}
 	}
 	codeToEval := script.Code
@@ -254,9 +254,9 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		r.Duration = duration.String()
 		if e.verbose.Load() {
 			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
-				fmt.Printf("Finished execution of script %q with error: %v (duration: %s)\n", script.ID, r.ReturnCode, r.Duration)
+				fmt.Printf("Finished execution of script %q with error: %v (duration: %s)", script.ID, r.ReturnCode, r.Duration)
 			} else {
-				fmt.Printf("Finished execution of script %q (duration: %s)\n", script.ID, r.Duration)
+				fmt.Printf("Finished execution of script %q (duration: %s)", script.ID, r.Duration)
 			}
 		}
 		e.appendResult(results, r)
@@ -292,7 +292,7 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 				return true
 			}
 			res.ReturnCode = 0
-			res.ResultsString = fmt.Sprintf("Streamed %d row(s) directly to %s.%s\n", copied, targetDB, targetTable)
+			res.ResultsString = fmt.Sprintf("Streamed %d row(s) directly to %s.%s", copied, targetDB, targetTable)
 			e.storeScriptOutput(script.OutputVar, fmt.Sprintf("%d", copied))
 			appendWithDuration(res)
 		} else {
@@ -975,7 +975,7 @@ func (e *Executor) executeHTTPClientNode(ctx context.Context, elem HTTPClientEle
 	}
 
 	if e.verbose.Load() {
-		fmt.Printf("Finished execution of HTTP_CLIENT %q (duration: %s)\n", elem.ID, res.Duration)
+		fmt.Printf("Finished execution of HTTP_CLIENT %q (duration: %s)", elem.ID, res.Duration)
 	}
 
 	e.appendResult(results, res)
@@ -1109,7 +1109,7 @@ func (e *Executor) executeFileSaveNode(ctx context.Context, elem FileSaveElement
 	res.Duration = time.Since(startTime).String()
 
 	if e.verbose.Load() {
-		fmt.Printf("Finished execution of FILE_SAVE %q (wrote %d bytes to %s)\n", elem.ID, n, filePath)
+		fmt.Printf("Finished execution of FILE_SAVE %q (wrote %d bytes to %s)", elem.ID, n, filePath)
 	}
 
 	e.appendResult(results, res)
@@ -1155,7 +1155,7 @@ func (e *Executor) executeFileReadNode(ctx context.Context, elem FileReadElement
 	res.Duration = time.Since(startTime).String()
 
 	if e.verbose.Load() {
-		fmt.Printf("Finished execution of FILE_READ %q (read %d bytes from %s)\n", elem.ID, len(fileBytes), filePath)
+		fmt.Printf("Finished execution of FILE_READ %q (read %d bytes from %s)", elem.ID, len(fileBytes), filePath)
 	}
 
 	e.appendResult(results, res)
@@ -1656,66 +1656,68 @@ func (e *Executor) executeYAMLPathNode(ctx context.Context, elem YamlPathElement
 	return false
 }
 func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, results *[]ScriptResult) bool {
-    startTime := time.Now()
-    res := ScriptResult{ScriptID: elem.ID}
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
 
-    expectedVal := elem.Equals
-    if expectedVal == "" {
-        expectedVal = elem.Value
-    }
+	expectedVal := elem.Equals
+	if expectedVal == "" {
+		expectedVal = elem.Value
+	}
 
-    // 1. Evaluate Condition using engine's evalCondition[cite: 4]
-    passed := e.evalCondition(elem.Var, expectedVal)
+	// 1. Evaluate Condition using engine's evalCondition[cite: 4]
+	passed := e.evalCondition(elem.Var, expectedVal)
 
-    if !passed {
-        errMsg := elem.Message
-        if errMsg == "" {
-            errMsg = fmt.Sprintf("Assertion failed for variable %q (expected: %q)", elem.Var, expectedVal)
-        }
+	if !passed {
+		errMsg := elem.Message
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("Assertion failed for variable %q (expected: %q)", elem.Var, expectedVal)
+		}
 
-        // 2. Action A: Set a Failure Flag Variable if specified
-        if elem.FailVar != "" {
-            valToSet := elem.FailVal
-            if valToSet == "" { valToSet = "true" }
-            e.registry.SetVar(elem.FailVar, valToSet)
-        }
+		// 2. Action A: Set a Failure Flag Variable if specified
+		if elem.FailVar != "" {
+			valToSet := elem.FailVal
+			if valToSet == "" {
+				valToSet = "true"
+			}
+			e.registry.SetVar(elem.FailVar, valToSet)
+		}
 
-        // 3. Action B: Execute nested <on_failure> nodes (e.g., Slack alert, SQL cleanup)
-        if len(elem.FailureNodes) > 0 {
-            if e.verbose.Load() {
-                fmt.Printf("Assertion %q failed. Executing fallback <on_failure> block...\n", elem.ID)
-            }
-            // Execute nested child nodes recursively[cite: 4]
-            _ = e.executeNodes(ctx, elem.FailureNodes, results)
-        }
+		// 3. Action B: Execute nested <on_failure> nodes (e.g., Slack alert, SQL cleanup)
+		if len(elem.FailureNodes) > 0 {
+			if e.verbose.Load() {
+				fmt.Printf("Assertion %q failed. Executing fallback <on_failure> block...", elem.ID)
+			}
+			// Execute nested child nodes recursively[cite: 4]
+			_ = e.executeNodes(ctx, elem.FailureNodes, results)
+		}
 
-        actionStr := strings.ToLower(elem.OnFailure)
-        res.Duration = time.Since(startTime).String()
+		actionStr := strings.ToLower(elem.OnFailure)
+		res.Duration = time.Since(startTime).String()
 
-        // 4. Action C: Determine whether to Halt or Continue
-        switch actionStr {
-        case "warn", "continue":
-            // Log as a warning but DO NOT halt execution (return false)[cite: 4]
-            res.ReturnCode = 0
-            res.ResultsString = fmt.Sprintf("WARNING: %s (Pipeline continuing)", errMsg)
-            e.appendResult(results, res)
-            return false
+		// 4. Action C: Determine whether to Halt or Continue
+		switch actionStr {
+		case "warn", "continue":
+			// Log as a warning but DO NOT halt execution (return false)[cite: 4]
+			res.ReturnCode = 0
+			res.ResultsString = fmt.Sprintf("WARNING: %s (Pipeline continuing)", errMsg)
+			e.appendResult(results, res)
+			return false
 
-        case "halt", "":
-            fallthrough
-        default:
-            // Default Fail-Fast behavior: halt pipeline (return true)[cite: 4]
-            res.ReturnCode = errMsg
-            res.ResultsString = fmt.Sprintf("CRITICAL ASSERTION FAILURE: %s", errMsg)
-            e.appendResult(results, res)
-            return true 
-        }
-    }
+		case "halt", "":
+			fallthrough
+		default:
+			// Default Fail-Fast behavior: halt pipeline (return true)[cite: 4]
+			res.ReturnCode = errMsg
+			res.ResultsString = fmt.Sprintf("CRITICAL ASSERTION FAILURE: %s", errMsg)
+			e.appendResult(results, res)
+			return true
+		}
+	}
 
-    // Assertion Passed
-    res.ReturnCode = 0
-    res.ResultsString = fmt.Sprintf("Assertion passed on variable %q", elem.Var)
-    res.Duration = time.Since(startTime).String()
-    e.appendResult(results, res)
-    return false
+	// Assertion Passed
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Assertion passed on variable %q", elem.Var)
+	res.Duration = time.Since(startTime).String()
+	e.appendResult(results, res)
+	return false
 }
