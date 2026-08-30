@@ -36,10 +36,13 @@ func TestFileSaveAndRead(t *testing.T) {
 		<file_read id="read_2" file="{{file_path}}" output_var="read_content_appended" />
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -102,10 +105,13 @@ func TestTemplate(t *testing.T) {
 		<template id="tmpl_file_node" file="{{tmpl_file}}" output_var="res_file" />
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -169,10 +175,13 @@ func TestExcelReadAndWrite(t *testing.T) {
 		<excel_read id="read_excel" file="{{excel_path}}" sheet="UsersList" header="true" output_var="excel_json" />
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -248,10 +257,13 @@ func TestXMLXPath(t *testing.T) {
 		</xml_xpath>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -340,10 +352,13 @@ func TestJSONPath(t *testing.T) {
 		</json_path>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -435,10 +450,13 @@ store:
 		</yaml_path>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -547,10 +565,13 @@ func TestExcelMultiTabs(t *testing.T) {
 		<excel_read id="read_products" file="{{excel_path}}" sheet="ProductsList" header="true" output_var="products_json" />
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -602,6 +623,3 @@ func TestExcelMultiTabs(t *testing.T) {
 		t.Errorf("unexpected products data: %v", products)
 	}
 }
-
-
-

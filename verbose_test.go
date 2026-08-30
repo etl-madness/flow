@@ -26,10 +26,12 @@ func TestExecutorVerboseMode(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, _, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {

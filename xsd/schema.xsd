@@ -3,19 +3,18 @@
 
     <!-- ROOT ELEMENT -->
     <!-- ROOT ELEMENT -->
-    <xs:element name="pipeline">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
-                <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
-                <xs:choice minOccurs="0" maxOccurs="unbounded">
-                    <xs:element name="flow" type="PipelineNodesType" />
-                    <xs:element name="scripts" type="PipelineNodesType" />
-                </xs:choice>
-            </xs:sequence>
-            <xs:attribute name="description" type="xs:string" use="optional" />
-        </xs:complexType>
-    </xs:element>
+ <!-- ROOT ELEMENT -->
+<xs:element name="pipeline">
+    <xs:complexType>
+        <xs:sequence>
+            <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
+            <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
+            <xs:element name="preflight" type="PipelineNodesType" minOccurs="0" maxOccurs="1" />
+            <xs:element name="flow" type="PipelineNodesType" minOccurs="0" maxOccurs="1"  />
+        </xs:sequence>
+        <xs:attribute name="description" type="xs:string" use="optional" />
+    </xs:complexType>
+</xs:element>
 
     <!-- VARIABLE DEFINITIONS -->
     <xs:complexType name="VariablesType">

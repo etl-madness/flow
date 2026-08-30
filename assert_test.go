@@ -27,17 +27,18 @@ func TestParseXMLConfig_Assert(t *testing.T) {
 	</flow>
 	`)
 
-	vars, _, nodes, err := ParseXMLConfig(xmlData)
+	cfg, err := ParseXMLConfig(xmlData)
 	if err != nil {
 		t.Fatalf("ParseXMLConfig failed unexpectedly: %v", err)
 	}
 
-	if len(vars) != 1 {
-		t.Fatalf("Expected 1 variable, got %d", len(vars))
+	if len(cfg.Variables) != 1 {
+		t.Fatalf("Expected 1 variable, got %d", len(cfg.Variables))
 	}
-	if len(nodes) != 2 {
-		t.Fatalf("Expected 2 AST nodes, got %d", len(nodes))
+	if len(cfg.FlowNodes) != 2 {
+		t.Fatalf("Expected 2 AST nodes, got %d", len(cfg.FlowNodes))
 	}
+	nodes := cfg.FlowNodes
 
 	// 1. Verify Node 1 (Explicit attributes)
 	n1 := nodes[0]
@@ -93,7 +94,7 @@ func TestValidateAST_Assert(t *testing.T) {
 				},
 			},
 		}
-		if err := ValidateAST(nodes, nil); err != nil {
+		if err := ValidateAST(nil, nodes, nil); err != nil {
 			t.Errorf("Expected AST validation to pass, got error: %v", err)
 		}
 	})
@@ -107,7 +108,7 @@ func TestValidateAST_Assert(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAST(nodes, nil)
+		err := ValidateAST(nil, nodes, nil)
 		if err == nil {
 			t.Fatal("Expected error for missing 'var' attribute, got nil")
 		}
@@ -121,7 +122,7 @@ func TestValidateAST_Assert(t *testing.T) {
 			{Kind: NodeAssert, Assert: &AssertElement{ID: "dup_id", Var: "VAR1"}},
 			{Kind: NodeAssert, Assert: &AssertElement{ID: "dup_id", Var: "VAR2"}},
 		}
-		err := ValidateAST(nodes, nil)
+		err := ValidateAST(nil, nodes, nil)
 		if err == nil {
 			t.Fatal("Expected error for duplicate assertion ID, got nil")
 		}
@@ -149,7 +150,7 @@ func TestValidateAST_Assert(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAST(nodes, nil)
+		err := ValidateAST(nil, nodes, nil)
 		if err == nil {
 			t.Fatal("Expected error for duplicate ID inside failure nodes, got nil")
 		}

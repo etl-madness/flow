@@ -105,6 +105,7 @@ type PipelineNode struct {
 	YamlPath      *YamlPathElement   // New payload field for YAML path extraction
 	Assert    *AssertElement 	 // New enum item for assert operation
 }
+
 type AssertElement struct {
     ID          string         `xml:"id,attr"`
     Var         string         `xml:"var,attr"`
@@ -251,21 +252,22 @@ func ValidateXSD(xmlPath string, xsdPath string) error {
 	return nil
 }
 
-// ParseXMLConfig parses XML pipeline config definitions.
-func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []PipelineNode, error) {
+// PipelineConfig encapsulates the complete parsed AST structure.
+
+
+// ParseXMLConfig parses XML pipeline config definitions into separate Preflight and Flow ASTs.
+func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(xmlData))
-	var vars []VariableConfig
-	var dbs []DatabaseConfig
-	var nodes []PipelineNode
+	var cfg PipelineConfig
 	scriptIndex := 1
 
 	for {
 		tok, err := decoder.Token()
 		if err == io.EOF {
-			return vars, dbs, nodes, nil // Directly returns parsed results upon EOF
+			return cfg, nil
 		}
 		if err != nil {
-			return nil, nil, nil, err
+			return cfg, err
 		}
 
 		if se, ok := tok.(xml.StartElement); ok {
@@ -282,7 +284,7 @@ func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []Pipel
 					}
 				}
 				if vCfg.Name != "" {
-					vars = append(vars, vCfg)
+					cfg.Variables = append(cfg.Variables, vCfg)
 				}
 			} else if elemName == "database" {
 				var dbCfg DatabaseConfig
@@ -299,23 +301,30 @@ func ParseXMLConfig(xmlData []byte) ([]VariableConfig, []DatabaseConfig, []Pipel
 					dbCfg.Driver = "sqlserver"
 				}
 				if dbCfg.Name != "" && dbCfg.ConnectionString != "" {
-					dbs = append(dbs, dbCfg)
+					cfg.Databases = append(cfg.Databases, dbCfg)
 				}
-			} else if elemName == "flow" || elemName == "scripts" || elemName == "config" || elemName == "variables" || elemName == "databases" {
+			} else if elemName == "preflight" {
+				// Parse child nodes inside <preflight> into PreflightNodes
+				pNodes, err := parseChildrenUntil(decoder, "preflight", &scriptIndex)
+				if err != nil {
+					return cfg, err
+				}
+				cfg.PreflightNodes = append(cfg.PreflightNodes, pNodes...)
+			} else if elemName == "flow" || elemName == "scripts" || elemName == "config" || elemName == "variables" || elemName == "databases" || elemName == "pipeline" {
 				continue
 			} else {
 				node, err := parseNodeElement(decoder, se, &scriptIndex)
 				if err != nil {
-					return nil, nil, nil, err
+					return cfg, err
 				}
 				if node != nil {
-					nodes = append(nodes, *node)
+					cfg.FlowNodes = append(cfg.FlowNodes, *node)
 				}
 			}
 		}
 	}
 
-	return vars, dbs, nodes, nil
+	return cfg, nil
 }
 
 func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *int) (*PipelineNode, error) {
@@ -960,3 +969,12 @@ func (y *YamlPathElement) GetOutputVar() string {
 	}
 	return y.OutVar
 }
+// PipelineConfig encapsulates the complete parsed AST structure.
+type PipelineConfig struct {
+	Variables      []VariableConfig
+	Databases      []DatabaseConfig
+	PreflightNodes []PipelineNode
+	FlowNodes      []PipelineNode
+}
+
+ 

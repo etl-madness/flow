@@ -35,10 +35,13 @@ func TestShellVariablePassing(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -126,10 +129,13 @@ func TestGroupTransactions(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -217,10 +223,13 @@ func TestDotnetScriptExecution(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -271,10 +280,12 @@ func TestExecutorContextCancellation(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, _, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {
@@ -407,10 +418,13 @@ func TestSQLAndSQLBulk(t *testing.T) {
 		</scripts>
 	</pipeline>`)
 
-	varConfigs, dbConfigs, nodes, err := ParseXMLConfig(xmlConfig)
+	cfg, err := ParseXMLConfig(xmlConfig)
 	if err != nil {
 		t.Fatalf("failed to parse XML: %v", err)
 	}
+	varConfigs := cfg.Variables
+	dbConfigs := cfg.Databases
+	nodes := cfg.FlowNodes
 
 	registry := NewRegistry()
 	if err := registry.InitVariables(varConfigs); err != nil {

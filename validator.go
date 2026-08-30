@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// ValidateAST verifies the unique script IDs, database names, and structural rules in the pipeline AST.
-func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
+// ValidateAST verifies script IDs, database names, and structural rules across preflight and flow ASTs.
+func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	var errs []string
 	knownIDs := make(map[string]bool)
 
@@ -19,7 +19,6 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 	inspect = func(nodes []PipelineNode) {
 		for _, node := range nodes {
 			switch node.Kind {
-			// In validator.go -> ValidateAST inspect function switch node.Kind
 			case NodeAssert:
 				a := node.Assert
 				if a != nil {
@@ -32,7 +31,6 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 					if a.Var == "" {
 						errs = append(errs, fmt.Sprintf("assert node '%s' is missing required 'var' attribute", a.ID))
 					}
-					// Recursively inspect nodes inside <on_failure>
 					if len(a.FailureNodes) > 0 {
 						inspect(a.FailureNodes)
 					}
@@ -136,7 +134,9 @@ func ValidateAST(nodes []PipelineNode, registeredDBs []DatabaseConfig) error {
 		}
 	}
 
-	inspect(nodes)
+	// Inspect both preflight and flow node trees
+	inspect(preflightNodes)
+	inspect(flowNodes)
 
 	if len(errs) > 0 {
 		return fmt.Errorf("XML semantic validation failed:\n - %s", strings.Join(errs, "\n - "))
