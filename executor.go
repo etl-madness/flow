@@ -143,7 +143,39 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 		placeholder := fmt.Sprintf("{{%s}}", name)
 		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
 	}
+	trimmedQuery := strings.TrimSpace(strings.ToUpper(queryStr))
+		isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
+			strings.HasPrefix(trimmedQuery, "UPDATE") ||
+			strings.HasPrefix(trimmedQuery, "DELETE")) &&
+			!strings.Contains(trimmedQuery, "RETURNING") &&
+			!strings.Contains(trimmedQuery, "OUTPUT")
+	// --- Execute DML statements with ExecContext ---
+	if isDML {
+		var res sql.Result
+		var execErr error
 
+		if tx := e.getActiveTx(dbName); tx != nil {
+			res, execErr = tx.ExecContext(ctx, queryStr)
+		} else {
+			dbConn, err := e.registry.GetDB(dbName)
+			if err != nil {
+				return "", "", err
+			}
+			res, execErr = dbConn.ExecContext(ctx, queryStr)
+		}
+		if execErr != nil {
+			return "", "", execErr
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			rowsAffected = 0
+		}
+
+		logOutput := fmt.Sprintf("(%d row(s) affected)\n", rowsAffected)
+		rawOutput = fmt.Sprintf("%d", rowsAffected)
+		return logOutput, rawOutput, nil
+	}
 	var rows *sql.Rows
 	var queryErr error
 	if tx := e.getActiveTx(dbName); tx != nil {

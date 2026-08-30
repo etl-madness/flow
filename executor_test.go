@@ -3,7 +3,9 @@ package flow
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -194,8 +196,26 @@ func TestGroupTransactions(t *testing.T) {
 // TestDotnetScriptExecution verifies that dotnet script blocks execute, can resolve environment variables,
 // and correctly pass variables out of the script.
 func TestDotnetScriptExecution(t *testing.T) {
+	// Check for dotnet-script in default global tools directories and add to PATH if found
+	var toolsDir string
+	if usrProfile := os.Getenv("USERPROFILE"); usrProfile != "" {
+		toolsDir = filepath.Join(usrProfile, ".dotnet", "tools")
+	} else if home := os.Getenv("HOME"); home != "" {
+		toolsDir = filepath.Join(home, ".dotnet", "tools")
+	}
+
+	if toolsDir != "" {
+		if _, err := os.Stat(toolsDir); err == nil {
+			path := os.Getenv("PATH")
+			sep := string(os.PathListSeparator)
+			os.Setenv("PATH", path+sep+toolsDir)
+		}
+	}
+
 	hasDotnetScript := false
-	if _, err := exec.LookPath("dotnet-script"); err == nil {
+	if _, err := exec.LookPath("dotnet-script.exe"); err == nil {
+		hasDotnetScript = true
+	}	else if _, err := exec.LookPath("dotnet-script"); err == nil {
 		hasDotnetScript = true
 	} else if _, err := exec.LookPath("dotnet"); err == nil {
 		// check if dotnet script works
@@ -243,6 +263,9 @@ func TestDotnetScriptExecution(t *testing.T) {
 	executor := NewExecutor(registry)
 	results, err := executor.Execute(context.Background(), nodes)
 	if err != nil {
+		for _, r := range results {
+			t.Logf("Result: ID=%s, Code=%d, Output=%s", r.ScriptID, r.ReturnCode, r.ResultsString)
+		}
 		t.Fatalf("execution failed: %v", err)
 	}
 
