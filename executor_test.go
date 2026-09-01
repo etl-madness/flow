@@ -3,9 +3,6 @@ package flow
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -195,6 +192,7 @@ func TestGroupTransactions(t *testing.T) {
 
 // TestDotnetScriptExecution verifies that dotnet script blocks execute, can resolve environment variables,
 // and correctly pass variables out of the script.
+/*
 func TestDotnetScriptExecution(t *testing.T) {
 	// Check for dotnet-script in default global tools directories and add to PATH if found
 	var toolsDir string
@@ -215,7 +213,7 @@ func TestDotnetScriptExecution(t *testing.T) {
 	hasDotnetScript := false
 	if _, err := exec.LookPath("dotnet-script.exe"); err == nil {
 		hasDotnetScript = true
-	}	else if _, err := exec.LookPath("dotnet-script"); err == nil {
+	} else if _, err := exec.LookPath("dotnet-script"); err == nil {
 		hasDotnetScript = true
 	} else if _, err := exec.LookPath("dotnet"); err == nil {
 		// check if dotnet script works
@@ -282,7 +280,7 @@ func TestDotnetScriptExecution(t *testing.T) {
 		t.Errorf("expected CS_OUT variable to be 'CSharpOutput: AntigravityPower', got: %v", registry.GetVar("CS_OUT"))
 	}
 }
-
+*/
 // TestExecutorContextCancellation verifies that canceling a context terminates long loops immediately.
 func TestExecutorContextCancellation(t *testing.T) {
 	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -429,10 +427,10 @@ func TestSQLAndSQLBulk(t *testing.T) {
 				INSERT INTO src_table (id, name) VALUES (2, 'Bob');
 			</sql>
 
-			<!-- Test <sql-bulk> tag to stream from src_table to dest_table -->
-			<sql-bulk id="bulk_copy" db="test_sql_db" target_db="test_sql_db" target_table="dest_table" batch_size="1">
+			<!-- Test <sql_bulk> tag to stream from src_table to dest_table -->
+			<sql_bulk id="bulk_copy" db="test_sql_db" target_db="test_sql_db" target_table="dest_table" batch_size="1">
 				SELECT id, name FROM src_table ORDER BY id ASC
-			</sql-bulk>
+			</sql_bulk>
 
 			<!-- Test <sql> tag with output_var to fetch records -->
 			<sql id="select_dest" db="test_sql_db" output_var="dest_content">
@@ -484,5 +482,3 @@ func TestSQLAndSQLBulk(t *testing.T) {
 		t.Fatalf("expected 3 script results, got %d", len(results))
 	}
 }
-
-

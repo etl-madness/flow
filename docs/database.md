@@ -12,7 +12,7 @@ Used for executing standard SQL scripts (DDL, DML, standard queries).
 - **`id`**: Unique identifier for this step.
 - **`output_var` / `var` / `variable`**: (Optional) Pipeline variable where the query output (with column headers) will be stored as a newline-delimited text block.
 
-### 2. `<sql-bulk>`
+### 2. `<sql_bulk>`
 Optimized for streaming huge datasets directly from a source database query into a target table, bypassing CPU/memory bottlenecks.
 - **`db` / `database`**: The source database connection name.
 - **`target_db` / `target_database`**: The destination database connection name (defaults to the source database if omitted).
@@ -81,7 +81,7 @@ Filter database records dynamically utilizing pipeline environment variables.
 
 ---
 
-### Example 3: High-Performance Data Archival (`<sql-bulk>`)
+### Example 3: High-Performance Data Archival (`<sql_bulk>`)
 Bulk replicate records from a production database directly into a separate analytics cold storage target.
 
 ```xml
@@ -92,7 +92,7 @@ Bulk replicate records from a production database directly into a separate analy
     </databases>
     <flow>
         <!-- Stream rows in batches of 5000 directly from source to target -->
-        <sql-bulk id="archive_historical_logs" 
+        <sql_bulk id="archive_historical_logs" 
                   db="prod_db" 
                   target_db="archive_db" 
                   target_table="historical_logs" 
@@ -100,7 +100,7 @@ Bulk replicate records from a production database directly into a separate analy
             SELECT log_id, event, severity, created_at 
             FROM system.logs 
             WHERE created_at &lt; DATE_SUB(NOW(), INTERVAL 90 DAY);
-        </sql-bulk>
+        </sql_bulk>
     </flow>
 </pipeline>
 ```
@@ -163,7 +163,7 @@ Build a complete end-to-end data staging, bulk copy, and multi-tab Excel dashboa
         </sql>
 
         <!-- 2. Bulk stream dynamic leads data directly to staging database -->
-        <sql-bulk id="stage_crm_leads" 
+        <sql_bulk id="stage_crm_leads" 
                   db="crm_db" 
                   target_db="reporting_warehouse" 
                   target_table="stg_leads" 
@@ -171,7 +171,7 @@ Build a complete end-to-end data staging, bulk copy, and multi-tab Excel dashboa
             SELECT id AS lead_id, company, deal_size, status AS stage 
             FROM public.leads 
             WHERE status IN ('Qualified', 'Proposal Sent');
-        </sql-bulk>
+        </sql_bulk>
 
         <!-- 3. Export Summary to Sheet 1 -->
         <excel_write id="report_summary" 

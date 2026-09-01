@@ -54,7 +54,7 @@ Extract a sub-map or configuration block from a YAML file directly into a JSON s
             mode="json" 
             output_var="METRICS_CONFIG_JSON" />
 
-        <http-client 
+        <sql_bulk 
             method="POST" 
             uri="[https://api.example.com/v1/config](https://api.example.com/v1/config)" 
             content_type="application/json" 

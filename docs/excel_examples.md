@@ -51,7 +51,7 @@ Extract configuration or bulk upload data from an Excel sheet and send it to an 
         <!-- Reads the "Users" sheet into JSON (using row 1 as keys) -->
         <excel_read file="{{FILE_PATH}}" sheet="Users" output_var="USER_JSON_DATA" />
         
-        <http-client 
+        <sql_bulk 
             method="POST" 
             uri="https://api.example.com/v1/users/bulk" 
             content_type="application/json" 
@@ -174,7 +174,7 @@ You can create multiple sheets within a single Excel file by specifying differen
         </excel_write>
 
         <!-- Tab 3: Regional Inventory -->
-        <excel-write id="export_inventory" 
+        <excel_write id="export_inventory" 
                      file="reports/Monthly_Executive_Report.xlsx" 
                      sheet="Inventory Status" 
                      db="sales_db"
@@ -185,7 +185,7 @@ You can create multiple sheets within a single Excel file by specifying differen
                 stock_on_hand,
                 reorder_level
             FROM warehouse_inventory;
-        </excel-write>
+        </excel_write>
     </flow>
 </pipeline>
 ```

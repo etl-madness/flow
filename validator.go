@@ -49,10 +49,10 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 					}
 					if node.Kind == NodeSQLBulk {
 						if s.TargetTable == "" {
-							errs = append(errs, fmt.Sprintf("sql-bulk node '%s' is missing 'target_table' attribute", s.ID))
+							errs = append(errs, fmt.Sprintf("sql_bulk node '%s' is missing 'target_table' attribute", s.ID))
 						}
 						if s.TargetDB != "" && !definedDBs[s.TargetDB] {
-							errs = append(errs, fmt.Sprintf("sql-bulk '%s' target_db references unregistered database '%s'", s.ID, s.TargetDB))
+							errs = append(errs, fmt.Sprintf("sql_bulk '%s' target_db references unregistered database '%s'", s.ID, s.TargetDB))
 						}
 					}
 					if strings.TrimSpace(s.Code) == "" && s.VarName == "" {

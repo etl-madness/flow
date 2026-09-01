@@ -1068,7 +1068,11 @@ func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement
 
 	outputStr := buf.String()
 	res.ReturnCode = 0
-	res.ResultsString = fmt.Sprintf("Successfully rendered template %q (%d bytes)", tmplName, len(outputStr))
+	if elem.Mode == "summary" {
+		res.ResultsString = fmt.Sprintf("Successfully rendered template %q (%d bytes)", tmplName, len(outputStr))
+	} else {
+		res.ResultsString = fmt.Sprintf("%s", outputStr)
+	}
 	res.Duration = time.Since(startTime).String()
 
 	e.storeScriptOutput(elem.GetOutputVar(), outputStr)

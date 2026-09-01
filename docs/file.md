@@ -27,7 +27,7 @@ Load a configuration file into memory and POST it to a remote endpoint.
     <scripts>
         <file_read file="./data/payload.json" output_var="JSON_DATA" />
         
-        <http-client 
+        <sql_bulk 
             method="POST" 
             uri="https://api.example.com/sync" 
             content_type="application/json" 

@@ -78,10 +78,10 @@ To query highly structured infrastructure and configuration payloads:
 - **Advanced Querying:** Runs powerful YAML path patterns defined in attributes (`yamlpath` / `path`) or tag body texts.
 - **Rich Representation Modes:** Extracts queries into raw scalars (`mode="value"`), serialized JSON arrays (`mode="json_array"`), or formats nested subsets back into clean YAML format block strings (`mode="yaml"`).
 
-### 9. Native SQL and Bulk Streaming SQL Nodes (`<sql>`, `<sql-bulk>`)
+### 9. Native SQL and Bulk Streaming SQL Nodes (`<sql>`, `<sql_bulk>`)
 To streamline database execution and high-performance cross-database data synchronization:
 - **Unified `<sql>` Node:** Directly executes SQL commands (DDL/DML or queries) against any target database. Supports capturing output streams into pipeline variables via `output_var`.
-- **Streaming `<sql-bulk>` Node:** Automatically handles streaming query results from a source database directly to a destination table with batching configurations (`batch_size`, `tablock`, etc.), resolving high-volume ETL overhead.
+- **Streaming `<sql_bulk>` Node:** Automatically handles streaming query results from a source database directly to a destination table with batching configurations (`batch_size`, `tablock`, etc.), resolving high-volume ETL overhead.
 
 ### 10. Native Assert Extraction (`<assert>`)
 To enforce validation rules and handle assertion failures within ETL flows:

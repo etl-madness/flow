@@ -2,19 +2,17 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <!-- ROOT ELEMENT -->
-    <!-- ROOT ELEMENT -->
- <!-- ROOT ELEMENT -->
-<xs:element name="pipeline">
-    <xs:complexType>
-        <xs:sequence>
-            <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="preflight" type="PipelineNodesType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="flow" type="PipelineNodesType" minOccurs="0" maxOccurs="1"  />
-        </xs:sequence>
-        <xs:attribute name="description" type="xs:string" use="optional" />
-    </xs:complexType>
-</xs:element>
+    <xs:element name="pipeline">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1" />
+                <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1" />
+                <xs:element name="preflight" type="PipelineNodesType" minOccurs="0" maxOccurs="1" />
+                <xs:element name="flow" type="PipelineNodesType" minOccurs="0" maxOccurs="1" />
+            </xs:sequence>
+            <xs:attribute name="description" type="xs:string" use="optional" />
+        </xs:complexType>
+    </xs:element>
 
     <!-- VARIABLE DEFINITIONS -->
     <xs:complexType name="VariablesType">
@@ -75,30 +73,14 @@
             <xs:element name="loop" type="ForEachType" />
             <xs:element name="while" type="WhileType" />
             <xs:element name="http_client" type="HttpClientType" />
-            <xs:element name="http-client" type="HttpClientType" />
-            <xs:element name="HTTP_CLIENT" type="HttpClientType" />
             <xs:element name="template" type="TemplateType" />
             <xs:element name="file_save" type="FileSaveType" />
-            <xs:element name="file-save" type="FileSaveType" />
-            <xs:element name="FILE_SAVE" type="FileSaveType" />
             <xs:element name="file_read" type="FileReadType" />
-            <xs:element name="file-read" type="FileReadType" />
-            <xs:element name="FILE_READ" type="FileReadType" />
             <xs:element name="excel_read" type="ExcelReadType" />
-            <xs:element name="excel-read" type="ExcelReadType" />
-            <xs:element name="EXCEL_READ" type="ExcelReadType" />
             <xs:element name="excel_write" type="ExcelWriteType" />
-            <xs:element name="excel-write" type="ExcelWriteType" />
-            <xs:element name="EXCEL_WRITE" type="ExcelWriteType" />
             <xs:element name="xml_xpath" type="XmlXPathType" />
-            <xs:element name="xml-xpath" type="XmlXPathType" />
-            <xs:element name="XML_XPATH" type="XmlXPathType" />
             <xs:element name="json_path" type="JsonPathType" />
-            <xs:element name="json-path" type="JsonPathType" />
-            <xs:element name="JSON_PATH" type="JsonPathType" />
             <xs:element name="yaml_path" type="YamlPathType" />
-            <xs:element name="yaml-path" type="YamlPathType" />
-            <xs:element name="YAML_PATH" type="YamlPathType" />
         </xs:choice>
     </xs:complexType>
     <xs:element name="assert" type="AssertType" />
@@ -289,8 +271,6 @@
                 <xs:element name="loop" type="ForEachType" />
                 <xs:element name="while" type="WhileType" />
                 <xs:element name="http_client" type="HttpClientType" />
-                <xs:element name="http-client" type="HttpClientType" />
-                <xs:element name="HTTP_CLIENT" type="HttpClientType" />
             </xs:choice>
         </xs:sequence>
         <xs:attribute name="id" type="xs:string" use="optional" />
@@ -352,6 +332,7 @@
                 <xs:attribute name="file" type="xs:string" use="optional" />
                 <xs:attribute name="engine" type="xs:string" use="optional" default="text" />
                 <xs:attribute name="var" type="xs:string" use="optional" />
+                <xs:attribute name="mode" type="xs:string" use="optional" default="text" />
                 <xs:attribute name="output_var" type="xs:string" use="optional" />
                 <xs:attribute name="description" type="xs:string" use="optional" />
             </xs:extension>
@@ -464,8 +445,6 @@
     <!-- Add to <xs:complexType name="PipelineNodesType"><xs:choice> -->
     <xs:element name="sql" type="SqlType" />
     <xs:element name="sql_bulk" type="SqlBulkType" />
-    <xs:element name="sql-bulk" type="SqlBulkType" />
-    <xs:element name="SQL_BULK" type="SqlBulkType" />
 
     <!-- Add element definitions -->
     <xs:complexType name="SqlType">

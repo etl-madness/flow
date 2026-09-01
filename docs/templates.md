@@ -71,7 +71,7 @@ Because it uses Go's `text/template`, you can use native template logic like `if
 ```
 
 ### 4. Generating a JSON Payload for HTTP POST
-A great use case for templates is cleanly generating JSON bodies for subsequent `<http-client>` calls.
+A great use case for templates is cleanly generating JSON bodies for subsequent `<sql_bulk>` calls.
 
 ```xml
 <pipeline>
@@ -88,7 +88,7 @@ A great use case for templates is cleanly generating JSON bodies for subsequent 
             }
         </template>
         
-        <http-client method="POST" uri="https://api.example.com/webhook" content_type="application/json" data="{{REQ_BODY}}" />
+        <sql_bulk method="POST" uri="https://api.example.com/webhook" content_type="application/json" data="{{REQ_BODY}}" />
     </flow>
 </pipeline>
 ```
