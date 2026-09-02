@@ -3,7 +3,9 @@ package flow
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,18 +40,21 @@ type ScriptResult struct {
 
 // Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
-	registry   *Registry
-	resultsMu  sync.Mutex
-	verbose    atomic.Bool
-	goPath     string
-	activeTxs  map[string]*sql.Tx // Track active transactions per database
-	interpHook func(*interp.Options)
+	registry    *Registry
+	resultsMu   sync.Mutex
+	verbose     atomic.Bool
+	goPath      string
+	activeTxs   map[string]*sql.Tx // Track active transactions per database
+	interpHook  func(*interp.Options)
+	interpMu    sync.Mutex
+	interpCache map[string]*interp.Interpreter
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
 	return &Executor{
-		registry: r,
+		registry:    r,
+		interpCache: make(map[string]*interp.Interpreter),
 	}
 }
 func (e *Executor) SetGoPath(goPath string) {
@@ -64,6 +69,55 @@ func (e *Executor) SetVerbose(verbose bool) {
 // SetInterpHook registers a callback to customize Yaegi interpreter options.
 func (e *Executor) SetInterpHook(hook func(*interp.Options)) {
 	e.interpHook = hook
+}
+
+func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts interp.Options) (*interp.Interpreter, error) {
+	cacheKey := script.ID
+	if cacheKey == "" {
+		hash := sha256.Sum256([]byte(script.Code))
+		cacheKey = hex.EncodeToString(hash[:])
+	}
+	cacheKey = fmt.Sprintf("%s|%s|%s", cacheKey, e.goPath, opts.GoPath)
+
+	e.interpMu.Lock()
+	if e.interpCache == nil {
+		e.interpCache = make(map[string]*interp.Interpreter)
+	}
+	_, _ = e.interpCache[cacheKey]
+	e.interpMu.Unlock()
+
+	interpInstance := interp.New(opts)
+	if err := interpInstance.Use(stdlib.Symbols); err != nil {
+		return nil, fmt.Errorf("failed to load stdlib symbols: %w", err)
+	}
+
+	dbExports := map[string]reflect.Value{
+		"Get": reflect.ValueOf(e.registry.GetDB),
+		"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
+			return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts)
+		}),
+	}
+
+	varsExports := map[string]reflect.Value{
+		"Get":         reflect.ValueOf(e.registry.GetVar),
+		"GetString":   reflect.ValueOf(e.registry.GetVarString),
+		"GetInt":      reflect.ValueOf(e.registry.GetVarInt),
+		"GetBool":     reflect.ValueOf(e.registry.GetVarBool),
+		"GetFloat":    reflect.ValueOf(e.registry.GetVarFloat),
+		"GetTime":     reflect.ValueOf(e.registry.GetVarTime),
+		"GetDateTime": reflect.ValueOf(e.registry.GetVarTime),
+	}
+
+	if err := interpInstance.Use(interp.Exports{
+		"host/db":        dbExports,
+		"host/vars":      varsExports,
+		"host/db/db":     dbExports,
+		"host/vars/vars": varsExports,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to export packages: %w", err)
+	}
+
+	return interpInstance, nil
 }
 
 // getActiveTx returns the active transaction for the specified database if one exists.
@@ -144,11 +198,11 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
 	}
 	trimmedQuery := strings.TrimSpace(strings.ToUpper(queryStr))
-		isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
-			strings.HasPrefix(trimmedQuery, "UPDATE") ||
-			strings.HasPrefix(trimmedQuery, "DELETE")) &&
-			!strings.Contains(trimmedQuery, "RETURNING") &&
-			!strings.Contains(trimmedQuery, "OUTPUT")
+	isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
+		strings.HasPrefix(trimmedQuery, "UPDATE") ||
+		strings.HasPrefix(trimmedQuery, "DELETE")) &&
+		!strings.Contains(trimmedQuery, "RETURNING") &&
+		!strings.Contains(trimmedQuery, "OUTPUT")
 	// --- Execute DML statements with ExecContext ---
 	if isDML {
 		var res sql.Result
@@ -350,45 +404,16 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		if e.interpHook != nil {
 			e.interpHook(&opts)
 		}
-		i := interp.New(opts)
 
-		if err := i.Use(stdlib.Symbols); err != nil {
+		i, err := e.getGoInterpreter(ctx, script, opts)
+		if err != nil {
 			res.ReturnCode = 1
-			res.ResultsString = fmt.Sprintf("Failed to load stdlib symbols: %v", err)
+			res.ResultsString = err.Error()
 			appendWithDuration(res)
 			return true
 		}
 
-		dbExports := map[string]reflect.Value{
-			"Get": reflect.ValueOf(e.registry.GetDB),
-			"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
-				return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts)
-			}),
-		}
-
-		varsExports := map[string]reflect.Value{
-			"Get":         reflect.ValueOf(e.registry.GetVar),
-			"GetString":   reflect.ValueOf(e.registry.GetVarString),
-			"GetInt":      reflect.ValueOf(e.registry.GetVarInt),
-			"GetBool":     reflect.ValueOf(e.registry.GetVarBool),
-			"GetFloat":    reflect.ValueOf(e.registry.GetVarFloat),
-			"GetTime":     reflect.ValueOf(e.registry.GetVarTime),
-			"GetDateTime": reflect.ValueOf(e.registry.GetVarTime), // Optional alias for convenience
-		}
-
-		if err := i.Use(interp.Exports{
-			"host/db":        dbExports,
-			"host/vars":      varsExports,
-			"host/db/db":     dbExports,
-			"host/vars/vars": varsExports,
-		}); err != nil {
-			res.ReturnCode = 1
-			res.ResultsString = fmt.Sprintf("Failed to export packages: %v", err)
-			appendWithDuration(res)
-			return true
-		}
-
-		_, err := i.Eval(codeToEval)
+		_, err = i.Eval(codeToEval)
 		if err != nil {
 			res.ReturnCode = err.Error()
 			res.ResultsString = outBuf.String()

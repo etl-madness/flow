@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 
 	mssql "github.com/microsoft/go-mssqldb"
 )
@@ -170,77 +169,42 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		return nil
 	}
 
-	rowChan := make(chan []interface{}, 5000)
-	var readErr error
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer close(rowChan)
-		for rows.Next() {
-			scans := make([]interface{}, len(cols))
-			vals := make([]interface{}, len(cols))
-			for i := range scans {
-				scans[i] = &vals[i]
-			}
-
-			if err := rows.Scan(scans...); err != nil {
-				readErr = fmt.Errorf("row scan error: %w", err)
-				return
-			}
-
-			rowCopy := make([]interface{}, len(cols))
-			for i, v := range vals {
-				if b, ok := v.([]byte); ok {
-					rowCopy[i] = string(b)
-				} else {
-					rowCopy[i] = v
-				}
-			}
-			select {
-			case <-ctx.Done():
-				readErr = ctx.Err()
-				return
-			case rowChan <- rowCopy:
-			}
-		}
-		if err := rows.Err(); err != nil {
-			readErr = fmt.Errorf("rows iteration error: %w", err)
-		}
-	}()
-
-	for row := range rowChan {
+	for rows.Next() {
 		select {
 		case <-ctx.Done():
-			// Drain channel to prevent producer goroutine leak
-			go func() {
-				for range rowChan {
-				}
-			}()
-			wg.Wait()
 			return totalInserted, ctx.Err()
 		default:
 		}
-		batchRows = append(batchRows, row)
+
+		vals := make([]interface{}, len(cols))
+		scans := make([]interface{}, len(cols))
+		for i := range scans {
+			scans[i] = &vals[i]
+		}
+
+		if err := rows.Scan(scans...); err != nil {
+			return totalInserted, fmt.Errorf("row scan error: %w", err)
+		}
+
+		rowCopy := make([]interface{}, len(cols))
+		for i, v := range vals {
+			if b, ok := v.([]byte); ok {
+				rowCopy[i] = string(b)
+			} else {
+				rowCopy[i] = v
+			}
+		}
+		batchRows = append(batchRows, rowCopy)
 		if len(batchRows) >= batchSize {
 			if err := flushBatch(); err != nil {
-				// Drain channel to prevent producer goroutine leak
-				go func() {
-					for range rowChan {
-					}
-				}()
-				wg.Wait()
 				return totalInserted, err
 			}
 		}
 	}
 
-	wg.Wait()
-	if readErr != nil {
-		return totalInserted, readErr
+	if err := rows.Err(); err != nil {
+		return totalInserted, fmt.Errorf("rows iteration error: %w", err)
 	}
-
 	if err := flushBatch(); err != nil {
 		return totalInserted, err
 	}

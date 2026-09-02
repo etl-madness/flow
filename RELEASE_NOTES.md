@@ -1,3 +1,22 @@
+# Release Notes: Flow Engine Enhancements v1.2.18
+
+## Key Enhancements
+
+- **Database-Level Connection Pool Tuning**: Added optional connection pool attributes directly to `<database>` entries to tune pool sizing and lifecycle per workload:
+  - `max_open_conns`
+  - `max_idle_conns`
+  - `conn_max_lifetime_seconds`
+  - `workload`
+
+  This allows different workloads such as `oltp`, `bulk`, `analytics`, and `batch` to apply the right pool strategy without changing the SQL node contract.
+
+- **Performance-focused ETL refinements**: Reduced allocation churn in the hot row-reading path of `StreamETL` by simplifying the row collection/batch flush flow and avoiding extra producer/consumer indirection.
+
+- **Safer Go runtime setup**: Centralized Yaegi interpreter setup while preserving correctness for repeated Go script execution without reintroducing stale or redeclared symbol issues.
+
+## Bug Fixes
+- **Removed Extra carriage returns**: Fixed an issue where unnecessary carriage return or new line characters (`\r`,`\n`) were present in the output, ensuring cleaner and more consistent formatting.
+
 # Release Notes: Flow Engine Enhancements v1.2.17
 
 ## Key Enhancements

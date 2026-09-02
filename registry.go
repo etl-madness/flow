@@ -178,6 +178,36 @@ func (r *Registry) InitVariables(configs []VariableConfig) error {
 	return nil
 }
 
+const (
+	defaultDBMaxOpenConns = 25
+	defaultDBMaxIdleConns = 10
+	defaultDBConnMaxLife  = 5 * time.Minute
+)
+
+func applyDatabasePoolSettings(dbConn *sql.DB, cfg DatabaseConfig) {
+	maxOpenConns := cfg.MaxOpenConns
+	if maxOpenConns <= 0 {
+		maxOpenConns = defaultDBMaxOpenConns
+	}
+
+	maxIdleConns := cfg.MaxIdleConns
+	if maxIdleConns <= 0 {
+		maxIdleConns = defaultDBMaxIdleConns
+	}
+	if maxIdleConns > maxOpenConns {
+		maxIdleConns = maxOpenConns
+	}
+
+	connMaxLifetime := cfg.ConnMaxLifetime
+	if connMaxLifetime <= 0 {
+		connMaxLifetime = defaultDBConnMaxLife
+	}
+
+	dbConn.SetMaxOpenConns(maxOpenConns)
+	dbConn.SetMaxIdleConns(maxIdleConns)
+	dbConn.SetConnMaxLifetime(connMaxLifetime)
+}
+
 // InitDatabases opens connection pools for all supplied DatabaseConfigs with variable interpolation in connection strings.
 func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 	r.dbMu.Lock()
@@ -204,9 +234,7 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			return fmt.Errorf("failed to open database '%s' (%s): %w", cfg.Name, driverName, err)
 		}
 
-		dbConn.SetMaxOpenConns(25)
-		dbConn.SetMaxIdleConns(10)
-		dbConn.SetConnMaxLifetime(5 * time.Minute)
+		applyDatabasePoolSettings(dbConn, cfg)
 
 		r.dbRegistry[cfg.Name] = DBHandle{
 			Conn:   dbConn,
@@ -280,6 +308,7 @@ func (r *Registry) MergeVariables(src map[string]interface{}) {
 		r.varRegistry[k] = v
 	}
 }
+
 // Snapshot returns a new Registry instance with isolated variable storage
 // while sharing the underlying database connection handles.
 func (r *Registry) Snapshot() *Registry {

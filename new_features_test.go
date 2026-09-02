@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -139,6 +140,34 @@ func TestTemplate(t *testing.T) {
 	resFile := registry.GetVar("res_file")
 	if resFile == nil || resFile.(string) != "File tmpl: hello World" {
 		t.Errorf("expected 'File tmpl: hello World', got %v", resFile)
+	}
+}
+
+func TestDatabasePoolConfigParsing(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="pool_db" driver="sqlite" connection_string="file::memory:?cache=shared" max_open_conns="42" max_idle_conns="7" conn_max_lifetime_seconds="90" workload="oltp" />
+		</databases>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+	if len(cfg.Databases) != 1 {
+		t.Fatalf("expected 1 database config, got %d", len(cfg.Databases))
+	}
+
+	dbCfg := cfg.Databases[0]
+	if dbCfg.MaxOpenConns != 42 || dbCfg.MaxIdleConns != 7 {
+		t.Fatalf("unexpected pool values: %+v", dbCfg)
+	}
+	if dbCfg.ConnMaxLifetime != 90*time.Second {
+		t.Fatalf("expected 90s connection lifetime, got %s", dbCfg.ConnMaxLifetime)
+	}
+	if dbCfg.Workload != "oltp" {
+		t.Fatalf("expected workload oltp, got %q", dbCfg.Workload)
 	}
 }
 
