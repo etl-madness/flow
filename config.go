@@ -304,23 +304,23 @@ func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
 						dbCfg.Name = attr.Value
 					case "driver", "type":
 						dbCfg.Driver = strings.ToLower(attr.Value)
-					case "connection_string", "connectionstring":
+					case "connection_string":
 						dbCfg.ConnectionString = attr.Value
-					case "max_open_conns", "maxopenconns":
+					case "max_open_conns":
 						if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
 							dbCfg.MaxOpenConns = val
 						}
-					case "max_idle_conns", "maxidleconns":
+					case "max_idle_conns":
 						if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
 							dbCfg.MaxIdleConns = val
 						}
-					case "conn_max_lifetime", "conn_max_lifetime_seconds", "connmaxlifetime", "connmaxlifetimeseconds":
+					case "conn_max_lifetime_seconds":
 						if dur, err := time.ParseDuration(attr.Value); err == nil && dur > 0 {
 							dbCfg.ConnMaxLifetime = dur
 						} else if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
 							dbCfg.ConnMaxLifetime = time.Duration(val) * time.Second
 						}
-					case "workload", "pool_profile", "poolprofile":
+					case "workload":
 						dbCfg.Workload = attr.Value
 					}
 				}

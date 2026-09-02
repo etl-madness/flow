@@ -394,14 +394,11 @@ The `<databases>` element declares database connections through nested `<databas
 
 | Attribute / field | Mandatory | Description |
 | --- | --- | --- |
-| `description` | No | Human-readable description of the database collection. |
-| `database` child element | No | A database connection definition. Any number of database child elements may be included. |
-| `database.id` | No | Optional identifier for an individual database definition. |
-| `database.name` | Yes | Unique connection name used by database-aware pipeline nodes. |
-| `database.driver` | No | Database driver name. The runtime defaults it to `sqlserver` when omitted. |
-| `database.type` | No | Alias for `driver`. |
-| `database.connection_string` | Yes | Driver-specific connection string used to open the database connection. |
-| `database.description` | No | Human-readable description of an individual database connection. |
+| `databases.description` | No | Human-readable description of the database collection. |
+| `databases` child element | No | A database connection definition. Any number of database child elements may be included. |
+| `databases.id` | No | Optional identifier for an individual database definition. |
+| `databases.name` | Yes | Unique connection name used by database-aware pipeline nodes. |
+ 
 
 Notes:
 - `<databases>` is optional and may occur once within a `<pipeline>`.
@@ -409,20 +406,43 @@ Notes:
 
 # `<database>`
 
-The `<database>` element defines a database connection within a `<databases>` container.
+The `<database>` element defines a named database connection and its connection pool settings within a `<databases>` container.
 
 | Attribute | Mandatory | Description |
 | --- | --- | --- |
 | `id` | No | Optional identifier for the database definition. |
-| `name` | Yes | Unique connection name referenced by database-aware pipeline nodes. |
-| `driver` | No | Database driver name. The runtime defaults to `sqlserver` when omitted. |
+| `name` | Yes | Unique database handle name referenced by `db`, `database`, `target_db`, and related attributes. |
+| `driver` | No | Database driver name, such as `sqlite`, `postgres`, `mysql`, `sqlserver`, or `oracle`. Defaults to `sqlserver` when omitted. |
 | `type` | No | Alias for `driver`. |
-| `connection_string` | Yes | Driver-specific connection string used to open the database connection. |
+| `connection_string` | Yes | Driver-specific connection string / DSN used to open the database connection. Supports `{{VariableName}}` variable interpolation. |
+| `max_open_conns` | No | Maximum number of simultaneous open connections in the pool. Defaults to `25` if omitted or `<= 0`. |
+| `max_idle_conns` | No | Maximum number of idle connections retained in the pool for reuse. Defaults to `10` if omitted or `<= 0`. Automatically clamped to `max_open_conns` if greater. |
+| `conn_max_lifetime_seconds` | No | Maximum duration a connection may be reused before being recycled. Accepts duration strings (e.g., `5m`, `300s`) or integer seconds. Defaults to `5m` (`300s`) if omitted or `<= 0`. |
+| `workload` | No | Optional tuning profile metadata label describing runtime usage patterns (`oltp`, `bulk`, `analytics`, `batch`). |
 | `description` | No | Human-readable description of the database connection. |
 
 Notes:
 - Declare `<database>` elements inside the `<databases>` container.
-- Use the connection name through `db` or `database` attributes on applicable pipeline nodes.
+- Attribute names are case-insensitive and support snake_case, kebab-case (`-`), and dot (`.`) separators.
+- Connection strings support variable placeholders using `{{VariableName}}`.
+- When pool tuning attributes are omitted, the runtime applies default pool values (`max_open_conns=25`, `max_idle_conns=10`, `conn_max_lifetime=5m`).
+
+Example:
+
+```xml
+<databases>
+  <database
+    id="analytics-db"
+    name="analytics_db"
+    driver="postgres"
+    connection_string="host=localhost port=5432 user=postgres password={{DB_PASSWORD}} dbname=analytics sslmode=disable"
+    max_open_conns="50"
+    max_idle_conns="20"
+    conn_max_lifetime_seconds="300"
+    workload="analytics"
+    description="Analytics reporting replica database" />
+</databases>
+```
 
 # `<if>`, `<then>`, `<else>`
 

@@ -51,7 +51,7 @@ Responsibilities:
 The database initialization path now applies defaults when pool settings are absent:
 - `max_open_conns = 25`
 - `max_idle_conns = 10`
-- `conn_max_lifetime = 5m`
+- `conn_max_lifetime_seconds = 500`
 
 If a connection is configured with explicit values, those values override the defaults without changing any SQL node contract.
 
