@@ -23,6 +23,73 @@ Optimized for streaming huge datasets directly from a source database query into
 - **`fire_triggers`**: Execute target table triggers during insert (`true` / `false`).
 - **`keep_nulls`**: Preserve explicit NULL values (`true` / `false`).
 
+### Database connection tuning
+Connection parameters live on the `<database>` definition itself, not on each SQL step.
+
+- **`name`**: unique logical database identifier used by SQL nodes.
+- **`driver`**: database driver (for example `sqlite`, `postgres`, `mysql`, `sqlserver`).
+- **`connection_string`**: driver-specific DSN/connection string.
+- **`max_open_conns`**: max number of simultaneous open connections in the pool.
+- **`max_idle_conns`**: number of idle connections retained ready for reuse.
+- **`conn_max_lifetime_seconds`**: maximum age of a pooled connection before it is recycled.
+- **`workload`**: optional tuning profile label such as `oltp`, `bulk`, or `analytics`.
+
+A workload is the operational pattern of a database connection. It describes how a connection is expected to be used at runtime so the pool can be tuned for the right trade-off between concurrency, latency, and throughput. In practice, Flow uses the workload label as a hint to choose sane defaults for connection count, idle retention, and lifetime without hardcoding one-size-fits-all values.
+
+Common workload types:
+- **`oltp`**: short, latency-sensitive reads and writes; keep a moderate number of open connections and shorter idle time to reduce cold-start latency.
+- **`bulk`**: large ETL or ingestion jobs; favor larger pools and more throughput, with a shorter connection lifetime to handle high churn.
+- **`analytics`**: read-heavy reporting workloads; balance concurrency and reuse to support many query workers without oversubscribing the server.
+- **`batch`**: scheduled, non-interactive jobs that may run bursts; a tuned pool can temporarily scale higher but still recycle stale connections.
+
+These labels are metadata, not required switches: they are optional and can be omitted. When omitted, the runtime falls back to the safe defaults already used by the registry.
+
+Supported database engines and typical workload fit:
+- **SQLite**: best for local dev, embedded apps, testing, and lightweight single-user workflows; commonly used with `oltp` or `batch`.
+- **PostgreSQL**: strong fit for `oltp`, `analytics`, and `bulk` patterns; widely used for transactional apps, staging pipelines, and reporting.
+- **MySQL**: commonly used for `oltp` and `batch` workloads; also suitable for bulk ingestion when configured with a larger pool.
+- **SQL Server / MSSQL**: strong fit for `oltp`, `analytics`, and `bulk`, including large ETL copy operations with `tablock` and other MSSQL-specific bulk options.
+- **Oracle**: commonly used for mission-critical `oltp` and `analytics` workloads with tuned connection reuse and larger query fan-out.
+
+These workload labels are not limited to a single database engine; they describe the application behavior of the connection, so all supported drivers can use the same tuning model.
+
+```xml
+<databases>
+    <database name="analytics_db"
+              driver="postgres"
+              connection_string="host=localhost port=5432 user=app password=secret dbname=analytics sslmode=disable"
+              max_open_conns="25"
+              max_idle_conns="10"
+              conn_max_lifetime_seconds="300"
+              workload="oltp" />
+</databases>
+```
+
+### Example: Pool tuning for bulk ETL
+Use a larger pool for high-throughput bulk workloads and a shorter idle lifetime for transient jobs.
+
+```xml
+<databases>
+    <database name="warehouse_db"
+              driver="postgres"
+              connection_string="host=warehouse.internal port=5432 user=loader password=secret dbname=warehouse sslmode=disable"
+              max_open_conns="80"
+              max_idle_conns="20"
+              conn_max_lifetime_seconds="180"
+              workload="bulk" />
+</databases>
+
+<flow>
+    <sql_bulk id="bulk_copy_orders"
+              db="orders_db"
+              target_db="warehouse_db"
+              target_table="orders_fact"
+              batch_size="5000">
+        SELECT order_id, customer_id, amount, created_at FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '7 days';
+    </sql_bulk>
+</flow>
+```
+
 ---
 
 ## Practical Examples
@@ -33,7 +100,13 @@ Initialize a database table structure and load initial seed data.
 ```xml
 <pipeline>
     <databases>
-        <database name="analytics_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+        <database name="analytics_db"
+                  driver="sqlite"
+                  connection_string="file::memory:?cache=shared"
+                  max_open_conns="25"
+                  max_idle_conns="10"
+                  conn_max_lifetime_seconds="300"
+                  workload="oltp" />
     </databases>
     <flow>
         <sql id="setup_analytics_schema" db="analytics_db">

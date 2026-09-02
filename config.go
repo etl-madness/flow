@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // VariableConfig represents an individual environment variable loaded from XML.
@@ -24,9 +25,13 @@ type VariableConfig struct {
 
 // DatabaseConfig represents a database connection setup defined in the XML.
 type DatabaseConfig struct {
-	Name             string // Unique identifier for the database
-	Driver           string // Database driver name (e.g. postgres, mysql, sqlite)
-	ConnectionString string // Driver-specific connection string
+	Name             string        // Unique identifier for the database
+	Driver           string        // Database driver name (e.g. postgres, mysql, sqlite)
+	ConnectionString string        // Driver-specific connection string
+	MaxOpenConns     int           // Maximum concurrent open connections in the pool
+	MaxIdleConns     int           // Maximum idle connections to retain in the pool
+	ConnMaxLifetime  time.Duration // Maximum lifetime of a connection before it is recycled
+	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics)
 }
 
 // ScriptItem represents an executable script payload (either SQL or Go) with metadata.
@@ -253,6 +258,10 @@ func ValidateXSD(xmlPath string, xsdPath string) error {
 	return nil
 }
 
+func normalizeXMLAttributeName(name string) string {
+	return strings.NewReplacer("-", "_", ".", "_").Replace(strings.ToLower(name))
+}
+
 // PipelineConfig encapsulates the complete parsed AST structure.
 
 // ParseXMLConfig parses XML pipeline config definitions into separate Preflight and Flow ASTs.
@@ -289,12 +298,30 @@ func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
 			} else if elemName == "database" {
 				var dbCfg DatabaseConfig
 				for _, attr := range se.Attr {
-					if strings.EqualFold(attr.Name.Local, "name") {
+					normalizedName := normalizeXMLAttributeName(attr.Name.Local)
+					switch normalizedName {
+					case "name":
 						dbCfg.Name = attr.Value
-					} else if strings.EqualFold(attr.Name.Local, "driver") || strings.EqualFold(attr.Name.Local, "type") {
+					case "driver", "type":
 						dbCfg.Driver = strings.ToLower(attr.Value)
-					} else if strings.EqualFold(attr.Name.Local, "connection_string") {
+					case "connection_string", "connectionstring":
 						dbCfg.ConnectionString = attr.Value
+					case "max_open_conns", "maxopenconns":
+						if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
+							dbCfg.MaxOpenConns = val
+						}
+					case "max_idle_conns", "maxidleconns":
+						if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
+							dbCfg.MaxIdleConns = val
+						}
+					case "conn_max_lifetime", "conn_max_lifetime_seconds", "connmaxlifetime", "connmaxlifetimeseconds":
+						if dur, err := time.ParseDuration(attr.Value); err == nil && dur > 0 {
+							dbCfg.ConnMaxLifetime = dur
+						} else if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
+							dbCfg.ConnMaxLifetime = time.Duration(val) * time.Second
+						}
+					case "workload", "pool_profile", "poolprofile":
+						dbCfg.Workload = attr.Value
 					}
 				}
 				if dbCfg.Driver == "" {
