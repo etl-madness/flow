@@ -4,26 +4,8 @@ Flow features native, high-performance integration with SQL relational databases
 
 ---
 
-## Key AST Nodes
-
-### 1. `<sql>`
-Used for executing standard SQL scripts (DDL, DML, standard queries).
-- **`db` / `database`**: Name of the configured database connection to execute against.
-- **`id`**: Unique identifier for this step.
-- **`output_var` / `var` / `variable`**: (Optional) Pipeline variable where the query output (with column headers) will be stored as a newline-delimited text block.
-
-### 2. `<sql_bulk>`
-Optimized for streaming huge datasets directly from a source database query into a target table, bypassing CPU/memory bottlenecks.
-- **`db` / `database`**: The source database connection name.
-- **`target_db` / `target_database`**: The destination database connection name (defaults to the source database if omitted).
-- **`target_table`**: The destination table to bulk insert records into.
-- **`batch_size`**: The row batch size (defaults to `10000`).
-- **`tablock`**: Acquire a table lock for minimal logging on SQL Server (`true` / `false`, defaults to `true`).
-- **`check_constraints`**: Evaluate table constraints during bulk insert (`true` / `false`).
-- **`fire_triggers`**: Execute target table triggers during insert (`true` / `false`).
-- **`keep_nulls`**: Preserve explicit NULL values (`true` / `false`).
-
-### Database connection tuning
+## Database connection tuning <database>
+Defined under `<databases>` as child `<database>` elements.
 Connection parameters live on the `<database>` definition itself, not on each SQL step.
 
 - **`name`**: unique logical database identifier used by SQL nodes.
@@ -89,6 +71,28 @@ Use a larger pool for high-throughput bulk workloads and a shorter idle lifetime
     </sql_bulk>
 </flow>
 ```
+
+
+---
+## Key AST Nodes
+
+### 1. `<sql>`
+Used for executing standard SQL scripts (DDL, DML, standard queries).
+- **`db` / `database`**: Name of the configured database connection to execute against.
+- **`id`**: Unique identifier for this step.
+- **`output_var` / `var` / `variable`**: (Optional) Pipeline variable where the query output (with column headers) will be stored as a newline-delimited text block.
+
+### 2. `<sql_bulk>`
+Optimized for streaming huge datasets directly from a source database query into a target table, bypassing CPU/memory bottlenecks.
+- **`db` / `database`**: The source database connection name.
+- **`target_db` / `target_database`**: The destination database connection name (defaults to the source database if omitted).
+- **`target_table`**: The destination table to bulk insert records into.
+- **`batch_size`**: The row batch size (defaults to `10000`).
+- **`tablock`**: Acquire a table lock for minimal logging on SQL Server (`true` / `false`, defaults to `true`).
+- **`check_constraints`**: Evaluate table constraints during bulk insert (`true` / `false`).
+- **`fire_triggers`**: Execute target table triggers during insert (`true` / `false`).
+- **`keep_nulls`**: Preserve explicit NULL values (`true` / `false`).
+
 
 ---
 
