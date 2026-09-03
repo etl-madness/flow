@@ -243,6 +243,31 @@ Notes:
 - The template is rendered with the current registry variables available in the pipeline.
 - If both `output_var` and `var` are empty, the rendered text is still generated but not stored into a named variable. 
 
+
+#### `<template_html>`
+
+The `<template_html>` element renders Go HTML templates using the current pipeline variables. It can read the template from an external file or from inline XML content, and it can optionally store the rendered output in a variable.
+
+The `<template>` element renders Go text templates using the current pipeline variables. It can read the template from an external file or from inline XML content, and it can optionally store the rendered output in a variable.
+
+For `<template_html>`, the Go `html/template` engine is used, which provides automatic HTML escaping to help prevent XSS vulnerabilities.
+
+| Attribute / field | Mandatory | Description |
+| --- | --- | --- |
+| `id` | Yes | Unique identifier for the template node. This is the logical name used in execution results and diagnostics. |
+| `name` | No | Friendly name for the template when it is parsed by Go's template engine. If omitted, the engine still works with a default internal name. |
+| `file` | No | Path to an external template file. If provided, the file contents are used as the template source. This is optional when the template is provided inline. |
+| `engine` | No | Declares the template engine. In the current implementation, execution uses Go `text/template`; this attribute is accepted for compatibility and documentation purposes. |
+| `output_var` | No | Name of the pipeline variable that receives the rendered output. This is the primary output variable name. |
+| `var` | No | Alias for `output_var`. If `output_var` is not set, this value is used instead. |
+| `mode` | No | Output behavior for the result. `summary` returns a brief success message; any other value (including unset) returns the rendered template text itself. |
+| `content` | Conditional | Inline template body text located between the opening and closing `<template>` tags. This is required when `file` is not set. |
+
+Notes:
+- `file` and inline `content` are mutually exclusive sources for the template body.
+- The template is rendered with the current registry variables available in the pipeline.
+- If both `output_var` and `var` are empty, the rendered text is still generated but not stored into a named variable. 
+
 #### `<sql>`
 
 The `<sql>` element executes a SQL statement against a configured database connection. The statement can be supplied inline or read from a pipeline variable.

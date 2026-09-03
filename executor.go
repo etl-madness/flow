@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	htmltemplate "html/template"
 	"io"
 	"net/http"
 	"os"
@@ -42,6 +43,8 @@ type ScriptResult struct {
 type Executor struct {
 	registry    *Registry
 	resultsMu   sync.Mutex
+	sinksMu     sync.RWMutex
+	eventSinks  []EventSink
 	verbose     atomic.Bool
 	goPath      string
 	activeTxs   map[string]*sql.Tx // Track active transactions per database
@@ -64,6 +67,18 @@ func (e *Executor) SetGoPath(goPath string) {
 // SetVerbose sets whether execution start and finish events should be printed to the console.
 func (e *Executor) SetVerbose(verbose bool) {
 	e.verbose.Store(verbose)
+}
+
+// SetEventSink replaces all event sinks with sink. A nil sink disables event emission.
+func (e *Executor) SetEventSink(sink EventSink) {
+	e.SetEventSinks(sink)
+}
+
+// SetEventSinks replaces the event sinks used by subsequent executions.
+func (e *Executor) SetEventSinks(sinks ...EventSink) {
+	e.sinksMu.Lock()
+	defer e.sinksMu.Unlock()
+	e.eventSinks = append([]EventSink(nil), sinks...)
 }
 
 // SetInterpHook registers a callback to customize Yaegi interpreter options.
@@ -130,12 +145,30 @@ func (e *Executor) getActiveTx(dbName string) *sql.Tx {
 
 // Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
 func (e *Executor) Execute(ctx context.Context, nodes []PipelineNode) ([]ScriptResult, error) {
+	_, results, err := e.executeRun(ctx, nodes)
+	return results, err
+}
+
+// ExecuteRun executes nodes and returns structured run and node lifecycle results.
+func (e *Executor) ExecuteRun(ctx context.Context, nodes []PipelineNode) (RunResult, error) {
+	run, _, err := e.executeRun(ctx, nodes)
+	return run, err
+}
+
+func (e *Executor) executeRun(ctx context.Context, nodes []PipelineNode) (RunResult, []ScriptResult, error) {
 	var results []ScriptResult
+	e.sinksMu.RLock()
+	sinks := append([]EventSink(nil), e.eventSinks...)
+	e.sinksMu.RUnlock()
+	collector := newRunCollector(sinks)
+	collector.emit(ctx, ExecutionEvent{Type: EventRunStarted, Status: RunStatusSucceeded})
+	ctx = context.WithValue(ctx, executionScopeKey{}, &executionScope{collector: collector})
 	hasErr := e.executeNodes(ctx, nodes, &results)
+	run := collector.finish(ctx, hasErr)
 	if hasErr {
-		return results, fmt.Errorf("pipeline execution encountered errors")
+		return run, results, fmt.Errorf("pipeline execution encountered errors")
 	}
-	return results, nil
+	return run, results, nil
 }
 
 func (e *Executor) appendResult(results *[]ScriptResult, res ScriptResult) {
@@ -787,71 +820,63 @@ func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, r
 }
 
 func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, results *[]ScriptResult) bool {
-	for _, node := range nodes {
+	for index, node := range nodes {
 		select {
 		case <-ctx.Done():
 			return true
 		default:
 		}
 
+		nodeCtx := ctx
+		var executionID string
+		if scope := scopeFromContext(ctx); scope != nil {
+			nodeKind, nodeID := nodeIdentity(node)
+			path := fmt.Sprintf("%s[%d]", nodeKind, index)
+			if scope.path != "" {
+				path = fmt.Sprintf("%s/%s", scope.path, path)
+			}
+			nodeCtx, executionID = scope.collector.startNode(ctx, scope.parentExecutionID, nodeID, nodeKind, path)
+		}
+
+		var nodeResults []ScriptResult
+		var hasErr bool
+
 		switch node.Kind {
 		case NodeAssert:
 			if node.Assert != nil {
-				if hasErr := e.executeAssertNode(ctx, *node.Assert, results); hasErr {
-					return true
-				}
+				hasErr = e.executeAssertNode(nodeCtx, *node.Assert, &nodeResults)
 			}
 		case NodeSQL, NodeSQLBulk:
 			if node.Script != nil {
-				if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
-					return true
-				}
+				hasErr = e.executeScriptNode(nodeCtx, *node.Script, &nodeResults)
 			}
 		case NodeYAMLPath:
-			if hasErr := e.executeYAMLPathNode(ctx, *node.YamlPath, results); hasErr {
-				return true
-			}
+			hasErr = e.executeYAMLPathNode(nodeCtx, *node.YamlPath, &nodeResults)
 		case NodeJSONPath:
-			if hasErr := e.executeJSONPathNode(ctx, *node.JsonPath, results); hasErr {
-				return true
-			}
+			hasErr = e.executeJSONPathNode(nodeCtx, *node.JsonPath, &nodeResults)
 		case NodeExcelRead:
-			if hasErr := e.executeExcelReadNode(ctx, *node.ExcelRead, results); hasErr {
-				return true
-			}
+			hasErr = e.executeExcelReadNode(nodeCtx, *node.ExcelRead, &nodeResults)
 		case NodeExcelWrite:
-			if hasErr := e.executeExcelWriteNode(ctx, *node.ExcelWrite, results); hasErr {
-				return true
-			}
+			hasErr = e.executeExcelWriteNode(nodeCtx, *node.ExcelWrite, &nodeResults)
 		case NodeFileRead:
-			if hasErr := e.executeFileReadNode(ctx, *node.FileRead, results); hasErr {
-				return true
-			}
+			hasErr = e.executeFileReadNode(nodeCtx, *node.FileRead, &nodeResults)
 		case NodeFileSave:
-			if hasErr := e.executeFileSaveNode(ctx, *node.FileSave, results); hasErr {
-				return true
-			}
+			hasErr = e.executeFileSaveNode(nodeCtx, *node.FileSave, &nodeResults)
 		case NodeTemplate:
-			if hasErr := e.executeTemplateNode(ctx, *node.Template, results); hasErr {
-				return true
-			}
+			hasErr = e.executeTemplateNode(nodeCtx, *node.Template, &nodeResults)
+		case NodeHtmlTemplate:
+			hasErr = e.executeHtmlTemplateNode(nodeCtx, *node.HtmlTemplate, &nodeResults)
 		case NodeXMLXPath:
-			if hasErr := e.executeXMLXPathNode(ctx, *node.XmlXPath, results); hasErr {
-				return true
-			}
+			hasErr = e.executeXMLXPathNode(nodeCtx, *node.XmlXPath, &nodeResults)
 		case NodeHTTPClient:
-			if hasErr := e.executeHTTPClientNode(ctx, *node.HTTPClient, results); hasErr {
-				return true
-			}
+			hasErr = e.executeHTTPClientNode(nodeCtx, *node.HTTPClient, &nodeResults)
 		case NodeScript:
-			if hasErr := e.executeScriptNode(ctx, *node.Script, results); hasErr {
-				return true
-			}
+			hasErr = e.executeScriptNode(nodeCtx, *node.Script, &nodeResults)
 
 		case NodeGroup:
 			if node.IfVar != "" {
 				if !e.evalCondition(node.IfVar, node.IfEquals) {
-					continue
+					break
 				}
 			}
 			if node.Transaction {
@@ -860,8 +885,9 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 						ScriptID:   node.GroupID,
 						ReturnCode: "transaction group is missing 'db' or 'database' attribute",
 					}
-					e.appendResult(results, res)
-					return true
+					e.appendResult(&nodeResults, res)
+					hasErr = true
+					break
 				}
 				dbConn, err := e.registry.GetDB(node.DBName)
 				if err != nil {
@@ -869,8 +895,9 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 						ScriptID:   node.GroupID,
 						ReturnCode: fmt.Sprintf("failed to get db connection for transaction: %v", err),
 					}
-					e.appendResult(results, res)
-					return true
+					e.appendResult(&nodeResults, res)
+					hasErr = true
+					break
 				}
 				tx, err := dbConn.BeginTx(ctx, nil)
 				if err != nil {
@@ -878,8 +905,9 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 						ScriptID:   node.GroupID,
 						ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
 					}
-					e.appendResult(results, res)
-					return true
+					e.appendResult(&nodeResults, res)
+					hasErr = true
+					break
 				}
 
 				if e.activeTxs == nil {
@@ -887,13 +915,13 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 				}
 				e.activeTxs[node.DBName] = tx
 
-				hasErr := e.executeNodes(ctx, node.Children, results)
+				hasErr = e.executeNodes(nodeCtx, node.Children, &nodeResults)
 
 				delete(e.activeTxs, node.DBName)
 
 				if hasErr {
 					tx.Rollback()
-					return true
+					break
 				}
 
 				if err := tx.Commit(); err != nil {
@@ -901,19 +929,16 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 						ScriptID:   node.GroupID,
 						ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
 					}
-					e.appendResult(results, res)
-					return true
+					e.appendResult(&nodeResults, res)
+					hasErr = true
+					break
 				}
 			} else {
-				if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
-					return true
-				}
+				hasErr = e.executeNodes(nodeCtx, node.Children, &nodeResults)
 			}
 
 		case NodeParallel:
-			if hasErr := e.executeParallelNode(ctx, node, results); hasErr {
-				return true
-			}
+			hasErr = e.executeParallelNode(nodeCtx, node, &nodeResults)
 
 		case NodeIf:
 			condPassed := e.evalCondition(node.IfVar, node.IfEquals)
@@ -923,19 +948,23 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 			} else {
 				target = node.ElseNodes
 			}
-			if hasErr := e.executeNodes(ctx, target, results); hasErr {
-				return true
-			}
+			hasErr = e.executeNodes(nodeCtx, target, &nodeResults)
 
 		case NodeForEach:
-			if hasErr := e.executeForEachNode(ctx, node, results); hasErr {
-				return true
-			}
+			hasErr = e.executeForEachNode(nodeCtx, node, &nodeResults)
 
 		case NodeWhile:
-			if hasErr := e.executeWhileNode(ctx, node, results); hasErr {
-				return true
-			}
+			hasErr = e.executeWhileNode(nodeCtx, node, &nodeResults)
+		}
+
+		for _, result := range nodeResults {
+			e.appendResult(results, result)
+		}
+		if scope := scopeFromContext(ctx); scope != nil {
+			scope.collector.finishNode(nodeCtx, executionID, hasErr, nodeResultFor(node, nodeResults))
+		}
+		if hasErr {
+			return true
 		}
 	}
 	return false
@@ -1076,6 +1105,60 @@ func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement
 	}
 
 	tmpl, err := template.New(tmplName).Option("missingkey=zero").Parse(templateText)
+	if err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, variables); err != nil {
+		res.ReturnCode = fmt.Sprintf("failed to execute template: %v", err)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+
+	outputStr := buf.String()
+	res.ReturnCode = 0
+	if elem.Mode == "summary" {
+		res.ResultsString = fmt.Sprintf("Successfully rendered template %q (%d bytes)", tmplName, len(outputStr))
+	} else {
+		res.ResultsString = fmt.Sprintf("%s", outputStr)
+	}
+	res.Duration = time.Since(startTime).String()
+
+	e.storeScriptOutput(elem.GetOutputVar(), outputStr)
+	e.appendResult(results, res)
+	return false
+}
+func (e *Executor) executeHtmlTemplateNode(ctx context.Context, elem HtmlTemplateElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	variables := e.registry.CopyVariables()
+	var templateText string
+	if elem.File != "" {
+		filePath := interpolateVars(elem.File, variables)
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read template file %s: %v", filePath, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		templateText = string(fileBytes)
+	} else {
+		templateText = strings.TrimSpace(elem.Content)
+	}
+
+	tmplName := elem.Name
+	if tmplName == "" {
+		tmplName = elem.ID
+	}
+
+	tmpl, err := htmltemplate.New(tmplName).Option("missingkey=zero").Parse(templateText)
 	if err != nil {
 		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
 		res.Duration = time.Since(startTime).String()

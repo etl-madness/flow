@@ -78,6 +78,7 @@
             <xs:element name="while" type="WhileType" />
             <xs:element name="http_client" type="HttpClientType" />
             <xs:element name="template" type="TemplateType" />
+            <xs:element name="template_html" type="TemplateHtmlType" />
             <xs:element name="file_save" type="FileSaveType" />
             <xs:element name="file_read" type="FileReadType" />
             <xs:element name="excel_read" type="ExcelReadType" />

@@ -96,7 +96,10 @@ type Executor struct { ... }
 
 func NewExecutor(r *Registry) *Executor
 func (e *Executor) Execute(ctx context.Context, nodes []PipelineNode) ([]ScriptResult, error)
+func (e *Executor) ExecuteRun(ctx context.Context, nodes []PipelineNode) (RunResult, error)
 func (e *Executor) SetVerbose(verbose bool)
+func (e *Executor) SetEventSink(sink EventSink)
+func (e *Executor) SetEventSinks(sinks ...EventSink)
 func (e *Executor) SetGoPath(goPath string) // sets the GOPATH for the embedded Go interpreter (Yaegi) to resolve imports during script execution.
 
 // ScriptResult represents the outcome of an executed script or loop step.

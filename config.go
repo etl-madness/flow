@@ -71,6 +71,7 @@ const (
 	NodeHTTPClient // Added NodeHTTPClient enum
 	// NodeTemplate represents a template inclusion step.
 	NodeTemplate // New enum item
+	NodeHtmlTemplate // New enum item for HTML template inclusion step
 	// NodeFileSave represents a file save operation step.
 	NodeFileSave // New enum item for file save operation
 	// NodeFileRead represents a file read operation step.
@@ -107,6 +108,7 @@ type PipelineNode struct {
 	ExcelWrite    *ExcelWriteElement // New payload field for Excel write operation
 	XmlXPath      *XmlXPathElement   // New payload field for XML XPath extraction
 	JsonPath      *JsonPathElement   // New payload field for JSON path extraction
+	HtmlTemplate  *HtmlTemplateElement // New payload field for HTML template inclusion step
 	YamlPath      *YamlPathElement   // New payload field for YAML path extraction
 	Assert        *AssertElement     // New enum item for assert operation
 }
@@ -164,7 +166,16 @@ type TemplateElement struct {
 	Mode      string `xml:"mode,attr"` // "text", "summary"
 	Content   string `xml:",chardata"`
 }
-
+type HtmlTemplateElement struct {
+	ID        string `xml:"id,attr"`
+	Name      string `xml:"name,attr"`
+	File      string `xml:"file,attr"`
+	Engine    string `xml:"engine,attr"`
+	OutputVar string `xml:"output_var,attr"`
+	Var       string `xml:"var,attr"`
+	Mode      string `xml:"mode,attr"` // "text", "summary"
+	Content   string `xml:",chardata"`
+}
 type FileSaveElement struct {
 	ID       string `xml:"id,attr"`
 	File     string `xml:"file,attr"`
@@ -221,6 +232,12 @@ func (f *FileSaveElement) GetInputVar() string {
 }
 
 func (t *TemplateElement) GetOutputVar() string {
+	if t.OutputVar != "" {
+		return t.OutputVar
+	}
+	return t.Var
+}
+func (t *HtmlTemplateElement) GetOutputVar() string {
 	if t.OutputVar != "" {
 		return t.OutputVar
 	}
@@ -557,7 +574,20 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			Kind:     NodeFileRead,
 			FileRead: &elem,
 		}, nil
-	case "template":
+	case "template_html":
+		var elem HtmlTemplateElement
+		if err := decoder.DecodeElement(&elem, &se); err != nil {
+			return nil, err
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("template_html_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		return &PipelineNode{
+			Kind:     NodeHtmlTemplate,
+			HtmlTemplate: &elem,
+		}, nil
+		case "template":
 		var elem TemplateElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
 			return nil, err
