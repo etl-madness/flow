@@ -46,6 +46,104 @@ The run status is one of:
 
 Each `NodeResult` currently has exactly one `AttemptResult`. The attempts collection is present so retry support can add future attempts without changing the result format.
 
+## Configure `SetEventSink`
+
+Call `SetEventSink` before `Execute` or `ExecuteRun` to register one destination for structured lifecycle events:
+
+```go
+executor := flow.NewExecutor(registry)
+executor.SetEventSink(sink)
+
+run, err := executor.ExecuteRun(ctx, config.FlowNodes)
+```
+
+The sink receives `run.started` before node work begins and `run.finished` after the executor has finalized the `RunResult`. Each executed node also emits `node.started`, `attempt.started`, `attempt.finished`, and `node.finished` events. Sinks do not require any XML configuration.
+
+`SetEventSink` replaces every previously registered sink. Pass `nil` to disable event emission for later runs:
+
+```go
+executor.SetEventSink(&flow.JSONLineSink{Writer: os.Stdout})
+_, _ = executor.ExecuteRun(ctx, config.FlowNodes)
+
+executor.SetEventSink(nil)
+_, _ = executor.ExecuteRun(ctx, config.FlowNodes) // Does not emit events.
+```
+
+For more than one destination, use `SetEventSinks` rather than calling `SetEventSink` repeatedly:
+
+```go
+executor.SetEventSinks(
+    &flow.JSONLineSink{Writer: os.Stdout},
+    auditSink,
+)
+```
+
+### Print Failed Nodes Only
+
+This sink sends a compact message to the standard logger only when an executed node fails or is canceled:
+
+```go
+type FailureLogSink struct{}
+
+func (FailureLogSink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    if event.Type != flow.EventNodeFinished || event.Status == flow.RunStatusSucceeded {
+        return nil
+    }
+
+    log.Printf(
+        "run=%s node=%s id=%s status=%s class=%s error=%s",
+        event.RunID,
+        event.ExecutionID,
+        event.NodeID,
+        event.Status,
+        event.ErrorClass,
+        event.ErrorMessage,
+    )
+    return nil
+}
+
+executor.SetEventSink(FailureLogSink{})
+```
+
+### Capture Events in a Test
+
+Custom sinks may be invoked by concurrent pipeline branches. Protect mutable in-memory state with a mutex when collecting events:
+
+```go
+type MemorySink struct {
+    mu     sync.Mutex
+    events []flow.ExecutionEvent
+}
+
+func (s *MemorySink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.events = append(s.events, event)
+    return nil
+}
+
+func (s *MemorySink) Events() []flow.ExecutionEvent {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return append([]flow.ExecutionEvent(nil), s.events...)
+}
+
+sink := &MemorySink{}
+executor.SetEventSink(sink)
+
+_, err := executor.ExecuteRun(context.Background(), config.FlowNodes)
+if err != nil {
+    t.Fatal(err)
+}
+
+events := sink.Events()
+if events[0].Type != flow.EventRunStarted {
+    t.Fatalf("first event = %s, want %s", events[0].Type, flow.EventRunStarted)
+}
+```
+
+An error returned from `Emit` is intentionally ignored by the executor. This prevents a logging, tracing, or metrics outage from changing pipeline execution. A sink that requires reliable delivery should buffer or persist work internally and report its own health separately.
+
 ## Write JSON Lines Events
 
 `JSONLineSink` writes one `ExecutionEvent` as a JSON object followed by a newline. This format works with common log collectors and makes it easy to filter by `run_id`, `node_kind`, `status`, or `error_class`.
