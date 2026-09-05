@@ -482,3 +482,74 @@ func TestSQLAndSQLBulk(t *testing.T) {
 		t.Fatalf("expected 3 script results, got %d", len(results))
 	}
 }
+
+func TestSQLDMLWithReturning(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="dml_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<scripts>
+			<sql id="setup" db="dml_test_db">
+				CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, status TEXT);
+			</sql>
+			<sql id="insert_returning" db="dml_test_db" output_var="inserted_id">
+				INSERT INTO items (name, status) VALUES ('Widget A', 'pending') RETURNING id;
+			</sql>
+			<sql id="update_returning" db="dml_test_db" output_var="updated_status">
+				UPDATE items SET status = 'completed' WHERE id = 1 RETURNING status;
+			</sql>
+			<sql id="delete_returning" db="dml_test_db" output_var="deleted_name">
+				DELETE FROM items WHERE id = 1 RETURNING name;
+			</sql>
+			<sql id="update_with_rowcount" db="dml_test_db" output_var="row_count_val">
+				UPDATE items SET status = 'active'; SELECT 42 AS "@@ROWCOUNT";
+			</sql>
+		</scripts>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init databases: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	if len(results) != 5 {
+		t.Fatalf("expected 5 results, got %d", len(results))
+	}
+
+	if insertedID := registry.GetVarString("inserted_id"); insertedID != "1" {
+		t.Errorf("expected inserted_id to be '1', got %q", insertedID)
+	}
+
+	if updatedStatus := registry.GetVarString("updated_status"); updatedStatus != "completed" {
+		t.Errorf("expected updated_status to be 'completed', got %q", updatedStatus)
+	}
+
+	if deletedName := registry.GetVarString("deleted_name"); deletedName != "Widget A" {
+		t.Errorf("expected deleted_name to be 'Widget A', got %q", deletedName)
+	}
+
+	if rowCountVal := registry.GetVarString("row_count_val"); rowCountVal != "42" {
+		t.Errorf("expected row_count_val to be '42', got %q", rowCountVal)
+	}
+
+	if expected := "\n(1 row(s) returned)\n"; results[1].ResultsString != expected {
+		t.Errorf("expected results[1].ResultsString to be %q, got %q", expected, results[1].ResultsString)
+	}
+
+	if expected := "\n(42 row(s) returned)\n"; results[4].ResultsString != expected {
+		t.Errorf("expected results[4].ResultsString to be %q, got %q", expected, results[4].ResultsString)
+	}
+}

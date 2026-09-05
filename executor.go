@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -237,11 +238,14 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 		trimmedQuery = strings.TrimSpace(trimmedQuery)
 	}
 	trimmedQuery = strings.ToUpper(trimmedQuery)
+	hasReturning := strings.Contains(trimmedQuery, "RETURNING") ||
+		strings.Contains(trimmedQuery, "OUTPUT") ||
+		strings.Contains(trimmedQuery, "@@ROWCOUNT") ||
+		(strings.Contains(trimmedQuery, ";") && strings.Contains(trimmedQuery, "SELECT"))
 	isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
 		strings.HasPrefix(trimmedQuery, "UPDATE") ||
 		strings.HasPrefix(trimmedQuery, "DELETE")) &&
-		!strings.Contains(trimmedQuery, "RETURNING") &&
-		!strings.Contains(trimmedQuery, "OUTPUT")
+		!hasReturning
 	// --- Execute DML statements with ExecContext ---
 	if isDML {
 		var res sql.Result
@@ -285,55 +289,72 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 	}
 	defer rows.Close()
 
-	cols, err := rows.Columns()
-	if err != nil {
-		return "", "", err
-	}
-
 	var dataBuf bytes.Buffer
-	dataBuf.WriteString(strings.Join(cols, "\t") + "\n")
-
 	rowCount := 0
 	var lastRowStrs []string
+	var cols []string
 
-	for rows.Next() {
-		rowCount++
-		vals := make([]interface{}, len(cols))
-		valPtrs := make([]interface{}, len(cols))
-		for i := range vals {
-			valPtrs[i] = &vals[i]
+	for {
+		curCols, err := rows.Columns()
+		if err == nil && len(curCols) > 0 {
+			cols = curCols
+			dataBuf.Reset()
+			dataBuf.WriteString(strings.Join(cols, "\t") + "\n")
+			rowCount = 0
+			lastRowStrs = nil
 		}
 
-		if err := rows.Scan(valPtrs...); err != nil {
-			return dataBuf.String(), "", fmt.Errorf("row scan error: %w", err)
-		}
-
-		rowStrs := make([]string, len(cols))
-		for i, v := range vals {
-			if v == nil {
-				rowStrs[i] = "NULL"
-			} else if b, ok := v.([]byte); ok {
-				rowStrs[i] = string(b)
-			} else {
-				rowStrs[i] = fmt.Sprintf("%v", v)
+		for rows.Next() {
+			rowCount++
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
 			}
+
+			if err := rows.Scan(valPtrs...); err != nil {
+				return dataBuf.String(), "", fmt.Errorf("row scan error: %w", err)
+			}
+
+			rowStrs := make([]string, len(cols))
+			for i, v := range vals {
+				if v == nil {
+					rowStrs[i] = "NULL"
+				} else if b, ok := v.([]byte); ok {
+					rowStrs[i] = string(b)
+				} else {
+					rowStrs[i] = fmt.Sprintf("%v", v)
+				}
+			}
+			lastRowStrs = rowStrs
+			dataBuf.WriteString(strings.Join(rowStrs, "\t") + "\n")
 		}
-		lastRowStrs = rowStrs
-		dataBuf.WriteString(strings.Join(rowStrs, "\t") + "\n")
+
+		if err := rows.Err(); err != nil {
+			return dataBuf.String(), "", err
+		}
+
+		if !rows.NextResultSet() {
+			break
+		}
 	}
 
-	if err := rows.Err(); err != nil {
-		return dataBuf.String(), "", err
-	}
-
-	var logBuf bytes.Buffer
-	logBuf.WriteString(dataBuf.String())
-	logBuf.WriteString(fmt.Sprintf("\n(%d row(s) returned)\n", rowCount))
-
-	if rowCount == 1 && len(cols) == 1 {
+	if rowCount == 1 && len(lastRowStrs) == 1 {
 		rawOutput = strings.TrimSpace(lastRowStrs[0])
 	} else {
 		rawOutput = strings.TrimSpace(dataBuf.String())
+	}
+
+	var logBuf bytes.Buffer
+	if hasReturning && rowCount == 1 {
+		displayCount := rowCount
+		if n, err := strconv.Atoi(rawOutput); err == nil {
+			displayCount = n
+		}
+		logBuf.WriteString(fmt.Sprintf("\n(%d row(s) returned)\n", displayCount))
+	} else {
+		logBuf.WriteString(dataBuf.String())
+		logBuf.WriteString(fmt.Sprintf("\n(%d row(s) returned)\n", rowCount))
 	}
 
 	return logBuf.String(), rawOutput, nil
