@@ -80,6 +80,7 @@ type RunResult struct {
 	Status       RunStatus    `json:"status"`
 	ErrorClass   ErrorClass   `json:"error_class,omitempty"`
 	ErrorMessage string       `json:"error_message,omitempty"`
+	RowCounts         RowCounts       `json:"row_counts,omitempty"`
 	Nodes        []NodeResult `json:"nodes"`
 }
 
@@ -202,6 +203,8 @@ func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
 	event.Sequence = c.sequence
 	event.OccurredAt = time.Now().UTC()
 	event.RunID = c.run.RunID
+	event.RowCounts = c.run.RowCounts
+	 
 	sinks := append([]EventSink(nil), c.sinks...)
 	c.mu.Unlock()
 
@@ -292,7 +295,7 @@ func (c *runCollector) finish(ctx context.Context, hasError bool) RunResult {
 	}
 	run := c.run
 	c.mu.Unlock()
-	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage})
+	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage, RowCounts: run.RowCounts})
 	return run
 }
 
