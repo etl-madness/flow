@@ -110,8 +110,8 @@ You can render complex SQL statements and pass them into SQL scripts or stream E
             INTO {{.TARGET_TABLE}};
         </template>
         
-        <!-- Assuming your script supports reading from a var -->
-        <script lang="sql" db="analytics" var="DYNAMIC_SQL" />
+        <!-- Execute SQL from variable -->
+        <sql db="analytics" var="DYNAMIC_SQL" />
     </flow>
 </pipeline>
 ```

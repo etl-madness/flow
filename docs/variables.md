@@ -17,13 +17,13 @@ Variables are kept in a single unified registry, but their behavior and scope ch
 
 ## 2. Using Variables
 
-### SQL Scripts (Variable Interpolation)
-For SQL scripts, variables are dynamically interpolated before execution using double curly brace placeholders: `{{VarName}}`.
+### SQL Queries (Variable Interpolation)
+For SQL nodes, variables are dynamically interpolated before execution using double curly brace placeholders: `{{VarName}}`.
 
 ```xml
-<script id="QueryWithLimit" language="sql" db="app_db">
+<sql id="QueryWithLimit" db="app_db">
     SELECT * FROM orders WHERE status = 'PENDING' LIMIT {{MaxLimit}};
-</script>
+</sql>
 ```
 
 ### Go Scripts (Yaegi `vars` Exports)
@@ -65,15 +65,15 @@ Console.WriteLine($"Writing to {targetTable}");
 
 ## 3. Setting Variables in Scripts
 
-### SQL Scripts (`output_var`)
+### SQL Queries (`output_var`)
 To capture a value returned from a SQL query, use the `output_var` attribute.
 *   If the SQL query returns a single row with a single column, `output_var` stores that value.
 *   Otherwise, it captures the entire tab-separated results block.
 
 ```xml
-<script id="GetMaxID" language="sql" db="app_db" output_var="LastProcessedID">
+<sql id="GetMaxID" db="app_db" output_var="LastProcessedID">
     SELECT COALESCE(MAX(id), 0) FROM logs;
-</script>
+</sql>
 ```
 
 ### Go Scripts (`output_var` / Stdout Capture)
@@ -120,10 +120,10 @@ When iterating over records using a `<foreach>` block, the loop driver query bin
     SELECT id, username, email FROM users WHERE active = 1;
     
     <!-- Each iteration binds "id", "username", "email", and "LOOP_INDEX" -->
-    <script id="ProcessUser" language="sql" db="app_db">
+    <sql id="ProcessUser" db="app_db">
         INSERT INTO user_audit (user_id, action) 
         VALUES ({{id}}, 'Processed iteration {{LOOP_INDEX}}');
-    </script>
+    </sql>
 </foreach>
 ```
 

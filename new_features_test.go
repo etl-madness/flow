@@ -190,11 +190,11 @@ func TestExcelReadAndWrite(t *testing.T) {
 		</variables>
 		
 		<scripts>
-			<script id="setup_db" language="sql" db="excel_test_db">
+			<sql id="setup_db" db="excel_test_db">
 				CREATE TABLE users (id INTEGER, name TEXT, role TEXT);
 				INSERT INTO users (id, name, role) VALUES (1, 'Alice', 'Admin');
 				INSERT INTO users (id, name, role) VALUES (2, 'Bob', 'User');
-			</script>
+			</sql>
 		</scripts>
 
 		<excel_write id="write_excel" file="{{excel_path}}" db="excel_test_db" sheet="UsersList">
@@ -568,7 +568,7 @@ func TestExcelMultiTabs(t *testing.T) {
 		</variables>
 		
 		<scripts>
-			<script id="setup_db" language="sql" db="excel_test_db">
+			<sql id="setup_db" db="excel_test_db">
 				CREATE TABLE users (id INTEGER, name TEXT, role TEXT);
 				INSERT INTO users (id, name, role) VALUES (1, 'Alice', 'Admin');
 				INSERT INTO users (id, name, role) VALUES (2, 'Bob', 'User');
@@ -576,7 +576,7 @@ func TestExcelMultiTabs(t *testing.T) {
 				CREATE TABLE products (sku TEXT, name TEXT, price REAL);
 				INSERT INTO products (sku, name, price) VALUES ('P001', 'Widget A', 10.99);
 				INSERT INTO products (sku, name, price) VALUES ('P002', 'Gadget B', 20.49);
-			</script>
+			</sql>
 		</scripts>
 
 		<!-- Write Tab 1: UsersList -->

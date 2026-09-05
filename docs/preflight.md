@@ -222,16 +222,16 @@ This file defines the general validation logic (within `<preflight>`) and the he
         <assert id="assert_staging" var="ENV" equals="staging" operator="==" message="Incorrect environment detected!" on_failure="halt" />
 
         <!-- Verify database connection from config.xml before flowing -->
-        <script id="verify_db" language="sql" db="primary_db">
+        <sql id="verify_db" db="primary_db">
             SELECT 1;
-        </script>
+        </sql>
     </preflight>
 
     <flow>
         <!-- Execute ETL query against primary_db defined in config.xml -->
-        <script id="stream_records" language="sql" db="primary_db">
+        <sql id="stream_records" db="primary_db">
             SELECT * FROM users_staging;
-        </script>
+        </sql>
     </flow>
 </pipeline>
 ```

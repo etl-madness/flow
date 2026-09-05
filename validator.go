@@ -79,15 +79,6 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 					knownIDs[s.ID] = true
 				}
 
-				if s.Language == "sql" && s.DBName != "" {
-					if !definedDBs[s.DBName] {
-						errs = append(errs, fmt.Sprintf("script '%s' references unregistered database '%s'", s.ID, s.DBName))
-					}
-				}
-				if s.TargetDB != "" && !definedDBs[s.TargetDB] {
-					errs = append(errs, fmt.Sprintf("script '%s' target_db references unregistered database '%s'", s.ID, s.TargetDB))
-				}
-
 				if strings.TrimSpace(s.Code) == "" && s.VarName == "" {
 					errs = append(errs, fmt.Sprintf("script '%s' has an empty body and no driver variable", s.ID))
 				}

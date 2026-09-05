@@ -84,11 +84,11 @@ Inside a `<foreach>` block, every returned database row populates registry varia
         output_var="ApiResponseBody"
         status_code_var="ApiResponseCode" />
 
-    <script id="LogSync" language="sql" db="app_db">
+    <sql id="LogSync" db="app_db">
         UPDATE users 
         SET synced = 1, sync_code = {{ApiResponseCode}} 
         WHERE user_id = {{user_id}};
-    </script>
+    </sql>
 </foreach>
 ```
 ### 4.2 Polling Loops (`<while>`)
@@ -142,12 +142,12 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
 <pipeline>
     <flow>
         <!-- 1. Extract JSON payload from database -->
-        <script id="GetPayload" language="sql" db="analytics_db" output_var="JsonPayload">
+        <sql id="GetPayload" db="analytics_db" output_var="JsonPayload">
             SELECT JSON_OBJECT('sensor_id': id, 'reading': value) 
             FROM telemetry 
             WHERE processed = 0 
             LIMIT 1;
-        </script>
+        </sql>
 
         <!-- 2. Post JSON payload to cloud endpoint -->
         <http_client 

@@ -34,10 +34,10 @@ type DatabaseConfig struct {
 	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics)
 }
 
-// ScriptItem represents an executable script payload (either SQL or Go) with metadata.
+// ScriptItem represents an executable script payload (such as Go, Shell, .NET script, or internal SQL node) with metadata.
 type ScriptItem struct {
 	ID               string // Unique identifier of the script
-	Language         string // Language identifier (sql or go)
+	Language         string // Language identifier (e.g. go, shell, pwsh)
 	DBName           string // Target database identifier for SQL queries
 	TargetDB         string // Destination database identifier for streaming ETL
 	TargetTable      string // Destination table name for streaming ETL
@@ -70,7 +70,7 @@ const (
 	// NodeHTTPClient represents an HTTP client execution step.
 	NodeHTTPClient // Added NodeHTTPClient enum
 	// NodeTemplate represents a template inclusion step.
-	NodeTemplate // New enum item
+	NodeTemplate     // New enum item
 	NodeHtmlTemplate // New enum item for HTML template inclusion step
 	// NodeFileSave represents a file save operation step.
 	NodeFileSave // New enum item for file save operation
@@ -88,29 +88,29 @@ const (
 
 // PipelineNode is an AST node in the pipeline execution tree.
 type PipelineNode struct {
-	Kind          NodeKind           // Struct/flow type of the node
-	MaxThreads    int                // Concurrency limit (only used for NodeParallel)
-	MaxIterations int                // Infinite loop safety limit (only used for NodeWhile)
-	Script        *ScriptItem        // Leaf script item payload (only used for NodeScript)
-	HTTPClient    *HTTPClientElement // Added HTTP payload
-	GroupID       string             // Structural/group name or ID
-	IfVar         string             // Condition driver variable name
-	IfEquals      string             // Expected variable value to match
-	ForEachScript *ScriptItem        // Iterator driver script config (only used for NodeForEach)
-	Children      []PipelineNode     // List of sequential child execution steps
-	ElseNodes     []PipelineNode     // Else branching steps (only used for NodeIf)
-	Transaction   bool               // Start transaction for this group
-	DBName        string             // Database name for the transaction
-	Template      *TemplateElement   // New payload field for template inclusion step
-	FileSave      *FileSaveElement   // New payload field for file save operation
-	FileRead      *FileReadElement   // New payload field for file read operation
-	ExcelRead     *ExcelReadElement  // New payload field for Excel read operation
-	ExcelWrite    *ExcelWriteElement // New payload field for Excel write operation
-	XmlXPath      *XmlXPathElement   // New payload field for XML XPath extraction
-	JsonPath      *JsonPathElement   // New payload field for JSON path extraction
+	Kind          NodeKind             // Struct/flow type of the node
+	MaxThreads    int                  // Concurrency limit (only used for NodeParallel)
+	MaxIterations int                  // Infinite loop safety limit (only used for NodeWhile)
+	Script        *ScriptItem          // Leaf script item payload (only used for NodeScript)
+	HTTPClient    *HTTPClientElement   // Added HTTP payload
+	GroupID       string               // Structural/group name or ID
+	IfVar         string               // Condition driver variable name
+	IfEquals      string               // Expected variable value to match
+	ForEachScript *ScriptItem          // Iterator driver script config (only used for NodeForEach)
+	Children      []PipelineNode       // List of sequential child execution steps
+	ElseNodes     []PipelineNode       // Else branching steps (only used for NodeIf)
+	Transaction   bool                 // Start transaction for this group
+	DBName        string               // Database name for the transaction
+	Template      *TemplateElement     // New payload field for template inclusion step
+	FileSave      *FileSaveElement     // New payload field for file save operation
+	FileRead      *FileReadElement     // New payload field for file read operation
+	ExcelRead     *ExcelReadElement    // New payload field for Excel read operation
+	ExcelWrite    *ExcelWriteElement   // New payload field for Excel write operation
+	XmlXPath      *XmlXPathElement     // New payload field for XML XPath extraction
+	JsonPath      *JsonPathElement     // New payload field for JSON path extraction
 	HtmlTemplate  *HtmlTemplateElement // New payload field for HTML template inclusion step
-	YamlPath      *YamlPathElement   // New payload field for YAML path extraction
-	Assert        *AssertElement     // New enum item for assert operation
+	YamlPath      *YamlPathElement     // New payload field for YAML path extraction
+	Assert        *AssertElement       // New enum item for assert operation
 }
 
 type AssertElement struct {
@@ -584,10 +584,10 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			(*scriptIndex)++
 		}
 		return &PipelineNode{
-			Kind:     NodeHtmlTemplate,
+			Kind:         NodeHtmlTemplate,
 			HtmlTemplate: &elem,
 		}, nil
-		case "template":
+	case "template":
 		var elem TemplateElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
 			return nil, err
@@ -614,12 +614,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			HTTPClient: &elem,
 		}, nil
 	case "script":
-		lang, scriptID, dbName, targetDB, targetTable, varName, outputVar := "", "", "", "", "", "", ""
-		batchSize := 0
-		tablock := true // Default TABLOCK to true for high performance bulk copy
-		checkConstraints := false
-		fireTriggers := false
-		keepNulls := false
+		lang, scriptID, varName, outputVar := "", "", "", ""
 
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
@@ -628,40 +623,14 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 				lang = strings.ToLower(attr.Value)
 			case "id":
 				scriptID = attr.Value
-			case "db", "database":
-				dbName = attr.Value
-			case "target_db", "target_database":
-				targetDB = attr.Value
-			case "target_table":
-				targetTable = attr.Value
-			case "batch_size":
-				if b, err := strconv.Atoi(attr.Value); err == nil {
-					batchSize = b
-				}
 			case "variable", "var":
 				varName = attr.Value
 			case "output_var", "output_variable", "out_var":
 				outputVar = attr.Value
-			case "tablock":
-				if b, err := strconv.ParseBool(attr.Value); err == nil {
-					tablock = b
-				}
-			case "check_constraints":
-				if b, err := strconv.ParseBool(attr.Value); err == nil {
-					checkConstraints = b
-				}
-			case "fire_triggers":
-				if b, err := strconv.ParseBool(attr.Value); err == nil {
-					fireTriggers = b
-				}
-			case "keep_nulls":
-				if b, err := strconv.ParseBool(attr.Value); err == nil {
-					keepNulls = b
-				}
 			}
 		}
 
-		if lang == "go" || lang == "sql" || lang == "shell" || lang == "cmd" ||
+		if lang == "go" || lang == "shell" || lang == "cmd" ||
 			lang == "powershell" || lang == "pwsh" || lang == "bash" ||
 			lang == "git-bash" || lang == "gitbash" || lang == "zsh" ||
 			lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" ||
@@ -677,19 +646,11 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			return &PipelineNode{
 				Kind: NodeScript,
 				Script: &ScriptItem{
-					ID:               scriptID,
-					Language:         lang,
-					DBName:           dbName,
-					TargetDB:         targetDB,
-					TargetTable:      targetTable,
-					BatchSize:        batchSize,
-					VarName:          varName,
-					OutputVar:        outputVar,
-					Code:             strings.TrimSpace(content),
-					Tablock:          tablock,
-					CheckConstraints: checkConstraints,
-					FireTriggers:     fireTriggers,
-					KeepNulls:        keepNulls,
+					ID:        scriptID,
+					Language:  lang,
+					VarName:   varName,
+					OutputVar: outputVar,
+					Code:      strings.TrimSpace(content),
 				},
 			}, nil
 		}

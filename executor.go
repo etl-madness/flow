@@ -223,7 +223,7 @@ func (e *Executor) evalCondition(varName string, expectedVal string) bool {
 
 func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
 	if dbName == "" {
-		return "", "", fmt.Errorf("missing 'db' attribute on <script language=\"sql\"> tag")
+		return "", "", fmt.Errorf("missing 'db' attribute on <sql> tag")
 	}
 
 	variables := e.registry.CopyVariables()
@@ -351,7 +351,7 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 		if n, err := strconv.Atoi(rawOutput); err == nil {
 			displayCount = n
 		}
-		logBuf.WriteString(fmt.Sprintf("\n(%d row(s) returned)\n", displayCount))
+		logBuf.WriteString(fmt.Sprintf("\n(%d row(s) affected)\n", displayCount))
 	} else {
 		logBuf.WriteString(dataBuf.String())
 		logBuf.WriteString(fmt.Sprintf("\n(%d row(s) returned)\n", rowCount))
@@ -369,17 +369,9 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	if e.verbose.Load() {
-		if script.Language == "sql" {
-			if script.DBName != "" && script.TargetTable != "" {
-				fmt.Printf("Starting execution of script %q on database %q and target table %q", script.ID, script.DBName, script.TargetTable)
-			} else if script.DBName != "" {
-				fmt.Printf("Starting execution of script %q on database %q", script.ID, script.DBName)
-			} else {
-				fmt.Printf("Starting execution of script %q", script.ID)
-			}
-		} else {
+		 
 			fmt.Printf("Starting execution of script %q", script.ID)
-		}
+	 
 	}
 	codeToEval := script.Code
 

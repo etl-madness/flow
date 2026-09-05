@@ -91,7 +91,7 @@ Keep your SQL scripts organized in files, load them dynamically, and execute the
         <file_read file="./queries/nightly_cleanup.sql" output_var="QUERY_TEXT" />
         
         <!-- Execute the SQL query -->
-        <script lang="sql" db="primary_db" var="QUERY_TEXT" />
+        <sql db="primary_db" var="QUERY_TEXT" />
     </scripts>
 </pipeline>
 ```

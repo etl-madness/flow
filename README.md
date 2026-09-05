@@ -147,9 +147,9 @@ func main() {
 			<database name="sqlite_db" driver="sqlite" connection_string="./mydb.db" />
 		</databases>
 		<flow>
-			<script id="SetupTable" language="sql" db="sqlite_db">
+			<sql id="SetupTable" db="sqlite_db">
 				CREATE TABLE IF NOT EXISTS processed_logs (id INTEGER PRIMARY KEY, status TEXT);
-			</script>
+			</sql>
 			<script id="VerifyGo" language="go">
 				package main
 				import (
@@ -312,15 +312,15 @@ The following XML segment configures a parallel block of 3 tasks running with a 
     </databases>
     <flow>
         <parallel max_threads="2">
-            <script id="ProcessBatchA" language="sql" db="main_db">
+            <sql id="ProcessBatchA" db="main_db">
                 UPDATE transactions SET processed = 1 WHERE batch_id = 'A';
-            </script>
-            <script id="ProcessBatchB" language="sql" db="main_db">
+            </sql>
+            <sql id="ProcessBatchB" db="main_db">
                 UPDATE transactions SET processed = 1 WHERE batch_id = 'B';
-            </script>
-            <script id="ProcessBatchC" language="sql" db="main_db">
+            </sql>
+            <sql id="ProcessBatchC" db="main_db">
                 UPDATE transactions SET processed = 1 WHERE batch_id = 'C';
-            </script>
+            </sql>
         </parallel>
     </flow>
 </pipeline>
@@ -341,25 +341,25 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
         <database name="src_db" driver="sqlite" connection_string="./source.db" />
         <database name="target_db" driver="postgres" connection_string="postgresql://user:pass@localhost/db" />
     </databases>
-	<script id="StreamData_MSSQL" language="sql" db="src_db" target_db="target_db" target_table="customers" batch_size="10000" tablock="true" check_constraints="false" fire_triggers="false" keep_nulls="true">
+	<sql_bulk id="StreamData_MSSQL" db="src_db" target_db="target_db" target_table="customers" batch_size="10000" tablock="true" check_constraints="false" fire_triggers="false" keep_nulls="true">
     SELECT id, name, email FROM source_customers;
-    </script>
+    </sql_bulk>
     <flow>
         <parallel max_threads="2">
             <!-- Loop 1: Import customer records -->
             <foreach id="SyncCustomers" db="src_db" var="customer_id">
                 SELECT id FROM customers WHERE sync_pending = 1;
-                <script id="MigrateCustomer" language="sql" db="src_db" target_db="target_db" target_table="customers" batch_size="100">
+                <sql_bulk id="MigrateCustomer" db="src_db" target_db="target_db" target_table="customers" batch_size="100">
                     SELECT name, email, country FROM customers WHERE id = {{customer_id}};
-                </script>
+                </sql_bulk>
             </foreach>
 
             <!-- Loop 2: Import product records concurrently -->
             <foreach id="SyncProducts" db="src_db" var="product_id">
                 SELECT id FROM products WHERE stock &gt; 0;
-                <script id="MigrateProduct" language="sql" db="src_db" target_db="target_db" target_table="products" batch_size="50">
+                <sql_bulk id="MigrateProduct" db="src_db" target_db="target_db" target_table="products" batch_size="50">
                     SELECT title, price, SKU FROM products WHERE id = {{product_id}};
-                </script>
+                </sql_bulk>
             </foreach>
         </parallel>
     </flow>
@@ -376,7 +376,7 @@ Below is an XML pipeline configuring two `<foreach>` loops running simultaneousl
 `flow` supports high-performance native bulk stream copy operations when transferring datasets into Microsoft SQL Server (`sqlserver` or `mssql` drivers). When streaming data to a SQL Server target, `flow` bypasses standard parameterized multi-row `INSERT` operations (which are subject to the 2,100 parameter limit) and instead utilizes native TDS Bulk Copy Streams (`mssql.CopyIn`).
 
 ### XML Configuration Attributes
-On any streaming `<script>` node (where both `target_db` and `target_table` are defined), you can configure the following bulk copy options:
+On any `<sql_bulk>` node (where `target_table` is defined), you can configure the following bulk copy options:
 
 - **`tablock`** (boolean, optional, default `true`): Acquires a table-level lock during the bulk insert, drastically reducing transaction log overhead and boosting throughput.
 - **`check_constraints`** (boolean, optional, default `false`): Evaluates check and foreign key constraints on the target table during bulk insert.
@@ -391,8 +391,7 @@ On any streaming `<script>` node (where both `target_db` and `target_table` are 
         <database name="dst_mssql" driver="sqlserver" connection_string="sqlserver://user:pass@localhost:1433?database=target_db" />
     </databases>
     <flow>
-        <script id="BulkSync" 
-                language="sql" 
+        <sql_bulk id="BulkSync" 
                 db="src_db" 
                 target_db="dst_mssql" 
                 target_table="customers" 
@@ -402,7 +401,7 @@ On any streaming `<script>` node (where both `target_db` and `target_table` are 
                 fire_triggers="false" 
                 keep_nulls="true">
             SELECT id, name, email, signup_date FROM raw_users;
-        </script>
+        </sql_bulk>
     </flow>
 </pipeline>
 ```

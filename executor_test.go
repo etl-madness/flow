@@ -102,28 +102,28 @@ func TestGroupTransactions(t *testing.T) {
 		</databases>
 		<scripts>
 			<!-- Setup script -->
-			<script id="setup" language="sql" db="tx_test_db">
+			<sql id="setup" db="tx_test_db">
 				CREATE TABLE tx_test (id INTEGER PRIMARY KEY, val TEXT);
-			</script>
+			</sql>
 
 			<!-- Group that should succeed and commit -->
 			<group id="success_group" transaction="true" db="tx_test_db">
-				<script id="insert_1" language="sql" db="tx_test_db">
+				<sql id="insert_1" db="tx_test_db">
 					INSERT INTO tx_test (id, val) VALUES (1, 'apple');
-				</script>
-				<script id="insert_2" language="sql" db="tx_test_db">
+				</sql>
+				<sql id="insert_2" db="tx_test_db">
 					INSERT INTO tx_test (id, val) VALUES (2, 'banana');
-				</script>
+				</sql>
 			</group>
 
 			<!-- Group that should fail and rollback -->
 			<group id="fail_group" transaction="true" db="tx_test_db">
-				<script id="insert_3" language="sql" db="tx_test_db">
+				<sql id="insert_3" db="tx_test_db">
 					INSERT INTO tx_test (id, val) VALUES (3, 'cherry');
-				</script>
-				<script id="insert_fail" language="sql" db="tx_test_db">
+				</sql>
+				<sql id="insert_fail" db="tx_test_db">
 					INSERT INTO non_existent_table (id, val) VALUES (4, 'date');
-				</script>
+				</sql>
 			</group>
 		</scripts>
 	</pipeline>`)
@@ -545,11 +545,11 @@ func TestSQLDMLWithReturning(t *testing.T) {
 		t.Errorf("expected row_count_val to be '42', got %q", rowCountVal)
 	}
 
-	if expected := "\n(1 row(s) returned)\n"; results[1].ResultsString != expected {
+	if expected := "\n(1 row(s) affected)\n"; results[1].ResultsString != expected {
 		t.Errorf("expected results[1].ResultsString to be %q, got %q", expected, results[1].ResultsString)
 	}
 
-	if expected := "\n(42 row(s) returned)\n"; results[4].ResultsString != expected {
+	if expected := "\n(42 row(s) affected)\n"; results[4].ResultsString != expected {
 		t.Errorf("expected results[4].ResultsString to be %q, got %q", expected, results[4].ResultsString)
 	}
 }
