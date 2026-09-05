@@ -35,8 +35,8 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 						inspect(a.FailureNodes)
 					}
 				}
-			case NodeSQL, NodeSQLBulk:
-				s := node.Script
+			case NodeSQL:
+				s := node.SQL
 				if s != nil {
 					if s.ID != "" {
 						if knownIDs[s.ID] {
@@ -47,16 +47,30 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 					if s.DBName != "" && !definedDBs[s.DBName] {
 						errs = append(errs, fmt.Sprintf("sql script '%s' references unregistered database '%s'", s.ID, s.DBName))
 					}
-					if node.Kind == NodeSQLBulk {
-						if s.TargetTable == "" {
-							errs = append(errs, fmt.Sprintf("sql_bulk node '%s' is missing 'target_table' attribute", s.ID))
-						}
-						if s.TargetDB != "" && !definedDBs[s.TargetDB] {
-							errs = append(errs, fmt.Sprintf("sql_bulk '%s' target_db references unregistered database '%s'", s.ID, s.TargetDB))
-						}
-					}
 					if strings.TrimSpace(s.Code) == "" && s.VarName == "" {
 						errs = append(errs, fmt.Sprintf("sql script '%s' has an empty body and no driver variable", s.ID))
+					}
+				}
+			case NodeSQLBulk:
+				s := node.SQLBulk
+				if s != nil {
+					if s.ID != "" {
+						if knownIDs[s.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate script ID found: '%s'", s.ID))
+						}
+						knownIDs[s.ID] = true
+					}
+					if s.DBName != "" && !definedDBs[s.DBName] {
+						errs = append(errs, fmt.Sprintf("sql_bulk '%s' references unregistered database '%s'", s.ID, s.DBName))
+					}
+					if s.TargetTable == "" {
+						errs = append(errs, fmt.Sprintf("sql_bulk node '%s' is missing 'target_table' attribute", s.ID))
+					}
+					if s.TargetDB != "" && !definedDBs[s.TargetDB] {
+						errs = append(errs, fmt.Sprintf("sql_bulk '%s' target_db references unregistered database '%s'", s.ID, s.TargetDB))
+					}
+					if strings.TrimSpace(s.Code) == "" && s.VarName == "" {
+						errs = append(errs, fmt.Sprintf("sql_bulk '%s' has an empty body and no driver variable", s.ID))
 					}
 				}
 			case NodeHTTPClient:

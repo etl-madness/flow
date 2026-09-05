@@ -80,7 +80,7 @@ type RunResult struct {
 	Status       RunStatus    `json:"status"`
 	ErrorClass   ErrorClass   `json:"error_class,omitempty"`
 	ErrorMessage string       `json:"error_message,omitempty"`
-	RowCounts         RowCounts       `json:"row_counts,omitempty"`
+	RowCounts    RowCounts    `json:"row_counts,omitempty"`
 	Nodes        []NodeResult `json:"nodes"`
 }
 
@@ -204,7 +204,7 @@ func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
 	event.OccurredAt = time.Now().UTC()
 	event.RunID = c.run.RunID
 	event.RowCounts = c.run.RowCounts
-	 
+
 	sinks := append([]EventSink(nil), c.sinks...)
 	c.mu.Unlock()
 
@@ -334,9 +334,15 @@ func nodeIdentity(node PipelineNode) (string, string) {
 	case NodeAssert:
 		return "assert", node.Assert.ID
 	case NodeSQL:
-		return "sql", node.Script.ID
+		if node.SQL != nil {
+			return "sql", node.SQL.ID
+		}
+		return "sql", ""
 	case NodeSQLBulk:
-		return "sql_bulk", node.Script.ID
+		if node.SQLBulk != nil {
+			return "sql_bulk", node.SQLBulk.ID
+		}
+		return "sql_bulk", ""
 	case NodeScript:
 		return "script", node.Script.ID
 	case NodeHTTPClient:

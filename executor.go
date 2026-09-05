@@ -221,7 +221,7 @@ func (e *Executor) evalCondition(varName string, expectedVal string) bool {
 	}
 }
 
-func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
+func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
 	if dbName == "" {
 		return "", "", fmt.Errorf("missing 'db' attribute on <sql> tag")
 	}
@@ -360,6 +360,127 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 	return logBuf.String(), rawOutput, nil
 }
 
+func (e *Executor) executeSQLNode(ctx context.Context, elem SQLElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	if e.verbose.Load() {
+		if elem.DBName != "" {
+			fmt.Printf("Starting execution of sql %q on database %q", elem.ID, elem.DBName)
+		} else {
+			fmt.Printf("Starting execution of sql %q", elem.ID)
+		}
+	}
+	codeToEval := elem.Code
+
+	if elem.VarName != "" {
+		val := e.registry.GetVar(elem.VarName)
+		if val != nil {
+			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
+			if strVal != "" && strVal != "<nil>" {
+				codeToEval = strVal
+			}
+		}
+	}
+
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		duration := time.Since(startTime)
+		r.Duration = duration.String()
+		if e.verbose.Load() {
+			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
+				fmt.Printf("Finished execution of sql %q with error: %v (duration: %s)", elem.ID, r.ReturnCode, r.Duration)
+			} else {
+				fmt.Printf("Finished execution of sql %q (duration: %s)", elem.ID, r.Duration)
+			}
+		}
+		e.appendResult(results, r)
+	}
+
+	logOutput, rawOutput, err := e.executeSQLQuery(ctx, elem.DBName, codeToEval)
+	res.ResultsString = logOutput
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+	res.ReturnCode = 0
+	e.storeScriptOutput(elem.OutputVar, rawOutput)
+	appendWithDuration(res)
+	return false
+}
+
+func (e *Executor) executeSQLBulkNode(ctx context.Context, elem SQLBulkElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	if e.verbose.Load() {
+		if elem.DBName != "" && elem.TargetTable != "" {
+			fmt.Printf("Starting execution of sql_bulk %q on database %q and target table %q", elem.ID, elem.DBName, elem.TargetTable)
+		} else if elem.DBName != "" {
+			fmt.Printf("Starting execution of sql_bulk %q on database %q", elem.ID, elem.DBName)
+		} else {
+			fmt.Printf("Starting execution of sql_bulk %q", elem.ID)
+		}
+	}
+	codeToEval := elem.Code
+
+	if elem.VarName != "" {
+		val := e.registry.GetVar(elem.VarName)
+		if val != nil {
+			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
+			if strVal != "" && strVal != "<nil>" {
+				codeToEval = strVal
+			}
+		}
+	}
+
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		duration := time.Since(startTime)
+		r.Duration = duration.String()
+		if e.verbose.Load() {
+			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
+				fmt.Printf("Finished execution of sql_bulk %q with error: %v (duration: %s)", elem.ID, r.ReturnCode, r.Duration)
+			} else {
+				fmt.Printf("Finished execution of sql_bulk %q (duration: %s)", elem.ID, r.Duration)
+			}
+		}
+		e.appendResult(results, r)
+	}
+
+	targetDB := elem.TargetDB
+	if targetDB == "" {
+		targetDB = elem.DBName
+	}
+
+	targetTable := elem.TargetTable
+	variables := e.registry.CopyVariables()
+	for name, val := range variables {
+		placeholder := fmt.Sprintf("{{%s}}", name)
+		targetTable = strings.ReplaceAll(targetTable, placeholder, fmt.Sprintf("%v", val))
+		targetDB = strings.ReplaceAll(targetDB, placeholder, fmt.Sprintf("%v", val))
+	}
+
+	opts := ETLOptions{
+		BatchSize:        elem.BatchSize,
+		Tablock:          elem.Tablock,
+		CheckConstraints: elem.CheckConstraints,
+		FireTriggers:     elem.FireTriggers,
+		KeepNulls:        elem.KeepNulls,
+	}
+
+	copied, err := StreamETL(ctx, e.registry, elem.DBName, codeToEval, targetDB, targetTable, opts)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Streamed %d row(s) directly to %s.%s", copied, targetDB, targetTable)
+	e.storeScriptOutput(elem.OutputVar, fmt.Sprintf("%d", copied))
+	appendWithDuration(res)
+	return false
+}
+
 func (e *Executor) storeScriptOutput(outputVar string, output string) {
 	e.registry.SetVar("LAST_OUTPUT", output)
 	if outputVar != "" {
@@ -369,9 +490,7 @@ func (e *Executor) storeScriptOutput(outputVar string, output string) {
 func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	if e.verbose.Load() {
-		 
-			fmt.Printf("Starting execution of script %q", script.ID)
-	 
+		fmt.Printf("Starting execution of script %q", script.ID)
 	}
 	codeToEval := script.Code
 
@@ -400,53 +519,39 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		e.appendResult(results, r)
 	}
 
-	if script.Language == "sql" {
-		if script.TargetTable != "" {
-			targetDB := script.TargetDB
-			if targetDB == "" {
-				targetDB = script.DBName
-			}
-
-			targetTable := script.TargetTable
-			variables := e.registry.CopyVariables()
-			for name, val := range variables {
-				placeholder := fmt.Sprintf("{{%s}}", name)
-				targetTable = strings.ReplaceAll(targetTable, placeholder, fmt.Sprintf("%v", val))
-				targetDB = strings.ReplaceAll(targetDB, placeholder, fmt.Sprintf("%v", val))
-			}
-
-			opts := ETLOptions{
-				BatchSize:        script.BatchSize,
-				Tablock:          script.Tablock,
-				CheckConstraints: script.CheckConstraints,
-				FireTriggers:     script.FireTriggers,
-				KeepNulls:        script.KeepNulls,
-			}
-
-			copied, err := StreamETL(ctx, e.registry, script.DBName, codeToEval, targetDB, targetTable, opts)
-			if err != nil {
-				res.ReturnCode = err.Error()
-				appendWithDuration(res)
-				return true
-			}
-			res.ReturnCode = 0
-			res.ResultsString = fmt.Sprintf("Streamed %d row(s) directly to %s.%s", copied, targetDB, targetTable)
-			e.storeScriptOutput(script.OutputVar, fmt.Sprintf("%d", copied))
-			appendWithDuration(res)
-		} else {
-			logOutput, rawOutput, err := e.executeSQLScript(ctx, script.DBName, codeToEval)
-			res.ResultsString = logOutput
-			if err != nil {
-				res.ReturnCode = err.Error()
-				appendWithDuration(res)
-				return true
-			}
-			res.ReturnCode = 0
-			e.storeScriptOutput(script.OutputVar, rawOutput)
-			appendWithDuration(res)
+	if script.Language == "go" {
+		var outBuf bytes.Buffer
+		opts := interp.Options{
+			GoPath: e.goPath,
+			Stdout: &outBuf,
+			Stderr: &outBuf,
+		}
+		if e.interpHook != nil {
+			e.interpHook(&opts)
 		}
 
-	} else if script.Language == "go" {
+		i, err := e.getGoInterpreter(ctx, script, opts)
+		if err != nil {
+			res.ReturnCode = 1
+			res.ResultsString = err.Error()
+			appendWithDuration(res)
+			return true
+		}
+
+		_, err = i.Eval(codeToEval)
+		if err != nil {
+			res.ReturnCode = err.Error()
+			res.ResultsString = outBuf.String()
+			appendWithDuration(res)
+			return true
+		}
+
+		res.ReturnCode = 0
+		res.ResultsString = outBuf.String()
+		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
+		appendWithDuration(res)
+
+	} else if script.Language == "dotnet-script" || script.Language == "csx" {
 		var outBuf bytes.Buffer
 		opts := interp.Options{
 			GoPath: e.goPath,
@@ -865,9 +970,13 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 			if node.Assert != nil {
 				hasErr = e.executeAssertNode(nodeCtx, *node.Assert, &nodeResults)
 			}
-		case NodeSQL, NodeSQLBulk:
-			if node.Script != nil {
-				hasErr = e.executeScriptNode(nodeCtx, *node.Script, &nodeResults)
+		case NodeSQL:
+			if node.SQL != nil {
+				hasErr = e.executeSQLNode(nodeCtx, *node.SQL, &nodeResults)
+			}
+		case NodeSQLBulk:
+			if node.SQLBulk != nil {
+				hasErr = e.executeSQLBulkNode(nodeCtx, *node.SQLBulk, &nodeResults)
 			}
 		case NodeYAMLPath:
 			hasErr = e.executeYAMLPathNode(nodeCtx, *node.YamlPath, &nodeResults)

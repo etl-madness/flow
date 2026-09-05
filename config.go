@@ -34,7 +34,7 @@ type DatabaseConfig struct {
 	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics)
 }
 
-// ScriptItem represents an executable script payload (such as Go, Shell, .NET script, or internal SQL node) with metadata.
+// ScriptItem represents an executable script payload (such as Go, Shell, or .NET script) with metadata.
 type ScriptItem struct {
 	ID               string // Unique identifier of the script
 	Language         string // Language identifier (e.g. go, shell, pwsh)
@@ -50,7 +50,27 @@ type ScriptItem struct {
 	FireTriggers     bool   // Execute target table triggers during MSSQL bulk insert
 	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
 }
-
+type SQLElement struct {
+	ID               string // Unique identifier of the script
+	DBName           string // Target database identifier for SQL queries
+	VarName          string // Input environment variable to pull script code from dynamically
+	OutputVar        string // Environment variable to store the command's outputs or logs into
+	Code             string // Inner script text/payload
+}
+type SQLBulkElement struct {
+	ID               string // Unique identifier of the script
+	DBName           string // Target database identifier for SQL queries
+	TargetDB         string // Destination database identifier for streaming ETL
+	TargetTable      string // Destination table name for streaming ETL
+	BatchSize        int    // Maximum rows loaded per batch
+	VarName          string // Input environment variable to pull script code from dynamically
+	OutputVar        string // Environment variable to store the command's outputs or logs into
+	Code             string // Inner script text/payload
+	Tablock          bool   // Acquire table lock for minimal logging on SQL Server
+	CheckConstraints bool   // Evaluate constraints during MSSQL bulk insert
+	FireTriggers     bool   // Execute target table triggers during MSSQL bulk insert
+	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
+}
 // NodeKind represents the structural type of a PipelineNode.
 type NodeKind int
 
@@ -111,6 +131,8 @@ type PipelineNode struct {
 	HtmlTemplate  *HtmlTemplateElement // New payload field for HTML template inclusion step
 	YamlPath      *YamlPathElement     // New payload field for YAML path extraction
 	Assert        *AssertElement       // New enum item for assert operation
+	SQL        *SQLElement           // New payload field for standard SQL execution
+	SQLBulk    *SQLBulkElement     // New payload field for bulk SQL execution
 }
 
 type AssertElement struct {
@@ -429,7 +451,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 		return &PipelineNode{Kind: NodeAssert, Assert: &elem}, nil
 	case "sql":
-		s := ScriptItem{Language: "sql", Tablock: true}
+		s := SQLElement{ }
 		for _, attr := range se.Attr {
 			switch strings.ToLower(attr.Name.Local) {
 			case "id":
@@ -451,10 +473,10 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			return nil, err
 		}
 		s.Code = strings.TrimSpace(content)
-		return &PipelineNode{Kind: NodeSQL, Script: &s}, nil
+		return &PipelineNode{Kind: NodeSQL, SQL: &s}, nil
 
 	case "sql_bulk":
-		s := ScriptItem{Language: "sql", Tablock: true}
+		s := SQLBulkElement{ Tablock: true}
 		for _, attr := range se.Attr {
 			switch strings.ToLower(attr.Name.Local) {
 			case "id":
@@ -500,7 +522,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			return nil, err
 		}
 		s.Code = strings.TrimSpace(content)
-		return &PipelineNode{Kind: NodeSQLBulk, Script: &s}, nil
+		return &PipelineNode{Kind: NodeSQLBulk, SQLBulk: &s}, nil
 	case "yaml_path":
 		var elem YamlPathElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
