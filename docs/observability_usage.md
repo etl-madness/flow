@@ -170,6 +170,109 @@ To write events to standard output, use `os.Stdout` as the writer:
 executor.SetEventSink(&flow.JSONLineSink{Writer: os.Stdout})
 ```
 
+## Control Event Output Format
+
+`SetEventSink` selects the component that receives events. With `JSONLineSink`, the output format is fixed: one JSON-encoded `ExecutionEvent` per line. `Writer` controls the destination, such as a file, standard output, or a network-backed writer; it does not alter the JSON field selection or indentation.
+
+To change the output format, implement `flow.EventSink` and register it with `SetEventSink`.
+
+### Compact Text Output
+
+Use a custom sink to produce human-readable lines rather than JSON:
+
+```go
+type TextSink struct {
+    Writer io.Writer
+}
+
+func (s TextSink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    _, err := fmt.Fprintf(
+        s.Writer,
+        "%s run=%s type=%s node=%s status=%s error=%s\n",
+        event.OccurredAt.Format(time.RFC3339),
+        event.RunID,
+        event.Type,
+        event.NodeID,
+        event.Status,
+        event.ErrorMessage,
+    )
+    return err
+}
+
+executor.SetEventSink(TextSink{Writer: os.Stdout})
+```
+
+### Indented JSON Output
+
+For formatted JSON, marshal each event with `json.MarshalIndent`. The mutex prevents parallel branches from interleaving writes:
+
+```go
+type PrettyJSONSink struct {
+    Writer io.Writer
+    mu     sync.Mutex
+}
+
+func (s *PrettyJSONSink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    data, err := json.MarshalIndent(event, "", "  ")
+    if err != nil {
+        return err
+    }
+    _, err = fmt.Fprintln(s.Writer, string(data))
+    return err
+}
+
+executor.SetEventSink(&PrettyJSONSink{Writer: os.Stdout})
+```
+
+### Reduced Audit JSON
+
+Map `ExecutionEvent` to an application-specific structure when downstream systems should receive only selected fields. This is also the appropriate place to add application metadata, as long as it does not contain sensitive values.
+
+```go
+type AuditEvent struct {
+    Time   time.Time      `json:"time"`
+    RunID  string         `json:"run_id"`
+    Event  flow.EventType `json:"event"`
+    NodeID string         `json:"node_id,omitempty"`
+    Status flow.RunStatus `json:"status,omitempty"`
+    Error  string         `json:"error,omitempty"`
+}
+
+type AuditSink struct {
+    Writer io.Writer
+    mu     sync.Mutex
+}
+
+func (s *AuditSink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    audit := AuditEvent{
+        Time:   event.OccurredAt,
+        RunID:  event.RunID,
+        Event:  event.Type,
+        NodeID: event.NodeID,
+        Status: event.Status,
+        Error:  event.ErrorMessage,
+    }
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return json.NewEncoder(s.Writer).Encode(audit)
+}
+
+executor.SetEventSink(&AuditSink{Writer: os.Stdout})
+```
+
+Use `SetEventSinks` to retain the built-in JSON Lines output while emitting a second representation:
+
+```go
+executor.SetEventSinks(
+    &flow.JSONLineSink{Writer: jsonLogFile},
+    TextSink{Writer: os.Stdout},
+)
+```
+
 A typical event resembles this:
 
 ```json

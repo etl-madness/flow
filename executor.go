@@ -230,7 +230,13 @@ func (e *Executor) executeSQLScript(ctx context.Context, dbName string, queryStr
 		placeholder := fmt.Sprintf("{{%s}}", name)
 		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
 	}
-	trimmedQuery := strings.TrimSpace(strings.ToUpper(queryStr))
+	trimmedQuery := strings.TrimSpace(queryStr)
+	if strings.HasPrefix(trimmedQuery, "<![CDATA[") {
+		trimmedQuery = strings.TrimPrefix(trimmedQuery, "<![CDATA[")
+		trimmedQuery = strings.TrimSuffix(trimmedQuery, "]]>")
+		trimmedQuery = strings.TrimSpace(trimmedQuery)
+	}
+	trimmedQuery = strings.ToUpper(trimmedQuery)
 	isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
 		strings.HasPrefix(trimmedQuery, "UPDATE") ||
 		strings.HasPrefix(trimmedQuery, "DELETE")) &&
