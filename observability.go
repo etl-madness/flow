@@ -6,11 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +25,15 @@ const (
 )
 
 var sensitiveValuePattern = regexp.MustCompile(`(?i)(password|pwd|token|secret|authorization)\s*([=:])\s*([^\s,;]+)`)
+
+// Regex matchers for log output row counts
+var (
+	affectedRegex = regexp.MustCompile(`\((\d+)\s+row\(s\)\s+affected\)`)
+	returnedRegex = regexp.MustCompile(`\((\d+)\s+row\(s\)\s+returned\)`)
+	streamedRegex = regexp.MustCompile(`Streamed\s+(\d+)\s+row\(s\)`)
+	readRegex     = regexp.MustCompile(`Read\s+(\d+)\s+row\(s\)`)
+	wroteRegex    = regexp.MustCompile(`Wrote\s+(\d+)\s+row\(s\)`)
+)
 
 type ErrorClass string
 
@@ -112,12 +121,10 @@ type ExecutionEvent struct {
 	ErrorMessage      string     `json:"error_message,omitempty"`
 }
 
-// EventSink receives structured lifecycle events. Sink failures never change pipeline execution.
 type EventSink interface {
 	Emit(context.Context, ExecutionEvent) error
 }
 
-// JSONLineSink writes one JSON-encoded event per line to Writer.
 type JSONLineSink struct {
 	Writer io.Writer
 	mu     sync.Mutex
@@ -129,7 +136,6 @@ func (s *JSONLineSink) Emit(_ context.Context, event ExecutionEvent) error {
 	return json.NewEncoder(s.Writer).Encode(event)
 }
 
-// ClassifyError returns a stable category for an execution error.
 func ClassifyError(err error) ErrorClass {
 	if err == nil {
 		return ""
@@ -203,7 +209,12 @@ func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
 	event.Sequence = c.sequence
 	event.OccurredAt = time.Now().UTC()
 	event.RunID = c.run.RunID
-	event.RowCounts = c.run.RowCounts
+
+	// Only apply global run-level counts to run lifecycle events.
+	// Preserves node and attempt event RowCounts.
+	if event.Type == EventRunStarted || event.Type == EventRunFinished {
+		event.RowCounts = c.run.RowCounts
+	}
 
 	sinks := append([]EventSink(nil), c.sinks...)
 	c.mu.Unlock()
@@ -256,12 +267,19 @@ func (c *runCollector) finishNode(ctx context.Context, executionID string, hasEr
 			node.ErrorClass = classifyErrorMessage(node.ErrorMessage)
 		}
 		node.RowCounts = rowCountsFromResult(result)
+
+		// Accumulate node totals into pipeline run totals
+		c.run.RowCounts.Read += node.RowCounts.Read
+		c.run.RowCounts.Written += node.RowCounts.Written
+		c.run.RowCounts.Affected += node.RowCounts.Affected
+
 		if len(node.Attempts) > 0 {
 			attempt := &node.Attempts[len(node.Attempts)-1]
 			attempt.FinishedAt = finishedAt
 			attempt.Status = node.Status
 			attempt.ErrorClass = node.ErrorClass
 			attempt.ErrorMessage = node.ErrorMessage
+			attempt.RowCounts = node.RowCounts
 		}
 		finished := *node
 		c.mu.Unlock()
@@ -391,15 +409,30 @@ func nodeResultFor(node PipelineNode, results []ScriptResult) ScriptResult {
 }
 
 func rowCountsFromResult(result ScriptResult) RowCounts {
-	var count int64
-	if _, err := fmt.Sscanf(result.ResultsString, "Streamed %d row(s)", &count); err == nil {
-		return RowCounts{Read: count, Written: count}
+	if matches := affectedRegex.FindStringSubmatch(result.ResultsString); len(matches) > 1 {
+		if count, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+			return RowCounts{Affected: count}
+		}
 	}
-	if _, err := fmt.Sscanf(result.ResultsString, "(%d row(s) affected)", &count); err == nil {
-		return RowCounts{Affected: count}
+	if matches := streamedRegex.FindStringSubmatch(result.ResultsString); len(matches) > 1 {
+		if count, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+			return RowCounts{Read: count, Written: count}
+		}
 	}
-	if _, err := fmt.Sscanf(result.ResultsString, "(%d row(s) returned)", &count); err == nil {
-		return RowCounts{Read: count}
+	if matches := returnedRegex.FindStringSubmatch(result.ResultsString); len(matches) > 1 {
+		if count, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+			return RowCounts{Read: count}
+		}
+	}
+	if matches := readRegex.FindStringSubmatch(result.ResultsString); len(matches) > 1 {
+		if count, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+			return RowCounts{Read: count}
+		}
+	}
+	if matches := wroteRegex.FindStringSubmatch(result.ResultsString); len(matches) > 1 {
+		if count, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+			return RowCounts{Written: count}
+		}
 	}
 	return RowCounts{}
 }
