@@ -54,7 +54,8 @@ if err == nil {
 A preflight block is defined using the `<preflight>` element. Within this block, you can place standard pipeline AST nodes such as `<script>`, `<file_save>`, `<file_read>`, and `<assert>`:
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <preflight>
         <!-- Preflight tasks here -->
     </preflight>
@@ -74,7 +75,8 @@ This example checks if the correct database connectivity is established and that
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ENV" type="string" value="staging" />
     </variables>
@@ -117,7 +119,8 @@ This example ensures that the destination folder structure exists and logs a mar
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="EXPORT_DIR" type="string" value="./exports" />
     </variables>
@@ -147,7 +150,8 @@ This example reads a remote configuration file or local manifest to assert that 
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <preflight>
         <!-- 1. Read local version manifest -->
         <file_read id="read_manifest" file="manifest.json" output_var="MANIFEST_DATA" />
@@ -181,7 +185,8 @@ This file defines environment-specific databases, parameters, and **preflight va
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ENV" type="string" value="staging" />
         <variable name="API_ENDPOINT" type="string" value="https://staging.api.service.com" />
@@ -216,7 +221,8 @@ This file defines the general validation logic (within `<preflight>`) and the he
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <preflight>
         <!-- Ensure we are running against correct environment configuration -->
         <assert id="assert_staging" var="ENV" equals="staging" operator="==" message="Incorrect environment detected!" on_failure="halt" />

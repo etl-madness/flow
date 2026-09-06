@@ -12,7 +12,8 @@ Transactions are declared at the `<group>` node level using two attributes:
 
 ### Basic Example
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="sales_db" driver="postgres" connection_string="postgresql://..." />
     </databases>
@@ -36,7 +37,8 @@ Transactions are declared at the `<group>` node level using two attributes:
 If a group with `transaction="true"` is placed inside a `<foreach>` loop, Flow begins, executes, and commits/rolls back a new transaction **per loop iteration**. 
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- Loop driver gets item IDs -->
         <foreach id="process_items" db="sales_db">
@@ -66,7 +68,8 @@ When running concurrent tasks in a `<parallel>` block:
 *   This prevents race conditions or shared transaction states across parallel threads.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <parallel max_threads="2">
             <!-- Branch 1: isolated txn on sales_db -->

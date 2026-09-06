@@ -22,7 +22,8 @@ The `<yaml_path>` node in `flow` enables evaluating path queries against raw YAM
 Load a service configuration file and extract a scalar database connection string.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="CONFIG_FILE" type="string" value="./config/app.yaml" />
     </variables>
@@ -45,7 +46,8 @@ Load a service configuration file and extract a scalar database connection strin
 Extract a sub-map or configuration block from a YAML file directly into a JSON string to pass into an HTTP client node.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- Extract the entire telemetry configuration block as JSON -->
         <yaml_path 
@@ -67,7 +69,8 @@ Extract a sub-map or configuration block from a YAML file directly into a JSON s
 Place dynamic or complex path queries directly inside the element body using template variable substitution.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ENVIRONMENT" type="string" value="production" />
     </variables>
@@ -87,7 +90,8 @@ Place dynamic or complex path queries directly inside the element body using tem
 Extract a list of container images from a Kubernetes manifest file as a clean JSON array string.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- Query all container images across all specs -->
         <yaml_path 
@@ -108,7 +112,8 @@ Extract a list of container images from a Kubernetes manifest file as a clean JS
 Extract a sub-section of a larger YAML document and output it formatted as valid YAML for writing to disk.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <file_read file="./config/cluster.yaml" output_var="FULL_CLUSTER_YAML" />
 

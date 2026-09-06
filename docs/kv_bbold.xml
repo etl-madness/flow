@@ -1,6 +1,6 @@
 <pipeline description="Embedded KV Operations Example"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/go-flow/main/xsd/pipeline.xsd">
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="CACHE_FILE" type="string" value="./data/pipeline.db" />
         <variable name="USER_ID" type="string" value="usr_9901" />

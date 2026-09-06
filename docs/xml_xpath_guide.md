@@ -45,7 +45,8 @@ Retrieves the text inside targeted tags and joins the results together with newl
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="xml_file" type="string" value="inventory.xml" />
   </variables>
@@ -69,7 +70,8 @@ Selects whole node trees and outputs them with their XML tags preserved.
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <flow>
     <!-- Select the full raw XML structures for all items -->
     <xml_xpath id="get_raw_items" 
@@ -94,7 +96,8 @@ Extracts attribute values or text nodes and packs them into a marshalled JSON st
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <flow>
     <!-- Query the 'id' attribute values of all items and output as JSON list -->
     <xml_xpath id="get_ids" 
@@ -118,7 +121,8 @@ Leverages runtime pipeline variables inside the XPath query itself for dynamic f
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="target_id" type="string" value="102" />
   </variables>
@@ -144,7 +148,8 @@ Allows writing long, complex, or formatted XPath expressions cleanly inside the 
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="raw_xml" type="string" value="&lt;root&gt;&lt;user role='admin'&gt;Alice&lt;/user&gt;&lt;user role='user'&gt;Bob&lt;/user&gt;&lt;/root&gt;" />
   </variables>

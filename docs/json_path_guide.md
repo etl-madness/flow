@@ -43,7 +43,8 @@ Extracts simple scalar values from an external file and joins the matched result
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="src_file" type="string" value="books.json" />
   </variables>
@@ -68,7 +69,8 @@ Extracts and serialized matched objects or numeric arrays as a structured JSON a
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <flow>
   <!-- Extract all book categories as a serialized JSON string array -->
   <json_path id="get_categories" 
@@ -92,7 +94,8 @@ Extracts a specific nested object node and serializes it directly to a clean JSO
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <flow>
   <!-- Extract only the first book object -->
   <json_path id="get_first_book" 
@@ -126,7 +129,8 @@ Combines expression-based filtering (such as price filters) with dynamic variabl
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="max_price" type="string" value="25.00" />
   </variables>
@@ -153,7 +157,8 @@ For complex JSONPath syntax that contains many special characters, specify the q
 
 **XML Pipeline Definition:**
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
   <variables>
     <variable name="raw_payload" type="string" value='{"employees": [{"name": "Alice", "role": "developer"}, {"name": "Bob", "role": "manager"}]}' />
   </variables>

@@ -27,9 +27,9 @@ The `<database>` element defines a named database connection and its connection 
 | --- | --- | --- |
 | `id` | No | Optional identifier for the database definition. |
 | `name` | Yes | Unique database handle name referenced by `db`, `database`, `target_db`, and related attributes. |
-| `driver` | No | Database driver name, such as `sqlite`, `postgres`, `mysql`, `sqlserver`, or `oracle`. Defaults to `sqlserver` when omitted. |
+| `driver` | No | Database driver name: relational SQL (`sqlite`, `postgres`, `mysql`, `sqlserver`, `oracle`) or Key-Value (`bbolt`/`bolt`, `badger`, `redis`/`valkey`, `etcd`). Defaults to `sqlserver` when omitted. |
 | `type` | No | Alias for `driver`. |
-| `connection_string` | Yes | Driver-specific connection string / DSN used to open the database connection. Supports `{{VariableName}}` variable interpolation. |
+| `connection_string` | Yes | Driver-specific connection string, DSN, directory path, or URL used to open the database. Supports `{{VariableName}}` variable interpolation. |
 | `max_open_conns` | No | Maximum number of simultaneous open connections in the pool. Defaults to `25` if omitted or `<= 0`. |
 | `max_idle_conns` | No | Maximum number of idle connections retained in the pool for reuse. Defaults to `10` if omitted or `<= 0`. Automatically clamped to `max_open_conns` if greater. |
 | `conn_max_lifetime_seconds` | No | Maximum duration a connection may be reused before being recycled. Accepts duration strings (e.g., `5m`, `300s`) or integer seconds. Defaults to `5m` (`300s`) if omitted or `<= 0`. |
@@ -215,9 +215,20 @@ The `<if>` element conditionally executes one of two child branches. `<then>` co
 | `<else>` | No | Container for nodes executed when the condition fails. It does not define attributes. |
 | inline child nodes | No | Child nodes placed directly inside `<if>` are treated as part of the then branch. |
 
+#### `<parallel>`
+
+The `<parallel>` element executes nested child nodes concurrently across a pool of worker goroutines. Variable states are thread-isolated during branch execution and safely merged upon completion with automatic collision namespacing (`WORKER_<id>_<key>`).
+
+| Attribute / field | Mandatory | Description |
+| --- | --- | --- |
+| `max_threads` | No | Maximum number of concurrent worker threads. Defaults to unbounded concurrency (`0` or omitted runs all children concurrently). |
+| `threads` | No | Alias for `max_threads`. |
+| `concurrency` | No | Alias for `max_threads`. |
+| nested pipeline nodes | No | Child steps executed concurrently in parallel goroutines. |
+
 Notes:
-- Both `<then>` and `<else>` are optional; they can each appear at most once inside an `<if>` element.
-- Flow executes only the selected branch, based on the evaluated condition.
+- Context cancellation propagates to all active parallel child nodes if any branch errors or the pipeline is stopped.
+- Memory and thread-safe registry snapshots ensure concurrent writes do not race.
 
 ### Currently Supported Tasks under `<flow>` and `<preflight>`
 Support under `<flow>` and `<preflight>` including tasks within the conditional branches, groups and loops.
@@ -314,6 +325,54 @@ The `<sql_bulk>` element streams the rows returned by a source SQL query into a 
 Notes:
 - `target_table` is required because bulk SQL streams query results rather than returning them as a result set.
 - The number of copied rows is always stored in `LAST_OUTPUT`; specify an output attribute to also store it under a named variable.
+
+#### `<kv>`
+
+The `<kv>` element executes atomic key-value store operations (`get`, `put` / `set`, `delete` / `del`, `scan` / `list`) against configured embedded or server-based Key-Value databases (`bbolt`, `badger`, `redis`, `etcd`).
+
+| Attribute / field | Mandatory | Description |
+| --- | --- | --- |
+| `id` | No | Unique identifier for the KV step. If omitted, Flow generates an identifier in the form `kv_N`. |
+| `db` | Yes | Name of the configured database connection on which to execute the KV operation. |
+| `database` | No | Alias for `db`. |
+| `bucket` | No | Target bucket name (`bbolt`, `badger`) or namespace key prefix (`redis`, `etcd`). Defaults to `default`. |
+| `op` | No | Operation type: `get`, `put` / `set`, `delete` / `del`, `scan` / `list`. Can also be supplied via inline DSL text. |
+| `key` | No | Target key name. Can also be supplied via inline DSL text. |
+| `value` | No | Value payload to store during write operations. Can also be supplied via inline DSL text. |
+| `var` | No | Name of a pipeline variable supplying the inline DSL operation string. |
+| `variable` | No | Alias for `var`. |
+| `output_var` | No | Name of the pipeline variable that receives the retrieved value or scan output. |
+| `out_var` | No | Alias for `output_var`. |
+| `output_variable` | No | Alias for `output_var`. |
+| `content` | Conditional | Inline DSL operation command (e.g., `set user:101 Alice` or `get user:101`). |
+
+Notes:
+- Output is always stored in `LAST_OUTPUT`; specify an output attribute to also retain it under a named variable.
+- Operations can be defined via XML attributes (`op="put" key="k1" value="v1"`) or via natural inline DSL command text (`set k1 v1`).
+
+#### `<kv_bulk>`
+
+The `<kv_bulk>` element streams rows directly from a source relational SQL query into a target Key-Value bucket/namespace in high-throughput batches.
+
+| Attribute / field | Mandatory | Description |
+| --- | --- | --- |
+| `id` | No | Unique identifier for the bulk KV step. If omitted, Flow generates an identifier in the form `kv_bulk_N`. |
+| `db` | Yes | Name of the configured source SQL database connection executing the query. |
+| `database` | No | Alias for `db`. |
+| `target_db` | Yes | Name of the configured destination Key-Value database connection. |
+| `target_database` | No | Alias for `target_db`. |
+| `target_bucket` | Yes | Destination Key-Value bucket or namespace prefix receiving the streamed key-value pairs. |
+| `bucket` | No | Alias for `target_bucket`. |
+| `batch_size` | No | Maximum number of key-value records written per batch chunk. Defaults to `10000`. |
+| `var` | No | Name of a pipeline variable that supplies the source SQL query. |
+| `variable` | No | Alias for `var`. |
+| `output_var` | No | Name of the pipeline variable that receives the total count of transferred records. |
+| `out_var` | No | Alias for `output_var`. |
+| `content` | Conditional | Source SQL query placed between the opening and closing `<kv_bulk>` tags. Required when `var` or `variable` is not set. Must return at least two columns: key and value. |
+
+Notes:
+- The enclosed SQL query must project at least two columns: column 1 becomes the key and column 2 becomes the value.
+- The total number of transferred records is stored in `LAST_OUTPUT` and in `output_var` when specified.
 
 #### `<assert>` 
 

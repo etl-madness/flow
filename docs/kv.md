@@ -31,21 +31,28 @@ Define KV connections inside the `<databases>` XML container. Connection strings
 For embedded stores like `bbolt`, pass the target file path in `connection_string`. The engine creates parent directories automatically if they do not exist.
 
 ```xml
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
+
 <databases>
     <database 
         name="local_cache" 
         driver="bbolt" 
         connection_string="./data/app_cache.db" />
 </databases>
+</pipeline>
 ```
 ### Server-Based Key-Value Database (Redis)
 ```xml
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <databases>
     <database 
         name="redis_store" 
         driver="redis" 
         connection_string="redis://:secret_pass@127.0.0.1:6379/0" />
 </databases>
+</pipeline>
 ```
 
 ## XML Reference & Execution Nodes
@@ -88,7 +95,9 @@ Streams data sets directly between relational SQL queries and Key-Value buckets.
 
 ### 1. Embedded Write & Read (bbolt)
 ```xml
-<pipeline description="Embedded KV Operations Example">
+<pipeline description="Embedded KV Operations Example"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="CACHE_FILE" type="string" value="./data/pipeline.db" />
         <variable name="USER_ID" type="string" value="usr_9901" />
@@ -125,7 +134,9 @@ Streams data sets directly between relational SQL queries and Key-Value buckets.
 ### 2. Inline Command DSL Usage
 You can supply key-value commands using inline text body instead of XML attributes:
 ```xml
-<flow>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
+    <flow>
     <!-- Inline PUT command -->
     <kv id="inline_write" db="embedded_store" bucket="config">
         PUT system_status operational
@@ -135,28 +146,34 @@ You can supply key-value commands using inline text body instead of XML attribut
     <kv id="inline_read" db="embedded_store" bucket="config" output_var="SYS_STATUS">
         GET system_status
     </kv>
-</flow>
+    </flow>
+</pipeline>
 ```
 
 ### 3. Key Prefix Scanning
 
 ```xml
-<flow>
-    <!-- Scan all keys starting with 'usr_' in the 'accounts' bucket -->
-    <kv id="scan_users" 
-        db="embedded_store" 
-        bucket="accounts" 
-        op="scan" 
-        key="usr_" 
-        output_var="USER_LIST" />
-</flow>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
+    <flow>
+        <!-- Scan all keys starting with 'usr_' in the 'accounts' bucket -->
+        <kv id="scan_users" 
+            db="embedded_store" 
+            bucket="accounts" 
+            op="scan" 
+            key="usr_" 
+            output_var="USER_LIST" />
+    </flow>
+</pipeline>
 ```
 
 ### 4. High-Performance Bulk ETL (PostgreSQL to bbolt)
 Stream 100,000+ user records directly from PostgreSQL into a local bbolt embedded database chunked in batches of 5,000 records.
 
 ```xml
-<pipeline description="PostgreSQL to bbolt Streaming ETL">
+<pipeline description="PostgreSQL to bbolt Streaming ETL"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="postgres_db" driver="postgres" connection_string="postgres://user:pass@localhost:5432/app?sslmode=disable" />
         <database name="cache_db" driver="bbolt" connection_string="./cache/lookup.db" />

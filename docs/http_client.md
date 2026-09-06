@@ -94,7 +94,8 @@ Inside a `<foreach>` block, every returned database row populates registry varia
 ### 4.2 Polling Loops (`<while>`)
 Inside a `<while>` loop, `<http_client>` can poll remote job status endpoints until a termination condition is met:
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="JobState" type="string" value="RUNNING" />
         <variable name="JobID" type="string" value="JOB-99201" />
@@ -139,7 +140,8 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
 
 #### Example A: SQL -> HTTP POST -> Go Response Parser
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- 1. Extract JSON payload from database -->
         <sql id="GetPayload" db="analytics_db" output_var="JsonPayload">
@@ -179,7 +181,8 @@ Inside `<parallel>` blocks, each child branch runs in an isolated worker thread 
 ```
 #### Example B: Secure Enterprise Connection (TLS & Proxy Setup)
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <http_client 
             id="SecureEnterprisePost"

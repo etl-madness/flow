@@ -26,7 +26,8 @@ The `<assert>` tag supports the following attributes:
 Ensure the active pipeline environment variable matches the production expectation. If not, halt the pipeline immediately.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ENV" type="string" value="staging" />
     </variables>
@@ -52,7 +53,8 @@ Ensure the active pipeline environment variable matches the production expectati
 Run a warning-only assertion that checks an HTTP client's status code, logging a warning and setting a failure flag, but allowing execution to continue.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <http_client id="fetch_health" 
                      url="https://api.example.com/health" 
@@ -92,7 +94,8 @@ Run a warning-only assertion that checks an HTTP client's status code, logging a
 Use the nested `<on_failure>` block to run fallback scripts or cleanup actions when an assertion fails.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="temp_db" driver="sqlite" connection_string="./temp.db" />
     </databases>

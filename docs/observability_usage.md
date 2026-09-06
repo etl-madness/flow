@@ -351,7 +351,10 @@ Use the same pattern to create an OpenTelemetry bridge: start a span on `node.st
 `RowCounts` contains only measurements known to the executed node:
 
 - SQL DML exposes `Affected` when the driver returns rows affected.
-- Bulk SQL ETL exposes `Read` and `Written` from the number of streamed rows.
+- Bulk SQL ETL (`<sql_bulk>`) exposes `Read` and `Written` from the number of streamed rows.
+- Key-Value operations (`<kv>`) expose `Affected` for writes and deletions (`put`, `set`, `delete`, `del`), and `Read` for lookups and prefix scans (`get`, `scan`, `list`).
+- Key-Value bulk transfers (`<kv_bulk>`) expose `Read` and `Written` from the number of streamed records transferred from SQL to the KV store.
+- Excel reads and writes expose `Read` and `Written` row metrics.
 - Other nodes currently leave row counts empty.
 
 An omitted count means the executor did not measure that value. Do not treat it as a confirmed zero.

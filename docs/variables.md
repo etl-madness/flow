@@ -135,7 +135,8 @@ When iterating over records using a `<foreach>` block, the loop driver query bin
 When you need to output multiple distinct values from a script to be consumed as separate parameters in a subsequent step, you can format the output as a delimited string and parse it inside the next Go script.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- Step 1: Export a delimited config from Go -->
         <script id="GenerateParams" language="go" output_var="MultiParams">
@@ -177,7 +178,8 @@ When you need to output multiple distinct values from a script to be consumed as
 For complex, structured data, you can output a JSON string, capture it, and parse it back into typed structs in subsequent dynamic Go scripts.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <!-- Step 1: Query database config details, formatting output as JSON -->
         <script id="FetchServiceConfig" language="go" output_var="ServiceJSON">
@@ -226,6 +228,7 @@ For complex, structured data, you can output a JSON string, capture it, and pars
             }
         </script>
     </flow>
+
 </pipeline>
 ```
 
@@ -233,7 +236,8 @@ For complex, structured data, you can output a JSON string, capture it, and pars
 You can easily pass state between dynamic Go interpreter scripts and C# process-executed scripts using variables.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="Threshold" type="int" value="42" />
     </variables>

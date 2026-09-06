@@ -385,7 +385,8 @@ On any `<sql_bulk>` node (where `target_table` is defined), you can configure th
 
 ### XML Example
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="src_db" driver="sqlite" connection_string="./source.db" />
         <database name="dst_mssql" driver="sqlserver" connection_string="sqlserver://user:pass@localhost:1433?database=target_db" />

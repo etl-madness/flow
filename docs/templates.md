@@ -16,7 +16,8 @@ The `<template>` and `<template_html>` nodes in `flow` allow you to dynamically 
 Use the template element to quickly generate text using pipeline variables.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="USER_NAME" type="string" value="Alice" />
         <variable name="ROLE" type="string" value="Admin" />
@@ -37,7 +38,8 @@ Use the template element to quickly generate text using pipeline variables.
 For larger templates (like HTML emails or complex configurations), you can point the node to an external file.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="REPORT_DATE" type="string" value="2026-08-25" />
         <variable name="TOTAL_SALES" type="float" value="15430.50" />
@@ -52,7 +54,8 @@ For larger templates (like HTML emails or complex configurations), you can point
 Because it uses Go's `text/template`, you can use native template logic like `if/else` directly inside the template.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="IS_PREMIUM" type="bool" value="true" />
         <variable name="USER" type="string" value="Bob" />
@@ -74,7 +77,8 @@ Because it uses Go's `text/template`, you can use native template logic like `if
 A great use case for templates is cleanly generating JSON bodies for subsequent `<sql_bulk>` calls.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ORDER_ID" type="int" value="9924" />
         <variable name="STATUS" type="string" value="SHIPPED" />
@@ -97,7 +101,8 @@ A great use case for templates is cleanly generating JSON bodies for subsequent 
 You can render complex SQL statements and pass them into SQL scripts or stream ETL steps.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="TARGET_TABLE" type="string" value="sales_q3" />
         <variable name="MIN_AMOUNT" type="int" value="1000" />

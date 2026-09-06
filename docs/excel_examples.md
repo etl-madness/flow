@@ -24,7 +24,8 @@ The `<excel_read>` and `<excel_write>` nodes in `flow` enable direct integration
 Extract a report directly from a SQL database and save it as a native `.xlsx` file.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="erp_db" connection_string="sqlserver://user:pass@localhost:1433" />
     </databases>
@@ -43,7 +44,8 @@ Extract a report directly from a SQL database and save it as a native `.xlsx` fi
 Extract configuration or bulk upload data from an Excel sheet and send it to an external API endpoint.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="FILE_PATH" type="string" value="./uploads/new_users.xlsx" />
     </variables>
@@ -64,7 +66,8 @@ Extract configuration or bulk upload data from an Excel sheet and send it to an 
 Use pipeline variables to dynamically name the output file and filter the SQL query.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="REPORT_MONTH" type="string" value="August_2026" />
         <variable name="DEPT_ID" type="int" value="42" />
@@ -85,7 +88,8 @@ Use pipeline variables to dynamically name the output file and filter the SQL qu
 Sometimes data files don't have headers. You can set `header="false"` to process the raw rows programmatically in a later script.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <excel_read file="./raw_data/metrics.xlsx" sheet="RawMetrics" header="false" output_var="RAW_DATA" />
         
@@ -111,7 +115,8 @@ Sometimes data files don't have headers. You can set `header="false"` to process
 Extract multiple datasets simultaneously from the database into different Excel files using the `<parallel>` node.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <flow>
         <parallel max_threads="3">
             <excel_write file="./exports/dashboard/Sales.xlsx" sheet="Sales_Data" db="warehouse">
@@ -134,6 +139,8 @@ You can create multiple sheets within a single Excel file by specifying differen
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <pipeline description="Monthly Sales and Inventory Report Pipeline">
     <databases>
         <database name="sales_db" 

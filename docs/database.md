@@ -52,6 +52,8 @@ Supported database engines and typical workload fit:
 These workload labels are not limited to a single database engine; they describe the application behavior of the connection, so all supported drivers can use the same tuning model.
 
 ```xml
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <databases>
     <database name="analytics_db"
               driver="postgres"
@@ -61,12 +63,15 @@ These workload labels are not limited to a single database engine; they describe
               conn_max_lifetime_seconds="300"
               workload="oltp" />
 </databases>
+</pipeline>
 ```
 
 ### Example: Pool tuning for bulk ETL
 Use a larger pool for high-throughput bulk workloads and a shorter idle lifetime for transient jobs.
 
 ```xml
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <databases>
     <database name="warehouse_db"
               driver="postgres"
@@ -86,6 +91,7 @@ Use a larger pool for high-throughput bulk workloads and a shorter idle lifetime
         SELECT order_id, customer_id, amount, created_at FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '7 days';
     </sql_bulk>
 </flow>
+</pipeline>
 ```
 
 
@@ -138,7 +144,8 @@ Streams records directly from a SQL query source into a target Key-Value store b
 Initialize a database table structure and load initial seed data.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="analytics_db"
                   driver="sqlite"
@@ -172,7 +179,8 @@ Initialize a database table structure and load initial seed data.
 Filter database records dynamically utilizing pipeline environment variables.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="production_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/prod" />
     </databases>
@@ -198,7 +206,8 @@ Filter database records dynamically utilizing pipeline environment variables.
 Bulk replicate records from a production database directly into a separate analytics cold storage target.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="prod_db" driver="mysql" connection_string="root:secret@tcp(localhost:3306)/prod" />
         <database name="archive_db" driver="sqlite" connection_string="./archive.db" />
@@ -224,7 +233,8 @@ Bulk replicate records from a production database directly into a separate analy
 Consolidate multiple database reports into separate tabs inside a single `.xlsx` workbook using consecutive `<excel_write>` nodes.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="retail_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/retail" />
     </databases>
@@ -259,7 +269,8 @@ Consolidate multiple database reports into separate tabs inside a single `.xlsx`
 Build a complete end-to-end data staging, bulk copy, and multi-tab Excel dashboard export workflow.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="crm_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/crm" />
         <database name="reporting_warehouse" driver="sqlite" connection_string="./warehouse.db" />
@@ -315,7 +326,8 @@ Build a complete end-to-end data staging, bulk copy, and multi-tab Excel dashboa
 Extract data from a spreadsheet using `<excel_read>` and write it to a database using a Go interpreter script.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="inventory_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/inventory" />
     </databases>
@@ -378,7 +390,8 @@ Extract data from a spreadsheet using `<excel_read>` and write it to a database 
 Use `<group>` with `transaction="true"` to wrap multiple SQL operations inside an atomic transaction, ensuring automatic rollback on any failure.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="finance_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/finance" />
     </databases>
@@ -413,7 +426,8 @@ If your database engine supports native JSON processing functions, you can pass 
 
 #### Method A: PostgreSQL (Using `json_populate_recordset`)
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="store_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/store" />
     </databases>
@@ -433,7 +447,8 @@ If your database engine supports native JSON processing functions, you can pass 
 
 #### Method B: SQLite (Using `json_each`)
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="local_db" driver="sqlite" connection_string="./local.db" />
     </databases>
@@ -455,7 +470,8 @@ If your database engine supports native JSON processing functions, you can pass 
 
 #### Method C: Microsoft SQL Server / MSSQL (Using `OPENJSON`)
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="mssql_db" driver="sqlserver" connection_string="sqlserver://sa:secret@localhost:1433?database=store" />
     </databases>
@@ -484,7 +500,8 @@ If your database engine supports native JSON processing functions, you can pass 
 Demonstrates interacting with embedded stores (`bbolt`, `badger`) and server instances (`redis`, `etcd`) using both XML attributes and inline DSL syntax.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="local_cache" driver="bbolt" connection_string="./data/cache.db" />
         <database name="redis_pub" driver="redis" connection_string="redis://localhost:6379/0" />
@@ -517,7 +534,8 @@ Demonstrates interacting with embedded stores (`bbolt`, `badger`) and server ins
 Streams key-value projections from a relational SQL database straight into a Key-Value target bucket in high-speed batches.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="sql_catalog" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/store" />
         <database name="fast_redis" driver="redis" connection_string="redis://localhost:6379/0" />

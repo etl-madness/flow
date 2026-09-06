@@ -5,7 +5,8 @@ This section provides an example of how to describe a pipeline, including its pu
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<pipeline description="Monthly Sales and Inventory Report Pipeline">
+<pipeline description="Monthly Sales and Inventory Report Pipeline" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="sales_db" 
                   driver="postgres" 

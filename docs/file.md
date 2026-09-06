@@ -23,7 +23,8 @@ The `<file_read>` and `<file_save>` nodes in `flow` allow you to interact direct
 Load a configuration file into memory and POST it to a remote endpoint.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <scripts>
         <file_read file="./data/payload.json" output_var="JSON_DATA" />
         
@@ -40,7 +41,8 @@ Load a configuration file into memory and POST it to a remote endpoint.
 Write inline text with variable interpolation directly to a log file, appending to it rather than overwriting.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="USER" type="string" value="Alice" />
         <variable name="LOG_DIR" type="string" value="/var/log/flow" />
@@ -57,7 +59,8 @@ Write inline text with variable interpolation directly to a log file, appending 
 Generate a dynamic HTML report using the `<template>` node and save the resulting variable to disk.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="REPORT_DATE" type="string" value="2026-08-25" />
     </variables>
@@ -82,7 +85,8 @@ Generate a dynamic HTML report using the `<template>` node and save the resultin
 Keep your SQL scripts organized in files, load them dynamically, and execute them on your database.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>
         <database name="primary_db" connection_string="sqlserver://user:pass@localhost:1433" />
     </databases>
@@ -100,7 +104,8 @@ Keep your SQL scripts organized in files, load them dynamically, and execute the
 Read an existing file, process or modify it using a script (like Go, Bash, or PowerShell), and save the results to a new file.
 
 ```xml
-<pipeline>
+<pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <scripts>
         <!-- 1. Read input CSV -->
         <file_read file="./data/raw_users.csv" output_var="RAW_CSV" />

@@ -1,6 +1,6 @@
 <pipeline description="etcd Configuration Management Example"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/go-flow/main/xsd/pipeline.xsd">
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
         <variable name="ETCD_ENDPOINTS" type="string"
             value="http://127.0.0.1:2379,http://127.0.0.1:22379" />
