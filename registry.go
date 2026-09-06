@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+"context"
+	redis "github.com/redis/go-redis/v9"
 
 	badger "github.com/dgraph-io/badger/v4"
 	_ "github.com/go-sql-driver/mysql"  // MySQL driver
@@ -33,6 +35,7 @@ type Registry struct {
 	boltRegistry   map[string]*goBolt.DB       // Track active BBolt instances
 	badgerRegistry map[string]*badger.DB       // Track active BadgerDB instances
 	etcdRegistry   map[string]*clientv3.Client // Track active etcd client connections
+	redisRegistry  map[string]*redis.Client // Track active Redis/Valkey clients
 	dbMu           sync.RWMutex
 	varRegistry    map[string]interface{}
 	varMu          sync.RWMutex
@@ -46,6 +49,7 @@ func NewRegistry() *Registry {
 		boltRegistry:   make(map[string]*goBolt.DB),
 		badgerRegistry: make(map[string]*badger.DB),
 		etcdRegistry:   make(map[string]*clientv3.Client),
+		redisRegistry:  make(map[string]*redis.Client),
 		varRegistry:    make(map[string]interface{}),
 		dirtyVars:      make(map[string]struct{}),
 	}
@@ -281,6 +285,36 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			r.etcdRegistry[cfg.Name] = cli
 			continue
 		}
+		if driverName == "redis" || driverName == "valkey" {
+	var opts *redis.Options
+	var err error
+
+	if strings.HasPrefix(connStr, "redis://") || strings.HasPrefix(connStr, "rediss://") {
+		opts, err = redis.ParseURL(connStr)
+		if err != nil {
+			return fmt.Errorf("invalid redis connection url for '%s': %w", cfg.Name, err)
+		}
+	} else {
+		opts = &redis.Options{
+			Addr: connStr,
+		}
+	}
+
+	client := redis.NewClient(opts)
+
+	// Create scoped context and call cancel() explicitly right after Ping (no defer in loop)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	pingErr := client.Ping(pingCtx).Err()
+	pingCancel() // Explicitly release timer resources immediately
+
+	if pingErr != nil {
+		_ = client.Close() // Prevent connection leak on ping failure
+		return fmt.Errorf("failed to ping redis database '%s' at '%s': %w", cfg.Name, connStr, pingErr)
+	}
+
+	r.redisRegistry[cfg.Name] = client
+	continue
+}
 		if driverName == "" {
 			driverName = "sqlserver"
 		}
@@ -317,6 +351,11 @@ func (r *Registry) CloseDatabases() {
 		_ = cli.Close()
 		delete(r.etcdRegistry, name)
 	}
+	for name, cli := range r.redisRegistry {
+		_ = cli.Close()
+		delete(r.redisRegistry, name)
+	}
+
 	for name, handle := range r.dbRegistry {
 		handle.Conn.Close()
 		delete(r.dbRegistry, name)
@@ -414,6 +453,7 @@ func (r *Registry) Snapshot() *Registry {
 		boltRegistry:   r.boltRegistry,   // FIX: Preserve bbolt handles
 		badgerRegistry: r.badgerRegistry, // FIX: Preserve BadgerDB handles
 		etcdRegistry:   r.etcdRegistry, // Share etcd gRPC connection pool across threads
+		redisRegistry:  r.redisRegistry, // Share thread-safe Redis connection pool across worker threads
 		varRegistry:    varsCopy,
 		dirtyVars:      make(map[string]struct{}),
 	}
@@ -424,6 +464,15 @@ func (r *Registry) GetEtcdDB(name string) (*clientv3.Client, error) {
 	cli, ok := r.etcdRegistry[name]
 	if !ok {
 		return nil, fmt.Errorf("etcd database connection '%s' not registered", name)
+	}
+	return cli, nil
+}
+func (r *Registry) GetRedisDB(name string) (*redis.Client, error) {
+	r.dbMu.RLock()
+	defer r.dbMu.RUnlock()
+	cli, ok := r.redisRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("redis database connection '%s' not registered", name)
 	}
 	return cli, nil
 }

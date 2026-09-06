@@ -26,6 +26,7 @@ import (
 
 	"github.com/antchfx/xmlquery"
 	badger "github.com/dgraph-io/badger/v4"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/spyzhov/ajson"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
@@ -113,7 +114,7 @@ func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts
 	dbExports := map[string]reflect.Value{
 		"Get": reflect.ValueOf(e.registry.GetDB),
 		"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
-			return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts)
+			return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts) // Uses closure ctx
 		}),
 	}
 
@@ -2020,6 +2021,9 @@ func (e *Executor) executeKVNode(ctx context.Context, elem KVElement, results *[
 	if _, err := e.registry.GetEtcdDB(elem.DBName); err == nil {
 		return e.executeEtcdKVNode(ctx, elem, results)
 	}
+	if _, err := e.registry.GetRedisDB(elem.DBName); err == nil {
+		return e.executeRedisKVNode(ctx, elem, results)
+	}
 	// 3. Check for server-based instances (Redis/Valkey, etcd) when added
 	// if _, err := e.registry.GetRedisDB(elem.DBName); err == nil {
 	// 	return e.executeRedisKVNode(ctx, elem, results)
@@ -2080,7 +2084,9 @@ func (e *Executor) executeKVBulkNode(ctx context.Context, elem KVBulkElement, re
 	var err error
 
 	// 2. Dispatch to target Key-Value engine
-	if etcdClient, eErr := e.registry.GetEtcdDB(targetDB); eErr == nil {
+	if redisClient, rErr := e.registry.GetRedisDB(targetDB); rErr == nil {
+		totalCopied, err = e.executeRedisBulk(ctx, redisClient, srcDB, queryStr, targetBucket, batchSize)
+	} else if etcdClient, eErr := e.registry.GetEtcdDB(targetDB); eErr == nil {
 		totalCopied, err = e.executeEtcdBulk(ctx, etcdClient, srcDB, queryStr, targetBucket, batchSize)
 	} else if badgerDB, bErr := e.registry.GetBadgerDB(targetDB); bErr == nil {
 		totalCopied, err = e.executeBadgerBulk(ctx, badgerDB, srcDB, queryStr, targetBucket, batchSize)
@@ -2380,6 +2386,12 @@ func (e *Executor) executeBoltKVNode(ctx context.Context, elem KVElement, result
 			c := b.Cursor()
 			prefix := []byte(keyStr)
 			for k, v := c.Seek(prefix); k != nil && strings.HasPrefix(string(k), string(prefix)); k, v = c.Next() {
+				// Check context cancellation during iteration
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
 				buf.WriteString(fmt.Sprintf("%s\t%s\n", string(k), string(v)))
 				returnedRows++
 			}
@@ -2503,6 +2515,13 @@ func (e *Executor) executeBadgerKVNode(ctx context.Context, elem KVElement, resu
 			defer it.Close()
 
 			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+				// Check context cancellation during iteration
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+
 				item := it.Item()
 				k := item.Key()
 				displayKey := strings.TrimPrefix(string(k), prefixTrim)
@@ -2711,6 +2730,222 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 
 	if err := rows.Err(); err != nil {
 		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return totalCopied, nil
+}
+
+// redisKey formats key names using bucket namespaces (e.g., "bucket:key").
+func redisKey(bucket, key string) string {
+	if bucket == "" {
+		bucket = "default"
+	}
+	return fmt.Sprintf("%s:%s", bucket, key)
+}
+
+// executeRedisKVNode handles single KV operations (GET, PUT, DELETE, SCAN) on Redis/Valkey.
+func (e *Executor) executeRedisKVNode(ctx context.Context, elem KVElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		r.Duration = time.Since(startTime).String()
+		e.appendResult(results, r)
+	}
+
+	client, err := e.registry.GetRedisDB(elem.DBName)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	variables := e.registry.CopyVariables()
+	bucketName := interpolateVars(elem.Bucket, variables)
+	op := strings.ToLower(interpolateVars(elem.Op, variables))
+	keyStr := interpolateVars(elem.Key, variables)
+	valStr := interpolateVars(elem.Value, variables)
+
+	if op == "" && elem.Code != "" {
+		code := interpolateVars(elem.Code, variables)
+		parts := strings.Fields(code)
+		if len(parts) > 0 {
+			op = strings.ToLower(parts[0])
+		}
+		if len(parts) > 1 && keyStr == "" {
+			keyStr = parts[1]
+		}
+		if len(parts) > 2 && valStr == "" {
+			valStr = strings.Join(parts[2:], " ")
+		}
+	}
+
+	if bucketName == "" {
+		bucketName = "default"
+	}
+
+	var resultsString string
+	var rawOutput string
+	var returnedRows int64 = 0
+
+	k := redisKey(bucketName, keyStr)
+
+	switch op {
+	case "put", "set":
+		err = client.Set(ctx, k, valStr, 0).Err()
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "delete", "del":
+		var delCount int64
+		delCount, err = client.Del(ctx, k).Result()
+		if err == nil {
+			rawOutput = fmt.Sprintf("%d", delCount)
+			resultsString = fmt.Sprintf("(%d row(s) affected)\n", delCount)
+		}
+
+	case "get":
+		var val string
+		val, err = client.Get(ctx, k).Result()
+		if err == nil {
+			returnedRows = 1
+			rawOutput = val
+			resultsString = fmt.Sprintf("KEY\tVALUE\n%s\t%s\n\n(1 row(s) returned)\n", keyStr, rawOutput)
+		} else if err == redis.Nil {
+			err = nil
+			resultsString = "\n(0 row(s) returned)\n"
+		}
+
+	case "scan", "list":
+		prefix := redisKey(bucketName, keyStr)
+		prefixTrim := fmt.Sprintf("%s:", bucketName)
+
+		var buf bytes.Buffer
+		buf.WriteString("KEY\tVALUE\n")
+
+		iter := client.Scan(ctx, 0, prefix+"*", 0).Iterator()
+		for iter.Next(ctx) {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
+			fullKey := iter.Val()
+			displayKey := strings.TrimPrefix(fullKey, prefixTrim)
+			v, valErr := client.Get(ctx, fullKey).Result()
+			if valErr == nil {
+				buf.WriteString(fmt.Sprintf("%s\t%s\n", displayKey, v))
+				returnedRows++
+			}
+		}
+		err = iter.Err()
+		if err == nil {
+			rawOutput = buf.String()
+			resultsString = fmt.Sprintf("%s\n(%d row(s) returned)\n", rawOutput, returnedRows)
+		}
+
+	default:
+		err = fmt.Errorf("unsupported kv operation '%s'", op)
+	}
+
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = resultsString
+	e.storeScriptOutput(elem.OutputVar, rawOutput)
+	appendWithDuration(res)
+	return false
+}
+
+// executeRedisBulk streams SQL query rows directly into Redis/Valkey using pipelined execution.
+func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+	sqlHandle, err := e.registry.GetDBHandle(srcDB)
+	if err != nil {
+		return 0, fmt.Errorf("source database error: %w", err)
+	}
+
+	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	if err != nil {
+		return 0, fmt.Errorf("source query error: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
+	}
+	if len(cols) < 2 {
+		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
+	}
+
+	if batchSize <= 0 {
+		batchSize = 10000
+	}
+
+	var totalCopied int64
+	pipe := redisClient.Pipeline()
+	unflushed := 0
+
+	flushPipe := func() error {
+		if unflushed == 0 {
+			return nil
+		}
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("redis pipeline flush error: %w", err)
+		}
+		totalCopied += int64(unflushed)
+		unflushed = 0
+		return nil
+	}
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return totalCopied, ctx.Err()
+		default:
+		}
+
+		var kStr, vStr string
+		if len(cols) == 2 {
+			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+		} else {
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
+			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+			kStr = fmt.Sprintf("%v", vals[0])
+			vStr = fmt.Sprintf("%v", vals[1])
+		}
+
+		key := redisKey(targetBucket, kStr)
+		pipe.Set(ctx, key, vStr, 0)
+		unflushed++
+
+		if unflushed >= batchSize {
+			if err := flushPipe(); err != nil {
+				return totalCopied, err
+			}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	if err := flushPipe(); err != nil {
+		return totalCopied, err
 	}
 
 	return totalCopied, nil
