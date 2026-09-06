@@ -19,6 +19,46 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 	inspect = func(nodes []PipelineNode) {
 		for _, node := range nodes {
 			switch node.Kind {
+			case NodeKV:
+				k := node.KV
+				if k != nil {
+					if k.ID != "" {
+						if knownIDs[k.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate KV ID found: '%s'", k.ID))
+						}
+						knownIDs[k.ID] = true
+					}
+					if k.DBName == "" {
+						errs = append(errs, fmt.Sprintf("kv node '%s' is missing required 'db' attribute", k.ID))
+					} else if !definedDBs[k.DBName] {
+						errs = append(errs, fmt.Sprintf("kv node '%s' references unregistered database '%s'", k.ID, k.DBName))
+					}
+					if k.Op == "" && strings.TrimSpace(k.Code) == "" && k.VarName == "" {
+						errs = append(errs, fmt.Sprintf("kv node '%s' must specify 'op' attribute or an inline command body", k.ID))
+					}
+				}
+
+			case NodeKVBulk:
+				kb := node.KVBulk
+				if kb != nil {
+					if kb.ID != "" {
+						if knownIDs[kb.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate KVBulk ID found: '%s'", kb.ID))
+						}
+						knownIDs[kb.ID] = true
+					}
+					if kb.DBName == "" {
+						errs = append(errs, fmt.Sprintf("kv_bulk node '%s' is missing required 'db' attribute", kb.ID))
+					} else if !definedDBs[kb.DBName] {
+						errs = append(errs, fmt.Sprintf("kv_bulk '%s' references unregistered source database '%s'", kb.ID, kb.DBName))
+					}
+					if kb.TargetDB != "" && !definedDBs[kb.TargetDB] {
+						errs = append(errs, fmt.Sprintf("kv_bulk '%s' target_db references unregistered database '%s'", kb.ID, kb.TargetDB))
+					}
+					if strings.TrimSpace(kb.Code) == "" && kb.VarName == "" {
+						errs = append(errs, fmt.Sprintf("kv_bulk '%s' has an empty body and no driver variable", kb.ID))
+					}
+				}
 			case NodeAssert:
 				a := node.Assert
 				if a != nil {

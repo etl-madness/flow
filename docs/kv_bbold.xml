@@ -1,0 +1,34 @@
+<pipeline description="Embedded KV Operations Example"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/go-flow/main/xsd/pipeline.xsd">
+    <variables>
+        <variable name="CACHE_FILE" type="string" value="./data/pipeline.db" />
+        <variable name="USER_ID" type="string" value="usr_9901" />
+        <variable name="USER_DATA" type="string" value='{"status":"active","tier":"gold"}' />
+    </variables>
+
+    <databases>
+        <database name="embedded_store" driver="bbolt" connection_string="{{CACHE_FILE}}" />
+    </databases>
+
+    <flow>
+        <!-- Write record to "user_sessions" bucket -->
+        <kv id="write_session"
+            db="embedded_store"
+            bucket="user_sessions"
+            op="put"
+            key="{{USER_ID}}"
+            value="{{USER_DATA}}" />
+
+        <!-- Read record from "user_sessions" bucket into variable "RETRIEVED_SESSION" -->
+        <kv id="read_session"
+            db="embedded_store"
+            bucket="user_sessions"
+            op="get"
+            key="{{USER_ID}}"
+            output_var="RETRIEVED_SESSION" />
+
+        <!-- Output assertion -->
+        <assert id="check_session" var="RETRIEVED_SESSION" operator="ne" value="" />
+    </flow>
+</pipeline>

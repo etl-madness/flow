@@ -3,16 +3,20 @@ package flow
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	badger "github.com/dgraph-io/badger/v4"
 	_ "github.com/go-sql-driver/mysql"  // MySQL driver
 	_ "github.com/lib/pq"               // PostgreSQL driver
 	_ "github.com/microsoft/go-mssqldb" // MSSQL driver
 	_ "github.com/sijms/go-ora/v2"      // Pure Go Oracle driver
-	_ "modernc.org/sqlite"              // Pure Go SQLite driver
+	goBolt "go.etcd.io/bbolt"
+	_ "modernc.org/sqlite" // Pure Go SQLite driver
 )
 
 // DBHandle encapsulates an active sql.DB connection pool along with its driver name.
@@ -24,19 +28,23 @@ type DBHandle struct {
 // Registry is a thread-safe container that manages active database connection pools
 // and dynamic pipeline environment variables.
 type Registry struct {
-	dbRegistry  map[string]DBHandle
-	dbMu        sync.RWMutex
-	varRegistry map[string]interface{}
-	varMu       sync.RWMutex
-	dirtyVars   map[string]struct{} // Tracks keys set after snapshotting
+	dbRegistry     map[string]DBHandle
+	boltRegistry   map[string]*goBolt.DB // Track active BBolt instances
+	badgerRegistry map[string]*badger.DB // Track active BadgerDB instances
+	dbMu           sync.RWMutex
+	varRegistry    map[string]interface{}
+	varMu          sync.RWMutex
+	dirtyVars      map[string]struct{} // Tracks keys set after snapshotting
 }
 
 // NewRegistry instantiates and returns an empty Registry context.
 func NewRegistry() *Registry {
 	return &Registry{
-		dbRegistry:  make(map[string]DBHandle),
-		varRegistry: make(map[string]interface{}),
-		dirtyVars:   make(map[string]struct{}),
+		dbRegistry:     make(map[string]DBHandle),
+		boltRegistry:   make(map[string]*goBolt.DB),
+		badgerRegistry: make(map[string]*badger.DB),
+		varRegistry:    make(map[string]interface{}),
+		dirtyVars:      make(map[string]struct{}),
 	}
 }
 
@@ -224,7 +232,37 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			connStr = strings.ReplaceAll(connStr, placeholder, fmt.Sprintf("%v", val))
 		}
 
-		driverName := cfg.Driver
+		driverName := strings.ToLower(cfg.Driver)
+
+		if driverName == "bbolt" || driverName == "bolt" {
+			// Ensure path directory exists
+			dir := filepath.Dir(connStr)
+			if dir != "" && dir != "." {
+				_ = os.MkdirAll(dir, 0755)
+			}
+
+			db, err := goBolt.Open(connStr, 0600, &goBolt.Options{Timeout: 2 * time.Second})
+			if err != nil {
+				return fmt.Errorf("failed to open bbolt database '%s' at path '%s': %w", cfg.Name, connStr, err)
+			}
+			r.boltRegistry[cfg.Name] = db
+			continue
+		}
+		if driverName == "badger" || driverName == "badgerdb" {
+			// Badger stores data inside a directory
+			if err := os.MkdirAll(connStr, 0755); err != nil {
+				return fmt.Errorf("failed to create directory for badger db '%s': %w", cfg.Name, err)
+			}
+
+			// Open BadgerDB with standard options (suppress verbose logger)
+			opts := badger.DefaultOptions(connStr).WithLogger(nil)
+			db, err := badger.Open(opts)
+			if err != nil {
+				return fmt.Errorf("failed to open badger database '%s' at path '%s': %w", cfg.Name, connStr, err)
+			}
+			r.badgerRegistry[cfg.Name] = db
+			continue
+		}
 		if driverName == "" {
 			driverName = "sqlserver"
 		}
@@ -248,11 +286,39 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 func (r *Registry) CloseDatabases() {
 	r.dbMu.Lock()
 	defer r.dbMu.Unlock()
+	for name, db := range r.boltRegistry {
+		db.Close()
+		delete(r.boltRegistry, name)
+	}
+
+	for name, db := range r.badgerRegistry {
+		db.Close()
+		delete(r.badgerRegistry, name)
+	}
 
 	for name, handle := range r.dbRegistry {
 		handle.Conn.Close()
 		delete(r.dbRegistry, name)
 	}
+}
+func (r *Registry) GetBadgerDB(name string) (*badger.DB, error) {
+	r.dbMu.RLock()
+	defer r.dbMu.RUnlock()
+	db, ok := r.badgerRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("badger database connection '%s' not registered", name)
+	}
+	return db, nil
+}
+
+func (r *Registry) GetBoltDB(name string) (*goBolt.DB, error) {
+	r.dbMu.RLock()
+	defer r.dbMu.RUnlock()
+	db, ok := r.boltRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("bbolt database connection '%s' not registered", name)
+	}
+	return db, nil
 }
 
 // CopyVariables creates and returns a thread-safe snapshot map of all current environment variables.
@@ -323,8 +389,10 @@ func (r *Registry) Snapshot() *Registry {
 	}
 
 	return &Registry{
-		dbRegistry:  r.dbRegistry,
-		varRegistry: varsCopy,
-		dirtyVars:   make(map[string]struct{}),
+		dbRegistry:     r.dbRegistry,
+		boltRegistry:   r.boltRegistry,   // FIX: Preserve bbolt handles
+		badgerRegistry: r.badgerRegistry, // FIX: Preserve BadgerDB handles
+		varRegistry:    varsCopy,
+		dirtyVars:      make(map[string]struct{}),
 	}
 }

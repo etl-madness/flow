@@ -104,6 +104,8 @@ const (
 	NodeSQL        // New enum item for standard SQL execution
 	NodeSQLBulk    // New enum item for bulk SQL execution
 	NodeAssert     // New enum item for assert operation
+	NodeKV // New enum item for key-value store operations
+	NodeKVBulk // New enum item for bulk key-value store operations
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -133,8 +135,33 @@ type PipelineNode struct {
 	Assert        *AssertElement       // New enum item for assert operation
 	SQL        *SQLElement           // New payload field for standard SQL execution
 	SQLBulk    *SQLBulkElement     // New payload field for bulk SQL execution
+	KV        *KVElement        // New payload field for key-value store operations
+	KVBulk    *KVBulkElement    // New payload field for bulk key-value store operations
+}
+type KVElement struct {
+	ID        string `xml:"id,attr"`
+	DBName    string `xml:"db,attr"`
+	Bucket    string `xml:"bucket,attr"`
+	Op        string `xml:"op,attr"` // "get", "put", "delete", "scan"
+	Key       string `xml:"key,attr"`
+	Value     string `xml:"value,attr"`
+	VarName   string `xml:"var,attr"`
+	OutputVar string `xml:"output_var,attr"`
+	Code      string `xml:",chardata"`
 }
 
+type KVBulkElement struct {
+	ID           string `xml:"id,attr"`
+	DBName       string `xml:"db,attr"`        // Source DB
+	TargetDB     string `xml:"target_db,attr"` // Target DB
+	Bucket       string `xml:"bucket,attr"`    // Source bucket
+	TargetBucket string `xml:"target_bucket,attr"`
+	TargetTable  string `xml:"target_table,attr"` // For KV to SQL bulk export
+	BatchSize    int    `xml:"batch_size,attr"`
+	VarName      string `xml:"var,attr"`
+	OutputVar    string `xml:"output_var,attr"`
+	Code         string `xml:",chardata"`
+}
 type AssertElement struct {
 	ID           string         `xml:"id,attr"`
 	Var          string         `xml:"var,attr"`
@@ -398,6 +425,74 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
+	case "kv":
+    var elem KVElement
+    for _, attr := range se.Attr {
+        switch strings.ToLower(attr.Name.Local) {
+        case "id":
+            elem.ID = attr.Value
+        case "db", "database":
+            elem.DBName = attr.Value
+        case "bucket":
+            elem.Bucket = attr.Value
+        case "op", "operation":
+            elem.Op = strings.ToLower(attr.Value)
+        case "key":
+            elem.Key = attr.Value
+        case "value", "val":
+            elem.Value = attr.Value
+        case "var", "variable":
+            elem.VarName = attr.Value
+        case "output_var", "out_var", "output_variable":
+            elem.OutputVar = attr.Value
+        }
+    }
+    if elem.ID == "" {
+        elem.ID = fmt.Sprintf("kv_%d", *scriptIndex)
+        (*scriptIndex)++
+    }
+    var content string
+    if err := decoder.DecodeElement(&content, &se); err == nil {
+        elem.Code = strings.TrimSpace(content)
+    }
+    return &PipelineNode{Kind: NodeKV, KV: &elem}, nil
+
+case "kv_bulk":
+    var elem KVBulkElement
+    for _, attr := range se.Attr {
+        switch strings.ToLower(attr.Name.Local) {
+        case "id":
+            elem.ID = attr.Value
+        case "db", "database":
+            elem.DBName = attr.Value
+        case "target_db", "target_database":
+            elem.TargetDB = attr.Value
+        case "bucket":
+            elem.Bucket = attr.Value
+        case "target_bucket":
+            elem.TargetBucket = attr.Value
+        case "target_table":
+            elem.TargetTable = attr.Value
+        case "batch_size":
+            if b, err := strconv.Atoi(attr.Value); err == nil {
+                elem.BatchSize = b
+            }
+        case "var", "variable":
+            elem.VarName = attr.Value
+        case "output_var", "out_var":
+            elem.OutputVar = attr.Value
+        }
+    }
+    if elem.ID == "" {
+        elem.ID = fmt.Sprintf("kv_bulk_%d", *scriptIndex)
+        (*scriptIndex)++
+    }
+    var content string
+    if err := decoder.DecodeElement(&content, &se); err == nil {
+        elem.Code = strings.TrimSpace(content)
+    }
+    return &PipelineNode{Kind: NodeKVBulk, KVBulk: &elem}, nil
+
 	case "assert":
 		var elem AssertElement
 		for _, attr := range se.Attr {
@@ -1029,4 +1124,17 @@ type PipelineConfig struct {
 	Databases      []DatabaseConfig
 	PreflightNodes []PipelineNode
 	FlowNodes      []PipelineNode
+}
+func (k *KVElement) GetOutputVar() string {
+	if k.OutputVar != "" {
+		return k.OutputVar
+	}
+	return k.VarName
+}
+
+func (kb *KVBulkElement) GetOutputVar() string {
+	if kb.OutputVar != "" {
+		return kb.OutputVar
+	}
+	return kb.VarName
 }

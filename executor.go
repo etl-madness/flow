@@ -25,10 +25,12 @@ import (
 	"time"
 
 	"github.com/antchfx/xmlquery"
+	badger "github.com/dgraph-io/badger/v4"
 	"github.com/spyzhov/ajson"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 	"github.com/xuri/excelize/v2"
+	goBolt "go.etcd.io/bbolt"
 	"gopkg.in/yaml.v3"
 )
 
@@ -242,9 +244,10 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 		strings.Contains(trimmedQuery, "OUTPUT") ||
 		strings.Contains(trimmedQuery, "@@ROWCOUNT") ||
 		(strings.Contains(trimmedQuery, ";") && strings.Contains(trimmedQuery, "SELECT"))
-	isDML := (strings.HasPrefix(trimmedQuery, "INSERT") ||
-		strings.HasPrefix(trimmedQuery, "UPDATE") ||
-		strings.HasPrefix(trimmedQuery, "DELETE")) &&
+	isDML := (strings.Contains(trimmedQuery, "INSERT") ||
+		strings.Contains(trimmedQuery, "UPDATE") ||
+		strings.Contains(trimmedQuery, "MERGE") ||
+		strings.Contains(trimmedQuery, "DELETE")) &&
 		!hasReturning
 	// --- Execute DML statements with ExecContext ---
 	if isDML {
@@ -966,6 +969,14 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 		var hasErr bool
 
 		switch node.Kind {
+		case NodeKV:
+			if node.KV != nil {
+				hasErr = e.executeKVNode(nodeCtx, *node.KV, &nodeResults)
+			}
+		case NodeKVBulk:
+			if node.KVBulk != nil {
+				hasErr = e.executeKVBulkNode(nodeCtx, *node.KVBulk, &nodeResults)
+			}
 		case NodeAssert:
 			if node.Assert != nil {
 				hasErr = e.executeAssertNode(nodeCtx, *node.Assert, &nodeResults)
@@ -1991,5 +2002,532 @@ func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, re
 	res.ResultsString = fmt.Sprintf("Assertion passed on variable %q", elem.Var)
 	res.Duration = time.Since(startTime).String()
 	e.appendResult(results, res)
+	return false
+}
+
+// executeKVNode routes Key-Value operations to the appropriate engine handler based on the registered database handle.
+func (e *Executor) executeKVNode(ctx context.Context, elem KVElement, results *[]ScriptResult) bool {
+	// 1. Check if the database handle is registered as a BadgerDB instance
+	if _, err := e.registry.GetBadgerDB(elem.DBName); err == nil {
+		return e.executeBadgerKVNode(ctx, elem, results)
+	}
+
+	// 2. Check if the database handle is registered as a bbolt instance
+	if _, err := e.registry.GetBoltDB(elem.DBName); err == nil {
+		return e.executeBoltKVNode(ctx, elem, results)
+	}
+
+	// 3. Check for server-based instances (Redis/Valkey, etcd) when added
+	// if _, err := e.registry.GetRedisDB(elem.DBName); err == nil {
+	// 	return e.executeRedisKVNode(ctx, elem, results)
+	// }
+
+	// 4. Fail fast with a clear error if the requested database handle is missing or unregistered
+	startTime := time.Now()
+	res := ScriptResult{
+		ScriptID:   elem.ID,
+		ReturnCode: fmt.Sprintf("key-value database connection '%s' not registered", elem.DBName),
+		Duration:   time.Since(startTime).String(),
+	}
+
+	e.appendResult(results, res)
+	return true
+}
+func (e *Executor) executeKVBulkNode(ctx context.Context, elem KVBulkElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		r.Duration = time.Since(startTime).String()
+		e.appendResult(results, r)
+	}
+
+	variables := e.registry.CopyVariables()
+	srcDB := interpolateVars(elem.DBName, variables)
+	targetDB := interpolateVars(elem.TargetDB, variables)
+	if targetDB == "" {
+		targetDB = srcDB
+	}
+
+	targetBucket := interpolateVars(elem.TargetBucket, variables)
+	if targetBucket == "" {
+		targetBucket = interpolateVars(elem.Bucket, variables)
+	}
+	if targetBucket == "" {
+		targetBucket = "default"
+	}
+
+	batchSize := elem.BatchSize
+	if batchSize <= 0 {
+		batchSize = 10000
+	}
+
+	// 1. Resolve source extraction SQL query
+	queryStr := interpolateVars(elem.Code, variables)
+	if elem.VarName != "" {
+		if val := e.registry.GetVar(elem.VarName); val != nil {
+			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
+			if strVal != "" && strVal != "<nil>" {
+				queryStr = strVal
+			}
+		}
+	}
+
+	var totalCopied int64
+	var err error
+
+	// 2. Dispatch to target Key-Value engine
+	if badgerDB, bErr := e.registry.GetBadgerDB(targetDB); bErr == nil {
+		totalCopied, err = e.executeBadgerBulk(ctx, badgerDB, srcDB, queryStr, targetBucket, batchSize)
+	} else if boltDB, bErr := e.registry.GetBoltDB(targetDB); bErr == nil {
+		totalCopied, err = e.executeBoltBulk(ctx, boltDB, srcDB, queryStr, targetBucket, batchSize)
+	} else {
+		res.ReturnCode = fmt.Sprintf("target key-value database connection '%s' not registered", targetDB)
+		appendWithDuration(res)
+		return true
+	}
+
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	// 3. Format result payload for observability tracking
+	res.ReturnCode = 0
+	res.ResultsString = fmt.Sprintf("Streamed %d row(s) directly to %s.%s", totalCopied, targetDB, targetBucket)
+	e.storeScriptOutput(elem.OutputVar, fmt.Sprintf("%d", totalCopied))
+	appendWithDuration(res)
+	return false
+}
+
+func badgerKey(bucket, key string) []byte {
+	if bucket == "" {
+		bucket = "default"
+	}
+	return []byte(fmt.Sprintf("%s:%s", bucket, key))
+}
+
+// executeBadgerBulk streams SQL query rows directly into BadgerDB using an optimized WriteBatch.
+func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+	sqlHandle, err := e.registry.GetDBHandle(srcDB)
+	if err != nil {
+		return 0, fmt.Errorf("source database error: %w", err)
+	}
+
+	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	if err != nil {
+		return 0, fmt.Errorf("source query error: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
+	}
+	if len(cols) < 2 {
+		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
+	}
+
+	var totalCopied int64
+	wb := badgerDB.NewWriteBatch()
+	defer wb.Cancel()
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return totalCopied, ctx.Err()
+		default:
+		}
+
+		var kStr, vStr string
+		if len(cols) == 2 {
+			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+		} else {
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
+			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+			kStr = fmt.Sprintf("%v", vals[0])
+			vStr = fmt.Sprintf("%v", vals[1])
+		}
+
+		key := badgerKey(targetBucket, kStr)
+		if err := wb.Set(key, []byte(vStr)); err != nil {
+			return totalCopied, fmt.Errorf("badger write batch set error: %w", err)
+		}
+		totalCopied++
+	}
+
+	if err := rows.Err(); err != nil {
+		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	if err := wb.Flush(); err != nil {
+		return totalCopied, fmt.Errorf("badger write batch flush error: %w", err)
+	}
+
+	return totalCopied, nil
+}
+
+// executeBoltBulk streams SQL query rows directly into a bbolt bucket using batch transactions.
+func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+	sqlHandle, err := e.registry.GetDBHandle(srcDB)
+	if err != nil {
+		return 0, fmt.Errorf("source database error: %w", err)
+	}
+
+	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	if err != nil {
+		return 0, fmt.Errorf("source query error: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
+	}
+	if len(cols) < 2 {
+		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
+	}
+
+	var totalCopied int64
+	var batchRows [][2]string
+
+	flushBatch := func() error {
+		if len(batchRows) == 0 {
+			return nil
+		}
+		err := boltDB.Update(func(tx *goBolt.Tx) error {
+			b, bErr := tx.CreateBucketIfNotExists([]byte(targetBucket))
+			if bErr != nil {
+				return bErr
+			}
+			for _, kv := range batchRows {
+				if pErr := b.Put([]byte(kv[0]), []byte(kv[1])); pErr != nil {
+					return pErr
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("bbolt batch commit error: %w", err)
+		}
+		totalCopied += int64(len(batchRows))
+		batchRows = batchRows[:0]
+		return nil
+	}
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return totalCopied, ctx.Err()
+		default:
+		}
+
+		var kStr, vStr string
+		if len(cols) == 2 {
+			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+		} else {
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
+			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+			kStr = fmt.Sprintf("%v", vals[0])
+			vStr = fmt.Sprintf("%v", vals[1])
+		}
+
+		batchRows = append(batchRows, [2]string{kStr, vStr})
+		if len(batchRows) >= batchSize {
+			if err := flushBatch(); err != nil {
+				return totalCopied, err
+			}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	if err := flushBatch(); err != nil {
+		return totalCopied, err
+	}
+
+	return totalCopied, nil
+}
+
+// executeBoltKVNode handles single KV operations (GET, PUT, DELETE, SCAN) on bbolt.
+func (e *Executor) executeBoltKVNode(ctx context.Context, elem KVElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		r.Duration = time.Since(startTime).String()
+		e.appendResult(results, r)
+	}
+
+	boltDB, err := e.registry.GetBoltDB(elem.DBName)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	variables := e.registry.CopyVariables()
+	bucketName := interpolateVars(elem.Bucket, variables)
+	op := strings.ToLower(interpolateVars(elem.Op, variables))
+	keyStr := interpolateVars(elem.Key, variables)
+	valStr := interpolateVars(elem.Value, variables)
+
+	if op == "" && elem.Code != "" {
+		code := interpolateVars(elem.Code, variables)
+		parts := strings.Fields(code)
+		if len(parts) > 0 {
+			op = strings.ToLower(parts[0])
+		}
+		if len(parts) > 1 && keyStr == "" {
+			keyStr = parts[1]
+		}
+		if len(parts) > 2 && valStr == "" {
+			valStr = strings.Join(parts[2:], " ")
+		}
+	}
+
+	if bucketName == "" {
+		bucketName = "default"
+	}
+
+	var resultsString string
+	var rawOutput string
+	var returnedRows int64 = 0
+
+	switch op {
+	case "put", "set":
+		err = boltDB.Update(func(tx *goBolt.Tx) error {
+			b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
+			if err != nil {
+				return err
+			}
+			return b.Put([]byte(keyStr), []byte(valStr))
+		})
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "delete", "del":
+		err = boltDB.Update(func(tx *goBolt.Tx) error {
+			b := tx.Bucket([]byte(bucketName))
+			if b == nil {
+				return nil
+			}
+			return b.Delete([]byte(keyStr))
+		})
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "get":
+		var valBytes []byte
+		err = boltDB.View(func(tx *goBolt.Tx) error {
+			b := tx.Bucket([]byte(bucketName))
+			if b == nil {
+				return fmt.Errorf("bucket '%s' not found", bucketName)
+			}
+			v := b.Get([]byte(keyStr))
+			if v != nil {
+				valBytes = make([]byte, len(v))
+				copy(valBytes, v)
+			}
+			return nil
+		})
+		if err == nil {
+			if valBytes != nil {
+				returnedRows = 1
+				rawOutput = string(valBytes)
+				resultsString = fmt.Sprintf("KEY\tVALUE\n%s\t%s\n\n(1 row(s) returned)\n", keyStr, rawOutput)
+			} else {
+				resultsString = "\n(0 row(s) returned)\n"
+			}
+		}
+
+	case "scan", "list":
+		var buf bytes.Buffer
+		buf.WriteString("KEY\tVALUE\n")
+		err = boltDB.View(func(tx *goBolt.Tx) error {
+			b := tx.Bucket([]byte(bucketName))
+			if b == nil {
+				return nil
+			}
+			c := b.Cursor()
+			prefix := []byte(keyStr)
+			for k, v := c.Seek(prefix); k != nil && strings.HasPrefix(string(k), string(prefix)); k, v = c.Next() {
+				buf.WriteString(fmt.Sprintf("%s\t%s\n", string(k), string(v)))
+				returnedRows++
+			}
+			return nil
+		})
+		if err == nil {
+			rawOutput = buf.String()
+			resultsString = fmt.Sprintf("%s\n(%d row(s) returned)\n", rawOutput, returnedRows)
+		}
+
+	default:
+		err = fmt.Errorf("unsupported kv operation '%s'", op)
+	}
+
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = resultsString
+	e.storeScriptOutput(elem.OutputVar, rawOutput)
+	appendWithDuration(res)
+	return false
+}
+
+// executeBadgerKVNode handles single KV operations (GET, PUT, DELETE, SCAN) on BadgerDB.
+func (e *Executor) executeBadgerKVNode(ctx context.Context, elem KVElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		r.Duration = time.Since(startTime).String()
+		e.appendResult(results, r)
+	}
+
+	badgerDB, err := e.registry.GetBadgerDB(elem.DBName)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	variables := e.registry.CopyVariables()
+	bucketName := interpolateVars(elem.Bucket, variables)
+	op := strings.ToLower(interpolateVars(elem.Op, variables))
+	keyStr := interpolateVars(elem.Key, variables)
+	valStr := interpolateVars(elem.Value, variables)
+
+	if op == "" && elem.Code != "" {
+		code := interpolateVars(elem.Code, variables)
+		parts := strings.Fields(code)
+		if len(parts) > 0 {
+			op = strings.ToLower(parts[0])
+		}
+		if len(parts) > 1 && keyStr == "" {
+			keyStr = parts[1]
+		}
+		if len(parts) > 2 && valStr == "" {
+			valStr = strings.Join(parts[2:], " ")
+		}
+	}
+
+	if bucketName == "" {
+		bucketName = "default"
+	}
+
+	var resultsString string
+	var rawOutput string
+	var returnedRows int64 = 0
+
+	switch op {
+	case "put", "set":
+		err = badgerDB.Update(func(txn *badger.Txn) error {
+			return txn.Set(badgerKey(bucketName, keyStr), []byte(valStr))
+		})
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "delete", "del":
+		err = badgerDB.Update(func(txn *badger.Txn) error {
+			return txn.Delete(badgerKey(bucketName, keyStr))
+		})
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "get":
+		var valCopy []byte
+		err = badgerDB.View(func(txn *badger.Txn) error {
+			item, err := txn.Get(badgerKey(bucketName, keyStr))
+			if err != nil {
+				return err
+			}
+			return item.Value(func(v []byte) error {
+				valCopy = append([]byte{}, v...)
+				return nil
+			})
+		})
+		if err == nil {
+			returnedRows = 1
+			rawOutput = string(valCopy)
+			resultsString = fmt.Sprintf("KEY\tVALUE\n%s\t%s\n\n(1 row(s) returned)\n", keyStr, rawOutput)
+		} else if err == badger.ErrKeyNotFound {
+			err = nil
+			resultsString = "\n(0 row(s) returned)\n"
+		}
+
+	case "scan", "list":
+		var buf bytes.Buffer
+		buf.WriteString("KEY\tVALUE\n")
+		prefix := []byte(fmt.Sprintf("%s:%s", bucketName, keyStr))
+		prefixTrim := fmt.Sprintf("%s:", bucketName)
+
+		err = badgerDB.View(func(txn *badger.Txn) error {
+			it := txn.NewIterator(badger.DefaultIteratorOptions)
+			defer it.Close()
+
+			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+				item := it.Item()
+				k := item.Key()
+				displayKey := strings.TrimPrefix(string(k), prefixTrim)
+
+				_ = item.Value(func(v []byte) error {
+					buf.WriteString(fmt.Sprintf("%s\t%s\n", displayKey, string(v)))
+					return nil
+				})
+				returnedRows++
+			}
+			return nil
+		})
+		if err == nil {
+			rawOutput = buf.String()
+			resultsString = fmt.Sprintf("%s\n(%d row(s) returned)\n", rawOutput, returnedRows)
+		}
+
+	default:
+		err = fmt.Errorf("unsupported kv operation '%s'", op)
+	}
+
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = resultsString
+	e.storeScriptOutput(elem.OutputVar, rawOutput)
+	appendWithDuration(res)
 	return false
 }

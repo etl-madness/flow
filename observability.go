@@ -349,6 +349,16 @@ func redactErrorMessage(message string) string {
 
 func nodeIdentity(node PipelineNode) (string, string) {
 	switch node.Kind {
+	case NodeKV:
+		if node.KV != nil {
+			return "kv", node.KV.ID
+		}
+		return "kv", ""
+	case NodeKVBulk:
+		if node.KVBulk != nil {
+			return "kv_bulk", node.KVBulk.ID
+		}
+		return "kv_bulk", ""
 	case NodeAssert:
 		return "assert", node.Assert.ID
 	case NodeSQL:
