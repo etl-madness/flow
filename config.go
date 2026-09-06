@@ -172,6 +172,7 @@ type AssertElement struct {
 	OnFailure    string         `xml:"on_failure,attr"` // "halt", "warn", "continue", "set_var"
 	FailVar      string         `xml:"fail_var,attr"`
 	FailVal      string         `xml:"fail_val,attr"`
+	Description  string         `xml:"description,attr"`
 	FailureNodes []PipelineNode // Nodes inside <on_failure> block
 }
 type YamlPathElement struct {
@@ -515,6 +516,8 @@ case "kv_bulk":
 				elem.FailVar = attr.Value
 			case "fail_val":
 				elem.FailVal = attr.Value
+			case "description":
+				elem.Description = attr.Value
 			}
 		}
 		if elem.ID == "" {

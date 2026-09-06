@@ -577,6 +577,11 @@
                 <xs:documentation>Value assigned to fail_var on failure (defaults to true).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
+        <xs:attribute name="description" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Human-readable description of the assertion step.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:complexType>
 
     <!-- SCRIPT NODE -->
@@ -1097,10 +1102,11 @@
     </xs:complexType>
 
     <!-- FOREACH / LOOP NODE -->
-    <xs:complexType name="ForEachType">
+    <xs:complexType name="ForEachType" mixed="true">
         <xs:annotation>
             <xs:documentation>Executes child nodes for each record returned by the driver SQL query,
-                mapping columns to variables.</xs:documentation>
+                mapping columns to variables. The driver query can be supplied as inline SQL text inside
+                the element body or via the var / variable attribute.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">

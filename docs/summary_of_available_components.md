@@ -389,6 +389,7 @@ The `<assert>` element checks whether a pipeline variable meets an expected cond
 | `on_failure` | No | Failure action. `halt` (the default) stops the pipeline; `warn` and `continue` record a warning and allow it to continue. Any unrecognized value also halts the pipeline. |
 | `fail_var` | No | Name of a pipeline variable set when the assertion fails. |
 | `fail_val` | No | Value assigned to `fail_var` on failure. Defaults to `true` when omitted. |
+| `description` | No | Human-readable description of the assertion step. |
 | `on_failure` child element | No | Nested pipeline nodes to execute only when the assertion fails, such as cleanup or notification steps. |
 
 Notes:
