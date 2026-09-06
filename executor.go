@@ -2827,8 +2827,9 @@ func (e *Executor) executeRedisKVNode(ctx context.Context, elem KVElement, resul
 
 		iter := client.Scan(ctx, 0, prefix+"*", 0).Iterator()
 		for iter.Next(ctx) {
-			if err := ctx.Err(); err != nil {
-				return err
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				err = ctxErr
+				break
 			}
 
 			fullKey := iter.Val()
