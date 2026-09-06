@@ -1102,11 +1102,11 @@
     </xs:complexType>
 
     <!-- FOREACH / LOOP NODE -->
-    <xs:complexType name="ForEachType" mixed="true">
+    <xs:complexType name="ForEachType">
         <xs:annotation>
             <xs:documentation>Executes child nodes for each record returned by the driver SQL query,
-                mapping columns to variables. The driver query can be supplied as inline SQL text inside
-                the element body or via the var / variable attribute.</xs:documentation>
+                mapping columns to variables. The driver query can be supplied as inline SQL text
+                inside the element body or via the var / variable attribute.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">
