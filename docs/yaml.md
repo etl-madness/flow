@@ -1,25 +1,25 @@
 # Overview of the `<yaml_path>` Node in Flow
 
-The `<yaml_path>` node in `flow` enables evaluating path queries against raw YAML content loaded from disk files or stored inside pipeline variables[cite: 1, 2, 4]. It converts YAML structures into normalized JSON in memory and evaluates path expressions, writing the output back to downstream pipeline variables.
+The `<yaml_path>` node in `flow` enables evaluating path queries against raw YAML content loaded from disk files or stored inside pipeline variables. It converts YAML structures into normalized JSON in memory and evaluates path expressions, writing the output back to downstream pipeline variables.
 
 ## Key Attributes
 
-* **`file`**: (Optional) Path to a `.yaml` or `.yml` file on disk[cite: 1, 2]. Supports `{{VarName}}` variable interpolation.
-* **`var`**: (Optional) Pipeline environment variable containing raw YAML text[cite: 1, 2].
-* **`path` / `yamlpath`**: (Optional) The path query expression to evaluate[cite: 1, 2]. Alternatively, the path expression can be written inside the element body[cite: 2, 4].
-* **`mode`**: (Optional) Format of the extracted output[cite: 1, 2, 4]:
-  * `value` (Default): Returns scalar text or line-separated value matches[cite: 1, 2, 4].
-  * `json`: Returns extracted sub-objects as a formatted JSON string[cite: 2, 4].
-  * `json_array`: Serializes all matched nodes into a JSON array string[cite: 1, 2, 4].
-  * `yaml`: Serializes matched nodes back into clean YAML block format[cite: 2, 4].
-* **`output_var` / `out_var`**: Target pipeline environment variable where extracted results will be saved[cite: 1, 2, 4].
+* **`file`**: (Optional) Path to a `.yaml` or `.yml` file on disk. Supports `{{VarName}}` variable interpolation.
+* **`var`**: (Optional) Pipeline environment variable containing raw YAML text.
+* **`path` / `yamlpath`**: (Optional) The path query expression to evaluate. Alternatively, the path expression can be written inside the element body.
+* **`mode`**: (Optional) Format of the extracted output:
+  * `value` (Default): Returns scalar text or line-separated value matches.
+  * `json`: Returns extracted sub-objects as a formatted JSON string.
+  * `json_array`: Serializes all matched nodes into a JSON array string.
+  * `yaml`: Serializes matched nodes back into clean YAML block format.
+* **`output_var` / `out_var`**: Target pipeline environment variable where extracted results will be saved.
 
 ---
 
 ## Examples
 
 ### 1. Extracting a Database Host from a Configuration File
-Load a service configuration file and extract a scalar database connection string[cite: 2, 4].
+Load a service configuration file and extract a scalar database connection string.
 
 ```xml
 <pipeline>

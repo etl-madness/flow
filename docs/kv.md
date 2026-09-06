@@ -1,13 +1,13 @@
 # Key-Value (KV) Store Integration
 
-This guide covers how to configure and execute operations against Key-Value databases within the `flow` pipeline orchestration library. The engine supports both embedded key-value stores (`bbolt`, `BadgerDB`) and server-based instances (`Redis/Valkey`, `etcd`)[cite: 1].
+This guide covers how to configure and execute operations against Key-Value databases within the `flow` pipeline orchestration library. The engine supports both embedded key-value stores (`bbolt`, `BadgerDB`) and server-based instances (`Redis/Valkey`, `etcd`).
 
 ---
 
 ## Overview
 
 The KV engine provides two primary execution nodes:
-* **`<kv>`**: Executes individual atomic operations (`get`, `put`/`set`, `delete`/`del`, `scan`/`list`). Returns logs and outputs compatible with standard `<sql>` nodes[cite: 1, 3].
+* **`<kv>`**: Executes individual atomic operations (`get`, `put`/`set`, `delete`/`del`, `scan`/`list`). Returns logs and outputs compatible with standard `<sql>` nodes.
 * **`<kv_bulk>`**: Performs high-throughput streaming and ETL between SQL databases and Key-Value stores. Reports progress compatible with `<sql_bulk>` nodes.
 
 ---
@@ -16,19 +16,19 @@ The KV engine provides two primary execution nodes:
 
 | Driver Name | Type | Connection String Syntax | Primary Use Case |
 | :--- | :--- | :--- | :--- |
-| **`bbolt`** / **`bolt`** | Embedded | `/path/to/database.db` | Lightweight local caching, transactional state persistence[cite: 1] |
-| **`badger`** | Embedded | `/path/to/data_dir` | High-write throughput embedded storage[cite: 1] |
-| **`redis`** / **`valkey`** | Server | `redis://:password@localhost:6379/0` | High-speed shared in-memory caching and messaging[cite: 1] |
-| **`etcd`** | Server | `http://127.0.0.1:2379,http://127.0.0.1:22379` | Distributed consensus, dynamic configuration management[cite: 1] |
+| **`bbolt`** / **`bolt`** | Embedded | `/path/to/database.db` | Lightweight local caching, transactional state persistence |
+| **`badger`** | Embedded | `/path/to/data_dir` | High-write throughput embedded storage |
+| **`redis`** / **`valkey`** | Server | `redis://:password@localhost:6379/0` | High-speed shared in-memory caching and messaging |
+| **`etcd`** | Server | `http://127.0.0.1:2379,http://127.0.0.1:22379` | Distributed consensus, dynamic configuration management |
 
 ---
 
 ## Database Configuration
 
-Define KV connections inside the `<databases>` XML container[cite: 1, 8]. Connection strings support standard variable interpolation (`{{VarName}}`)[cite: 1, 5, 8].
+Define KV connections inside the `<databases>` XML container. Connection strings support standard variable interpolation (`{{VarName}}`).
 
 ### Embedded Key-Value Database (`bbolt`)
-For embedded stores like `bbolt`, pass the target file path in `connection_string`[cite: 1, 8]. The engine creates parent directories automatically if they do not exist.
+For embedded stores like `bbolt`, pass the target file path in `connection_string`. The engine creates parent directories automatically if they do not exist.
 
 ```xml
 <databases>

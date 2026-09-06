@@ -17,17 +17,17 @@
 ---
 ## 🐚 OS Shell & Command Execution
 
-`flow` supports, in addition to database connections, the execution of native host shell commands and binaries directly on the operating system without passing through the Go interpreter[cite: 4]. Supported `language` options on `<script>` tags include:
+`flow` supports, in addition to database connections, the execution of native host shell commands and binaries directly on the operating system without passing through the Go interpreter. Supported `language` options on `<script>` tags include:
 
-* **`shell`**: Cross-platform default shell (`cmd /C` on Windows, `sh -c` on Linux/macOS)[cite: 4].
-* **`cmd`**: Windows Command Prompt (`cmd /C`)[cite: 4].
-* **`powershell,pwsh`**: Windows PowerShell (`powershell -NoProfile -NonInteractive -Command`)[cite: 4].
-* **`bash,zsh,ksh,csh,tcsh,dash,fish,sh`**: Various Unix shells (`bash -c`, `zsh -c`, etc.)[cite: 4].
+* **`shell`**: Cross-platform default shell (`cmd /C` on Windows, `sh -c` on Linux/macOS).
+* **`cmd`**: Windows Command Prompt (`cmd /C`).
+* **`powershell,pwsh`**: Windows PowerShell (`powershell -NoProfile -NonInteractive -Command`).
+* **`bash,zsh,ksh,csh,tcsh,dash,fish,sh`**: Various Unix shells (`bash -c`, `zsh -c`, etc.).
 * **`dotnet-script`** (or **`csx`**): Executed using C# script files with `dotnet-script` or `dotnet script`. Allows full inline C# execution including external NuGet package references (`#r "nuget: ..."`). This requires the `dotnet-script` tool to be installed on the host machine and the ability to create temporary files.
 
 ### Key Capabilities
-* **Variable Interpolation**: Use `{{var_name}}` syntax inside script bodies to dynamically inject pipeline variables[cite: 3, 4].
-* **Output Capture**: Define the `output_var` attribute to save standard output/error into a pipeline variable for downstream consumption by SQL or Go steps[cite: 2, 4].
+* **Variable Interpolation**: Use `{{var_name}}` syntax inside script bodies to dynamically inject pipeline variables.
+* **Output Capture**: Define the `output_var` attribute to save standard output/error into a pipeline variable for downstream consumption by SQL or Go steps.
 
 ### XML Examples
 

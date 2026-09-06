@@ -31,6 +31,7 @@ import (
 	"github.com/traefik/yaegi/stdlib"
 	"github.com/xuri/excelize/v2"
 	goBolt "go.etcd.io/bbolt"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -1947,7 +1948,7 @@ func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, re
 		expectedVal = elem.Value
 	}
 
-	// 1. Evaluate Condition using engine's evalCondition[cite: 4]
+	// 1. Evaluate Condition using engine's evalCondition
 	passed := e.evalCondition(elem.Var, expectedVal)
 
 	if !passed {
@@ -1970,7 +1971,7 @@ func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, re
 			if e.verbose.Load() {
 				fmt.Printf("Assertion %q failed. Executing fallback <on_failure> block...", elem.ID)
 			}
-			// Execute nested child nodes recursively[cite: 4]
+			// Execute nested child nodes recursively
 			_ = e.executeNodes(ctx, elem.FailureNodes, results)
 		}
 
@@ -1980,7 +1981,7 @@ func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, re
 		// 4. Action C: Determine whether to Halt or Continue
 		switch actionStr {
 		case "warn", "continue":
-			// Log as a warning but DO NOT halt execution (return false)[cite: 4]
+			// Log as a warning but DO NOT halt execution (return false)
 			res.ReturnCode = 0
 			res.ResultsString = fmt.Sprintf("WARNING: %s (Pipeline continuing)", errMsg)
 			e.appendResult(results, res)
@@ -1989,7 +1990,7 @@ func (e *Executor) executeAssertNode(ctx context.Context, elem AssertElement, re
 		case "halt", "":
 			fallthrough
 		default:
-			// Default Fail-Fast behavior: halt pipeline (return true)[cite: 4]
+			// Default Fail-Fast behavior: halt pipeline (return true)
 			res.ReturnCode = errMsg
 			res.ResultsString = fmt.Sprintf("CRITICAL ASSERTION FAILURE: %s", errMsg)
 			e.appendResult(results, res)
@@ -2016,7 +2017,9 @@ func (e *Executor) executeKVNode(ctx context.Context, elem KVElement, results *[
 	if _, err := e.registry.GetBoltDB(elem.DBName); err == nil {
 		return e.executeBoltKVNode(ctx, elem, results)
 	}
-
+	if _, err := e.registry.GetEtcdDB(elem.DBName); err == nil {
+		return e.executeEtcdKVNode(ctx, elem, results)
+	}
 	// 3. Check for server-based instances (Redis/Valkey, etcd) when added
 	// if _, err := e.registry.GetRedisDB(elem.DBName); err == nil {
 	// 	return e.executeRedisKVNode(ctx, elem, results)
@@ -2077,7 +2080,9 @@ func (e *Executor) executeKVBulkNode(ctx context.Context, elem KVBulkElement, re
 	var err error
 
 	// 2. Dispatch to target Key-Value engine
-	if badgerDB, bErr := e.registry.GetBadgerDB(targetDB); bErr == nil {
+	if etcdClient, eErr := e.registry.GetEtcdDB(targetDB); eErr == nil {
+		totalCopied, err = e.executeEtcdBulk(ctx, etcdClient, srcDB, queryStr, targetBucket, batchSize)
+	} else if badgerDB, bErr := e.registry.GetBadgerDB(targetDB); bErr == nil {
 		totalCopied, err = e.executeBadgerBulk(ctx, badgerDB, srcDB, queryStr, targetBucket, batchSize)
 	} else if boltDB, bErr := e.registry.GetBoltDB(targetDB); bErr == nil {
 		totalCopied, err = e.executeBoltBulk(ctx, boltDB, srcDB, queryStr, targetBucket, batchSize)
@@ -2530,4 +2535,183 @@ func (e *Executor) executeBadgerKVNode(ctx context.Context, elem KVElement, resu
 	e.storeScriptOutput(elem.OutputVar, rawOutput)
 	appendWithDuration(res)
 	return false
+}
+func etcdKey(bucket, key string) string {
+	if bucket == "" {
+		bucket = "default"
+	}
+	return fmt.Sprintf("%s:%s", bucket, key)
+}
+
+// executeEtcdKVNode executes single KV operations (GET, PUT, DELETE, SCAN) against etcd clusters.
+func (e *Executor) executeEtcdKVNode(ctx context.Context, elem KVElement, results *[]ScriptResult) bool {
+	startTime := time.Now()
+	res := ScriptResult{ScriptID: elem.ID}
+
+	appendWithDuration := func(r ScriptResult) {
+		r.Duration = time.Since(startTime).String()
+		e.appendResult(results, r)
+	}
+
+	cli, err := e.registry.GetEtcdDB(elem.DBName)
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	variables := e.registry.CopyVariables()
+	bucketName := interpolateVars(elem.Bucket, variables)
+	op := strings.ToLower(interpolateVars(elem.Op, variables))
+	keyStr := interpolateVars(elem.Key, variables)
+	valStr := interpolateVars(elem.Value, variables)
+
+	if op == "" && elem.Code != "" {
+		code := interpolateVars(elem.Code, variables)
+		parts := strings.Fields(code)
+		if len(parts) > 0 {
+			op = strings.ToLower(parts[0])
+		}
+		if len(parts) > 1 && keyStr == "" {
+			keyStr = parts[1]
+		}
+		if len(parts) > 2 && valStr == "" {
+			valStr = strings.Join(parts[2:], " ")
+		}
+	}
+
+	if bucketName == "" {
+		bucketName = "default"
+	}
+
+	var resultsString string
+	var rawOutput string
+	var returnedRows int64 = 0
+
+	k := etcdKey(bucketName, keyStr)
+
+	switch op {
+	case "put", "set":
+		_, err = cli.Put(ctx, k, valStr)
+		if err == nil {
+			rawOutput = "1"
+			resultsString = "(1 row(s) affected)\n"
+		}
+
+	case "delete", "del":
+		var delResp *clientv3.DeleteResponse
+		delResp, err = cli.Delete(ctx, k)
+		if err == nil {
+			rawOutput = fmt.Sprintf("%d", delResp.Deleted)
+			resultsString = fmt.Sprintf("(%d row(s) affected)\n", delResp.Deleted)
+		}
+
+	case "get":
+		var getResp *clientv3.GetResponse
+		getResp, err = cli.Get(ctx, k)
+		if err == nil {
+			if len(getResp.Kvs) > 0 {
+				returnedRows = 1
+				rawOutput = string(getResp.Kvs[0].Value)
+				resultsString = fmt.Sprintf("KEY\tVALUE\n%s\t%s\n\n(1 row(s) returned)\n", keyStr, rawOutput)
+			} else {
+				resultsString = "\n(0 row(s) returned)\n"
+			}
+		}
+
+	case "scan", "list":
+		prefix := etcdKey(bucketName, keyStr)
+		prefixTrim := fmt.Sprintf("%s:", bucketName)
+
+		var getResp *clientv3.GetResponse
+		getResp, err = cli.Get(ctx, prefix, clientv3.WithPrefix())
+		if err == nil {
+			var buf bytes.Buffer
+			buf.WriteString("KEY\tVALUE\n")
+			for _, kv := range getResp.Kvs {
+				displayKey := strings.TrimPrefix(string(kv.Key), prefixTrim)
+				buf.WriteString(fmt.Sprintf("%s\t%s\n", displayKey, string(kv.Value)))
+				returnedRows++
+			}
+			rawOutput = buf.String()
+			resultsString = fmt.Sprintf("%s\n(%d row(s) returned)\n", rawOutput, returnedRows)
+		}
+
+	default:
+		err = fmt.Errorf("unsupported kv operation '%s'", op)
+	}
+
+	if err != nil {
+		res.ReturnCode = err.Error()
+		appendWithDuration(res)
+		return true
+	}
+
+	res.ReturnCode = 0
+	res.ResultsString = resultsString
+	e.storeScriptOutput(elem.OutputVar, rawOutput)
+	appendWithDuration(res)
+	return false
+}
+
+// executeEtcdBulk streams SQL query rows directly into etcd key namespaces.
+func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+	sqlHandle, err := e.registry.GetDBHandle(srcDB)
+	if err != nil {
+		return 0, fmt.Errorf("source database error: %w", err)
+	}
+
+	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	if err != nil {
+		return 0, fmt.Errorf("source query error: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
+	}
+	if len(cols) < 2 {
+		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
+	}
+
+	var totalCopied int64
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return totalCopied, ctx.Err()
+		default:
+		}
+
+		var kStr, vStr string
+		if len(cols) == 2 {
+			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+		} else {
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
+			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
+			}
+			kStr = fmt.Sprintf("%v", vals[0])
+			vStr = fmt.Sprintf("%v", vals[1])
+		}
+
+		key := etcdKey(targetBucket, kStr)
+		if _, pErr := etcdClient.Put(ctx, key, vStr); pErr != nil {
+			return totalCopied, fmt.Errorf("etcd put error: %w", pErr)
+		}
+		totalCopied++
+	}
+
+	if err := rows.Err(); err != nil {
+		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return totalCopied, nil
 }

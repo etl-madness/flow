@@ -4,41 +4,41 @@
     <!-- ROOT ELEMENT -->
     <xs:element name="pipeline">
         <xs:annotation>
-            <xs:documentation>Root element for an ETL data pipeline orchestration definition[cite:
-                1, 8]. Encapsulates global variables, database handles, preflight validations, and
-                execution flow nodes[cite: 1, 8].</xs:documentation>
+            <xs:documentation>Root element for an ETL data pipeline orchestration definition.
+                Encapsulates global variables, database handles, preflight validations, and
+                execution flow nodes.</xs:documentation>
         </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1">
                     <xs:annotation>
                         <xs:documentation>Container for initial pipeline environment variable
-                            declarations[cite: 1, 8].</xs:documentation>
+                            declarations.</xs:documentation>
                     </xs:annotation>
                 </xs:element>
                 <xs:element name="databases" type="DatabasesType" minOccurs="0" maxOccurs="1">
                     <xs:annotation>
                         <xs:documentation>Container for database connection configurations,
-                            connection pooling, and workload profile setup[cite: 1, 8].</xs:documentation>
+                            connection pooling, and workload profile setup.</xs:documentation>
                     </xs:annotation>
                 </xs:element>
                 <xs:element name="preflight" type="PipelineNodesType" minOccurs="0" maxOccurs="1">
                     <xs:annotation>
                         <xs:documentation>Preflight execution block containing validation and
-                            initialization tasks run prior to the main flow[cite: 1, 8].</xs:documentation>
+                            initialization tasks run prior to the main flow.</xs:documentation>
                     </xs:annotation>
                 </xs:element>
                 <xs:element name="flow" type="PipelineNodesType" minOccurs="0" maxOccurs="1">
                     <xs:annotation>
                         <xs:documentation>Main execution block containing the primary sequential,
-                            conditional, parallel, or iterative pipeline steps[cite: 1, 8].</xs:documentation>
+                            conditional, parallel, or iterative pipeline steps.</xs:documentation>
                     </xs:annotation>
                 </xs:element>
             </xs:sequence>
             <xs:attribute name="description" type="xs:string" use="optional">
                 <xs:annotation>
                     <xs:documentation>Human-readable summary or metadata description of the
-                        pipeline[cite: 8].</xs:documentation>
+                        pipeline.</xs:documentation>
                 </xs:annotation>
             </xs:attribute>
         </xs:complexType>
@@ -47,44 +47,41 @@
     <!-- VARIABLE DEFINITIONS -->
     <xs:complexType name="VariablesType">
         <xs:annotation>
-            <xs:documentation>Defines a collection of dynamic pipeline environment variables[cite:
-                1, 8].</xs:documentation>
+            <xs:documentation>Defines a collection of dynamic pipeline environment variables.</xs:documentation>
         </xs:annotation>
         <xs:sequence>
             <xs:element name="variable" type="VariableType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
-                    <xs:documentation>An individual variable declaration with type parsing[cite: 1,
-                        8].</xs:documentation>
+                    <xs:documentation>An individual variable declaration with type parsing.</xs:documentation>
                 </xs:annotation>
             </xs:element>
         </xs:sequence>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of the variables section[cite: 8].</xs:documentation>
+                <xs:documentation>Description of the variables section.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
 
     <xs:complexType name="VariableType">
         <xs:annotation>
-            <xs:documentation>Initializes a named pipeline variable with explicit type
-                conversion[cite: 1, 5, 8].</xs:documentation>
+            <xs:documentation>Initializes a named pipeline variable with explicit type conversion.</xs:documentation>
         </xs:annotation>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Optional unique identifier for the variable definition[cite: 8].</xs:documentation>
+                <xs:documentation>Optional unique identifier for the variable definition.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="name" type="xs:string" use="required">
             <xs:annotation>
                 <xs:documentation>Variable identifier used for interpolation (e.g., {{VarName}}) or
-                    environment lookup[cite: 1, 8].</xs:documentation>
+                    environment lookup.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="type" use="optional" default="string">
             <xs:annotation>
-                <xs:documentation>Data type for parsing (defaults to string)[cite: 1, 8]. Converts
-                    raw strings to int, bool, float, or datetime values[cite: 1, 5, 8].</xs:documentation>
+                <xs:documentation>Data type for parsing (defaults to string). Converts raw strings
+                    to int, bool, float, or datetime values.</xs:documentation>
             </xs:annotation>
             <xs:simpleType>
                 <xs:restriction base="xs:string">
@@ -103,12 +100,12 @@
         </xs:attribute>
         <xs:attribute name="value" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>Initial scalar string value assigned to the variable[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Initial scalar string value assigned to the variable.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of the variable's usage or source[cite: 8].</xs:documentation>
+                <xs:documentation>Description of the variable's usage or source.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -116,19 +113,18 @@
     <!-- DATABASE DEFINITIONS -->
     <xs:complexType name="DatabasesType">
         <xs:annotation>
-            <xs:documentation>Container for relational and key-value database connection
-                handles[cite: 1, 8].</xs:documentation>
+            <xs:documentation>Container for relational and key-value database connection handles.</xs:documentation>
         </xs:annotation>
         <xs:sequence>
             <xs:element name="database" type="DatabaseType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
-                    <xs:documentation>Individual database target definition[cite: 1, 8].</xs:documentation>
+                    <xs:documentation>Individual database target definition.</xs:documentation>
                 </xs:annotation>
             </xs:element>
         </xs:sequence>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of the database connection block[cite: 8].</xs:documentation>
+                <xs:documentation>Description of the database connection block.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -136,63 +132,59 @@
     <xs:complexType name="DatabaseType">
         <xs:annotation>
             <xs:documentation>Configures relational (e.g., SQL Server, PostgreSQL, MySQL, SQLite,
-                Oracle) or embedded Key-Value handles (e.g., bbolt, BadgerDB)[cite: 1, 5, 8].</xs:documentation>
+                Oracle) or embedded Key-Value handles (e.g., bbolt, BadgerDB, Redis, etcd).</xs:documentation>
         </xs:annotation>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Optional internal identifier for the database item[cite: 8].</xs:documentation>
+                <xs:documentation>Optional internal identifier for the database item.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="name" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>Unique alias name referenced by pipeline execution nodes[cite: 1,
-                    8].</xs:documentation>
+                <xs:documentation>Unique alias name referenced by pipeline execution nodes.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="driver" type="xs:string" use="optional">
             <xs:annotation>
                 <xs:documentation>Driver protocol (e.g., postgres, mysql, sqlite, sqlserver, oracle,
-                    bbolt, badger, redis, etcd)[cite: 1, 5, 8].</xs:documentation>
+                    bbolt, badger, redis, etcd).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="type" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for driver[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for driver.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="connection_string" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>DSN, connection string, or embedded DB file path. Supports
-                    {{VarName}} interpolation[cite: 1, 5, 8].</xs:documentation>
+                <xs:documentation>DSN, connection URI, or embedded DB file/directory path. Supports
+                    {{VarName}} interpolation.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="max_open_conns" type="xs:positiveInteger" use="optional">
             <xs:annotation>
-                <xs:documentation>Maximum concurrent open connections in the pool (defaults to
-                    25)[cite: 1, 5, 8].</xs:documentation>
+                <xs:documentation>Maximum concurrent open connections in the pool (defaults to 25).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="max_idle_conns" type="xs:positiveInteger" use="optional">
             <xs:annotation>
-                <xs:documentation>Maximum idle connections retained in the pool (defaults to
-                    10)[cite: 1, 5, 8].</xs:documentation>
+                <xs:documentation>Maximum idle connections retained in the pool (defaults to 10).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="conn_max_lifetime_seconds" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Maximum duration a connection is recycled (e.g., 5m or 300)[cite:
-                    1, 5, 8].</xs:documentation>
+                <xs:documentation>Maximum duration a connection is recycled (e.g., 5m or 300).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="workload" type="xs:string" use="optional">
             <xs:annotation>
                 <xs:documentation>Workload profile metadata for driver tuning (e.g., oltp, bulk,
-                    analytics)[cite: 1, 8].</xs:documentation>
+                    analytics).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of the database target[cite: 8].</xs:documentation>
+                <xs:documentation>Description of the database target.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -200,26 +192,25 @@
     <!-- RECURSIVE NODE CONTAINER -->
     <xs:complexType name="PipelineNodesType">
         <xs:annotation>
-            <xs:documentation>Polymorphic sequence container holding executable pipeline AST
-                steps[cite: 1, 8].</xs:documentation>
+            <xs:documentation>Polymorphic sequence container holding executable pipeline AST steps.</xs:documentation>
         </xs:annotation>
         <xs:choice minOccurs="0" maxOccurs="unbounded">
             <xs:element name="script" type="ScriptType">
                 <xs:annotation>
                     <xs:documentation>Executes code in Go (Yaegi), Shell (Bash, PowerShell, Cmd), or
-                        .NET Script (CSX)[cite: 1, 3, 8].</xs:documentation>
+                        .NET Script (CSX).</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="sql" type="SqlType">
                 <xs:annotation>
                     <xs:documentation>Executes SQL statements, DDL, DML, or queries on a registered
-                        database[cite: 1, 3, 8].</xs:documentation>
+                        database.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="sql_bulk" type="SqlBulkType">
                 <xs:annotation>
                     <xs:documentation>Performs high-performance bulk streaming copy between query
-                        sources and database target tables[cite: 1, 2, 8].</xs:documentation>
+                        sources and database target tables.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="kv" type="KVType">
@@ -230,109 +221,107 @@
             </xs:element>
             <xs:element name="kv_bulk" type="KVBulkType">
                 <xs:annotation>
-                    <xs:documentation>Streams bulk datasets between SQL source queries and Key-Value
-                        database buckets/namespaces.</xs:documentation>
+                    <xs:documentation>Streams bulk datasets directly between relational SQL source
+                        queries and Key-Value database buckets or key prefix namespaces.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="group" type="GroupType">
                 <xs:annotation>
                     <xs:documentation>Groups child steps sequentially with optional conditional
-                        evaluation and transaction wrapping[cite: 1, 3, 8].</xs:documentation>
+                        evaluation and transaction wrapping.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="parallel" type="ParallelType">
                 <xs:annotation>
                     <xs:documentation>Executes child steps concurrently across worker threads with
-                        isolated scopes[cite: 1, 3, 8].</xs:documentation>
+                        isolated scopes.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="if" type="IfType">
                 <xs:annotation>
                     <xs:documentation>Conditional branching block evaluating pipeline variables or
-                        expressions[cite: 1, 3, 8].</xs:documentation>
+                        expressions.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="foreach" type="ForEachType">
                 <xs:annotation>
                     <xs:documentation>Iterates over rows returned by a SQL query driver, binding
-                        columns as loop variables[cite: 1, 3, 8].</xs:documentation>
+                        columns as loop variables.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="loop" type="ForEachType">
                 <xs:annotation>
-                    <xs:documentation>Alias for foreach[cite: 1, 8].</xs:documentation>
+                    <xs:documentation>Alias for foreach.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="while" type="WhileType">
                 <xs:annotation>
                     <xs:documentation>Repeats execution of child steps while a variable condition
-                        evaluates to true[cite: 1, 3, 8].</xs:documentation>
+                        evaluates to true.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="http_client" type="HttpClientType">
                 <xs:annotation>
                     <xs:documentation>Dispatches HTTP requests and captures response bodies and
-                        status codes[cite: 1, 3, 8].</xs:documentation>
+                        status codes.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="template" type="TemplateType">
                 <xs:annotation>
                     <xs:documentation>Renders Go text/template templates using current variable
-                        context[cite: 1, 3, 8].</xs:documentation>
+                        context.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="template_html" type="TemplateHtmlType">
                 <xs:annotation>
                     <xs:documentation>Renders Go html/template templates with contextual HTML
-                        escaping[cite: 1, 3, 8].</xs:documentation>
+                        escaping.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="file_save" type="FileSaveType">
                 <xs:annotation>
-                    <xs:documentation>Writes string payload or variable contents to disk[cite: 1, 3,
-                        8].</xs:documentation>
+                    <xs:documentation>Writes string payload or variable contents to disk.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="file_read" type="FileReadType">
                 <xs:annotation>
                     <xs:documentation>Reads raw file content from disk into a target pipeline
-                        variable[cite: 1, 3, 8].</xs:documentation>
+                        variable.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="excel_read" type="ExcelReadType">
                 <xs:annotation>
                     <xs:documentation>Reads an Excel worksheet and converts rows into a JSON array
-                        variable[cite: 1, 3, 8].</xs:documentation>
+                        variable.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="excel_write" type="ExcelWriteType">
                 <xs:annotation>
                     <xs:documentation>Executes a database query and writes result sets directly into
-                        an Excel worksheet[cite: 1, 3, 8].</xs:documentation>
+                        an Excel worksheet.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="xml_xpath" type="XmlXPathType">
                 <xs:annotation>
                     <xs:documentation>Evaluates XPath expressions against XML files or variable
-                        sources[cite: 1, 3, 8].</xs:documentation>
+                        sources.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="json_path" type="JsonPathType">
                 <xs:annotation>
                     <xs:documentation>Evaluates JSONPath expressions against JSON files or variable
-                        sources[cite: 1, 3, 8].</xs:documentation>
+                        sources.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="yaml_path" type="YamlPathType">
                 <xs:annotation>
-                    <xs:documentation>Evaluates path queries against YAML files or variable
-                        sources[cite: 1, 3, 8].</xs:documentation>
+                    <xs:documentation>Evaluates path queries against YAML files or variable sources.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="assert" type="AssertType">
                 <xs:annotation>
                     <xs:documentation>Validates pipeline conditions and controls flow continuation,
-                        warning, or fallback branches[cite: 1, 3, 8].</xs:documentation>
+                        warning, or fallback branches.</xs:documentation>
                 </xs:annotation>
             </xs:element>
         </xs:choice>
@@ -342,7 +331,7 @@
     <xs:complexType name="KVType">
         <xs:annotation>
             <xs:documentation>Executes atomic Key-Value database operations (GET, PUT, DELETE, SCAN)
-                against target KV stores.</xs:documentation>
+                against target KV stores (bbolt, BadgerDB, Redis, etcd).</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
@@ -363,13 +352,14 @@
                 </xs:attribute>
                 <xs:attribute name="bucket" type="xs:string" use="optional" default="default">
                     <xs:annotation>
-                        <xs:documentation>Bucket name (bbolt/BadgerDB) or key prefix/namespace
-                            (Redis/etcd). Defaults to 'default'.</xs:documentation>
+                        <xs:documentation>Bucket name (bbolt) or key prefix/namespace
+                            (BadgerDB/Redis/etcd). Defaults to 'default'.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="op" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>KV operation type: get, put, set, delete, del, or scan.</xs:documentation>
+                        <xs:documentation>KV operation type: get, put, set, delete, del, scan, or
+                            list.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="operation" type="xs:string" use="optional">
@@ -407,6 +397,11 @@
                     <xs:annotation>
                         <xs:documentation>Variable name that stores retrieved values or execution
                             output.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="output_variable" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
@@ -468,6 +463,12 @@
                             pairs.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="target_table" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Destination table name when exporting Key-Value records
+                            into a relational SQL database.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="batch_size" type="xs:positiveInteger" use="optional"
                     default="10000">
                     <xs:annotation>
@@ -491,6 +492,11 @@
                         <xs:documentation>Variable that receives the count of written records.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="output_variable" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Alias for output_var.</xs:documentation>
@@ -509,69 +515,66 @@
     <xs:element name="assert" type="AssertType">
         <xs:annotation>
             <xs:documentation>Asserts variable state and defines fallback behavior on condition
-                failure[cite: 1, 3, 8].</xs:documentation>
+                failure.</xs:documentation>
         </xs:annotation>
     </xs:element>
 
     <xs:complexType name="AssertType">
         <xs:annotation>
             <xs:documentation>Evaluates conditions against variables with halt, warn, continue, or
-                on_failure fallback blocks[cite: 1, 3, 8].</xs:documentation>
+                on_failure fallback blocks.</xs:documentation>
         </xs:annotation>
         <xs:sequence>
             <xs:element name="on_failure" type="PipelineNodesType" minOccurs="0" maxOccurs="1">
                 <xs:annotation>
-                    <xs:documentation>Child nodes executed when the assertion condition fails[cite:
-                        1, 3, 8].</xs:documentation>
+                    <xs:documentation>Child nodes executed when the assertion condition fails.</xs:documentation>
                 </xs:annotation>
             </xs:element>
         </xs:sequence>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Unique step identifier.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="var" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>Variable name or expression evaluated for condition checking[cite:
-                    1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable name or expression evaluated for condition checking.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="equals" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Expected string value required to pass assertion[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Expected string value required to pass assertion.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="value" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for equals[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Alias for equals.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="operator" type="xs:string" use="optional" default="eq">
             <xs:annotation>
-                <xs:documentation>Comparison operator (e.g., eq, ==, ne, !=)[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Comparison operator (e.g., eq, ==, ne, !=).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="message" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Message emitted when assertion fails[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Message emitted when assertion fails.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="on_failure" type="xs:string" use="optional" default="halt">
             <xs:annotation>
                 <xs:documentation>Action on failure: halt (stops pipeline execution), warn/continue
-                    (logs and continues), or set_var[cite: 1, 3, 8].</xs:documentation>
+                    (logs and continues), or set_var.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="fail_var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Variable set when assertion fails[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable set when assertion fails.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="fail_val" type="xs:string" use="optional" default="true">
             <xs:annotation>
-                <xs:documentation>Value assigned to fail_var on failure (defaults to true)[cite: 1,
-                    3, 8].</xs:documentation>
+                <xs:documentation>Value assigned to fail_var on failure (defaults to true).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -580,19 +583,19 @@
     <xs:complexType name="ScriptType">
         <xs:annotation>
             <xs:documentation>Executes dynamic code in Go, Shell, PowerShell, Bash, or .NET Script
-                (CSX)[cite: 1, 3, 8].</xs:documentation>
+                (CSX).</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="language" use="optional">
                     <xs:annotation>
                         <xs:documentation>Script runtime (e.g., go, shell, cmd, powershell, pwsh,
-                            bash, zsh, dotnet-script, csx)[cite: 1, 3, 8].</xs:documentation>
+                            bash, zsh, dotnet-script, csx).</xs:documentation>
                     </xs:annotation>
                     <xs:simpleType>
                         <xs:restriction base="xs:string">
@@ -618,37 +621,37 @@
                 </xs:attribute>
                 <xs:attribute name="lang" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for language[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for language.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable providing script body dynamically[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable providing script body dynamically.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for variable[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for variable.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving stdout/stderr output[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving stdout/stderr output.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of script action[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of script action.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -658,31 +661,28 @@
     <!-- HTTP CLIENT NODE -->
     <xs:complexType name="HttpClientType">
         <xs:annotation>
-            <xs:documentation>Sends HTTP requests with TLS, timeout, cookie, and proxy options[cite:
-                1, 3, 8].</xs:documentation>
+            <xs:documentation>Sends HTTP requests with TLS, timeout, cookie, and proxy options.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="uri" type="xs:string" use="required">
                     <xs:annotation>
-                        <xs:documentation>Endpoint URL. Supports {{VarName}} interpolation[cite: 3,
-                            8].</xs:documentation>
+                        <xs:documentation>Endpoint URL. Supports {{VarName}} interpolation.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="url" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for uri[cite: 3, 8].</xs:documentation>
+                        <xs:documentation>Alias for uri.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="method" use="optional" default="GET">
                     <xs:annotation>
-                        <xs:documentation>HTTP verb (GET, POST, PUT, DELETE, PATCH, HEAD,
-                            OPTIONS)[cite: 8].</xs:documentation>
+                        <xs:documentation>HTTP verb (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS).</xs:documentation>
                     </xs:annotation>
                     <xs:simpleType>
                         <xs:restriction base="xs:string">
@@ -700,184 +700,182 @@
                 </xs:attribute>
                 <xs:attribute name="data" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Request body payload[cite: 3, 8]. Supports variable
-                            interpolation and templating[cite: 3].</xs:documentation>
+                        <xs:documentation>Request body payload. Supports variable interpolation and
+                            templating.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="headers" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Custom headers in Header: Value format[cite: 3, 8].</xs:documentation>
+                        <xs:documentation>Custom headers in Header: Value format.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="content_type" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Content-Type request header (e.g., application/json)[cite:
-                            3, 8].</xs:documentation>
+                        <xs:documentation>Content-Type request header (e.g., application/json).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving response body text[cite: 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving response body text.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="status_code_var" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Variable receiving integer HTTP status code (e.g., 200,
-                            404)[cite: 3, 8].</xs:documentation>
+                            404).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="status_code_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for status_code_var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for status_code_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="status_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for status_code_var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for status_code_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="status_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for status_code_var[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for status_code_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Total request timeout duration (e.g., 30s, 2m)[cite: 8].</xs:documentation>
+                        <xs:documentation>Total request timeout duration (e.g., 30s, 2m).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_redirects" type="xs:nonNegativeInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum redirect hops allowed[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum redirect hops allowed.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="follow_redirects" type="xs:boolean" use="optional"
                     default="true">
                     <xs:annotation>
-                        <xs:documentation>Whether to follow HTTP redirects automatically[cite: 8].</xs:documentation>
+                        <xs:documentation>Whether to follow HTTP redirects automatically.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="cookie_jar" type="xs:boolean" use="optional" default="false">
                     <xs:annotation>
-                        <xs:documentation>Enables persistent in-memory cookie jar[cite: 8].</xs:documentation>
+                        <xs:documentation>Enables persistent in-memory cookie jar.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="proxy" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>HTTP/HTTPS proxy endpoint URL[cite: 8].</xs:documentation>
+                        <xs:documentation>HTTP/HTTPS proxy endpoint URL.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tls_insecure_skip_verify" type="xs:boolean" use="optional"
                     default="false">
                     <xs:annotation>
-                        <xs:documentation>Disables SSL/TLS certificate verification when true[cite:
-                            8].</xs:documentation>
+                        <xs:documentation>Disables SSL/TLS certificate verification when true.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tls_handshake_timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum duration for TLS handshake negotiation[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum duration for TLS handshake negotiation.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tls_server_name" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Server name for TLS SNI extension[cite: 8].</xs:documentation>
+                        <xs:documentation>Server name for TLS SNI extension.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tls_min_version" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Minimum accepted TLS version (e.g., 1.2, 1.3)[cite: 8].</xs:documentation>
+                        <xs:documentation>Minimum accepted TLS version (e.g., 1.2, 1.3).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tls_max_version" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum accepted TLS version (e.g., 1.3)[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum accepted TLS version (e.g., 1.3).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="disable_keep_alives" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Disables HTTP keep-alives and connection reuse[cite: 8].</xs:documentation>
+                        <xs:documentation>Disables HTTP keep-alives and connection reuse.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="disable_compression" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Disables Gzip transport compression[cite: 8].</xs:documentation>
+                        <xs:documentation>Disables Gzip transport compression.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_idle_conns" type="xs:nonNegativeInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum total idle connections across all hosts[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum total idle connections across all hosts.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_idle_conns_per_host" type="xs:nonNegativeInteger"
                     use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum idle connections per host[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum idle connections per host.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_conns_per_host" type="xs:nonNegativeInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum concurrent connections per target host[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum concurrent connections per target host.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="idle_conn_timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Maximum duration an idle connection stays open[cite: 8].</xs:documentation>
+                        <xs:documentation>Maximum duration an idle connection stays open.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="response_header_timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Timeout waiting for server response headers[cite: 8].</xs:documentation>
+                        <xs:documentation>Timeout waiting for server response headers.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="expect_continue_timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Timeout for Expect: 100-continue headers[cite: 8].</xs:documentation>
+                        <xs:documentation>Timeout for Expect: 100-continue headers.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_response_header_bytes" type="xs:long" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Limit on response header size in bytes[cite: 8].</xs:documentation>
+                        <xs:documentation>Limit on response header size in bytes.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="write_buffer_size" type="xs:nonNegativeInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Write buffer size in bytes[cite: 8].</xs:documentation>
+                        <xs:documentation>Write buffer size in bytes.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="read_buffer_size" type="xs:nonNegativeInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Read buffer size in bytes[cite: 8].</xs:documentation>
+                        <xs:documentation>Read buffer size in bytes.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="force_attempt_http2" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Forces HTTP/2 negotiation[cite: 8].</xs:documentation>
+                        <xs:documentation>Forces HTTP/2 negotiation.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the HTTP request step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the HTTP request step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -888,81 +886,78 @@
     <xs:complexType name="GroupType">
         <xs:annotation>
             <xs:documentation>Executes steps sequentially with optional condition checking and
-                transaction wrapping[cite: 1, 3, 8].</xs:documentation>
+                transaction wrapping.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique group identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique group identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable evaluated before executing child steps[cite: 1,
-                            8].</xs:documentation>
+                        <xs:documentation>Variable evaluated before executing child steps.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="equals" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Expected value required for execution[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Expected value required for execution.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="val" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="value" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_val" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_equals" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="condition" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Inline condition expression[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Inline condition expression.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="cond" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for condition[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for condition.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="transaction" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Wraps child steps in an atomic database transaction[cite:
-                            1, 3, 8].</xs:documentation>
+                        <xs:documentation>Wraps child steps in an atomic database transaction.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Database connection name for the transaction group[cite:
-                            1, 3, 8].</xs:documentation>
+                        <xs:documentation>Database connection name for the transaction group.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="database" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for db[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for db.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the group block[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the group block.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -973,28 +968,28 @@
     <xs:complexType name="ParallelType">
         <xs:annotation>
             <xs:documentation>Executes child steps concurrently across worker threads with isolated
-                variable registries[cite: 1, 3, 8].</xs:documentation>
+                variable registries.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">
                 <xs:attribute name="max_threads" type="xs:positiveInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Thread pool limit (defaults to 4)[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Thread pool limit (defaults to 4).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="threads" type="xs:positiveInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for max_threads[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for max_threads.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="concurrency" type="xs:positiveInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for max_threads[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for max_threads.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the parallel block[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the parallel block.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1005,19 +1000,17 @@
     <xs:complexType name="IfType">
         <xs:annotation>
             <xs:documentation>Evaluates boolean or string equality conditions to trigger then or
-                else sub-branches[cite: 1, 3, 8].</xs:documentation>
+                else sub-branches.</xs:documentation>
         </xs:annotation>
         <xs:sequence>
             <xs:element name="then" type="PipelineNodesType" minOccurs="0" maxOccurs="1">
                 <xs:annotation>
-                    <xs:documentation>Child nodes executed when condition evaluates to true[cite: 1,
-                        3, 8].</xs:documentation>
+                    <xs:documentation>Child nodes executed when condition evaluates to true.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="else" type="PipelineNodesType" minOccurs="0" maxOccurs="1">
                 <xs:annotation>
-                    <xs:documentation>Child nodes executed when condition evaluates to false[cite:
-                        1, 3, 8].</xs:documentation>
+                    <xs:documentation>Child nodes executed when condition evaluates to false.</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <!-- Allows inline elements directly inside <if> -->
@@ -1048,57 +1041,57 @@
         </xs:sequence>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Unique step identifier[cite: 8].</xs:documentation>
+                <xs:documentation>Unique step identifier.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Variable evaluated for branch execution[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable evaluated for branch execution.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="if_var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for var.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="equals" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Expected value required for true branch[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Expected value required for true branch.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="val" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for equals.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="value" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for equals.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="if_val" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for equals.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="if_equals" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for equals.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="condition" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Inline expression evaluation[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Inline expression evaluation.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="cond" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for condition[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for condition.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of the conditional branch[cite: 8].</xs:documentation>
+                <xs:documentation>Description of the conditional branch.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -1107,49 +1100,48 @@
     <xs:complexType name="ForEachType">
         <xs:annotation>
             <xs:documentation>Executes child nodes for each record returned by the driver SQL query,
-                mapping columns to variables[cite: 1, 3, 8].</xs:documentation>
+                mapping columns to variables.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="language" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Driver query language runtime (defaults to sql)[cite: 1,
-                            3, 8].</xs:documentation>
+                        <xs:documentation>Driver query language runtime (defaults to sql).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="lang" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for language[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for language.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Database handle executing the query driver[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Database handle executing the query driver.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="database" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for db[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for db.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable containing the driver query text[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable containing the driver query text.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for variable[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for variable.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the foreach iteration[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the foreach iteration.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1160,76 +1152,74 @@
     <xs:complexType name="WhileType">
         <xs:annotation>
             <xs:documentation>Executes child nodes repeatedly while a variable condition evaluates
-                to true[cite: 1, 3, 8].</xs:documentation>
+                to true.</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="PipelineNodesType">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable evaluated before each iteration[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable evaluated before each iteration.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="equals" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Expected value required to continue loop execution[cite:
-                            1, 3, 8].</xs:documentation>
+                        <xs:documentation>Expected value required to continue loop execution.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="val" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="value" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_val" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="if_equals" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for equals[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for equals.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="condition" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Inline condition expression[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Inline condition expression.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="cond" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for condition[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for condition.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_iterations" type="xs:positiveInteger" use="optional"
                     default="1000">
                     <xs:annotation>
-                        <xs:documentation>Infinite loop guard ceiling (defaults to 1000
-                            iterations)[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Infinite loop guard ceiling (defaults to 1000 iterations).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="max_loops" type="xs:positiveInteger" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for max_iterations[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for max_iterations.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the while loop[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the while loop.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1240,49 +1230,48 @@
     <xs:complexType name="TemplateType">
         <xs:annotation>
             <xs:documentation>Evaluates Go text/template files or inline text blocks with variable
-                bindings[cite: 1, 3, 8].</xs:documentation>
+                bindings.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="name" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Template name identifier[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Template name identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Path to external template file[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Path to external template file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="engine" type="xs:string" use="optional" default="text">
                     <xs:annotation>
-                        <xs:documentation>Template engine (defaults to text)[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Template engine (defaults to text).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable that receives rendered string output[cite: 1, 3,
-                            8].</xs:documentation>
+                        <xs:documentation>Variable that receives rendered string output.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="mode" type="xs:string" use="optional" default="text">
                     <xs:annotation>
-                        <xs:documentation>Output logging mode: text or summary[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Output logging mode: text or summary.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the template step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the template step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1293,48 +1282,48 @@
     <xs:complexType name="TemplateHtmlType">
         <xs:annotation>
             <xs:documentation>Evaluates Go html/template files with automatic HTML contextual
-                escaping[cite: 1, 3, 8].</xs:documentation>
+                escaping.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="name" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Template name identifier[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Template name identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Path to external HTML template file[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Path to external HTML template file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="engine" type="xs:string" use="optional" default="html">
                     <xs:annotation>
-                        <xs:documentation>Template engine type (defaults to html)[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Template engine type (defaults to html).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving rendered HTML output[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving rendered HTML output.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="mode" type="xs:string" use="optional" default="text">
                     <xs:annotation>
-                        <xs:documentation>Output logging mode: text or summary[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Output logging mode: text or summary.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the HTML template step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the HTML template step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1344,49 +1333,48 @@
     <!-- FILE SAVE NODE -->
     <xs:complexType name="FileSaveType">
         <xs:annotation>
-            <xs:documentation>Saves text content or variable data to disk file path[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Saves text content or variable data to disk file path.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Destination file path[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Destination file path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="path" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for file[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="filename" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for file[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable containing text payload to write[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable containing text payload to write.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="append" type="xs:boolean" use="optional" default="false">
                     <xs:annotation>
-                        <xs:documentation>Appends to existing file when true; overwrites when
-                            false[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Appends to existing file when true; overwrites when false.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of the file save step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of the file save step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1396,58 +1384,58 @@
     <!-- FILE READ NODE -->
     <xs:complexType name="FileReadType">
         <xs:annotation>
-            <xs:documentation>Reads file contents from disk into a target variable[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Reads file contents from disk into a target variable.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Source file path on disk[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Source file path on disk.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="path" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for file[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="filename" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for file[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for file.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable name that stores file contents[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable name that stores file contents.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of file read step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of file read step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1457,83 +1445,79 @@
     <!-- EXCEL READ/WRITE NODES -->
     <xs:complexType name="ExcelReadType">
         <xs:annotation>
-            <xs:documentation>Parses Excel sheet rows into a JSON array variable[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Parses Excel sheet rows into a JSON array variable.</xs:documentation>
         </xs:annotation>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Unique step identifier.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="file" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>Target Excel file path (.xlsx)[cite: 3, 8].</xs:documentation>
+                <xs:documentation>Target Excel file path (.xlsx).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="sheet" type="xs:string" use="optional" default="Sheet1">
             <xs:annotation>
-                <xs:documentation>Sheet name to read (defaults to Sheet1)[cite: 3, 8].</xs:documentation>
+                <xs:documentation>Sheet name to read (defaults to Sheet1).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="header" type="xs:boolean" use="optional" default="true">
             <xs:annotation>
-                <xs:documentation>Specifies if the first row contains column header keys[cite: 3,
-                    8].</xs:documentation>
+                <xs:documentation>Specifies if the first row contains column header keys.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Variable receiving extracted JSON record string[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable receiving extracted JSON record string.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="output_var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Alias for var.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of Excel read step[cite: 8].</xs:documentation>
+                <xs:documentation>Description of Excel read step.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
 
     <xs:complexType name="ExcelWriteType">
         <xs:annotation>
-            <xs:documentation>Executes database query and writes rows to an Excel workbook[cite: 1,
-                3, 8].</xs:documentation>
+            <xs:documentation>Executes database query and writes rows to an Excel workbook.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="required">
                     <xs:annotation>
-                        <xs:documentation>Destination Excel file path (.xlsx)[cite: 3, 8].</xs:documentation>
+                        <xs:documentation>Destination Excel file path (.xlsx).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="sheet" type="xs:string" use="optional" default="Sheet1">
                     <xs:annotation>
-                        <xs:documentation>Target sheet name (defaults to Sheet1)[cite: 3, 8].</xs:documentation>
+                        <xs:documentation>Target sheet name (defaults to Sheet1).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Database connection name executing source export
-                            query[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Database connection name executing source export query.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable containing the SQL query to execute[cite: 1, 3,
-                            8].</xs:documentation>
+                        <xs:documentation>Variable containing the SQL query to execute.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of Excel write step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of Excel write step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1543,41 +1527,41 @@
     <!-- XML XPATH NODE -->
     <xs:complexType name="XmlXPathType">
         <xs:annotation>
-            <xs:documentation>Evaluates XPath expressions against XML sources[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Evaluates XPath expressions against XML sources.</xs:documentation>
         </xs:annotation>
         <xs:attribute name="id" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                <xs:documentation>Unique step identifier.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="file" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Source XML file path[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Source XML file path.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="var" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Variable containing raw XML source[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable containing raw XML source.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="xpath" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>XPath expression to query[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>XPath expression to query.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="mode" type="xs:string" use="optional" default="text">
             <xs:annotation>
-                <xs:documentation>Output formatting: text, xml, or json_array[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Output formatting: text, xml, or json_array.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="output_var" type="xs:string" use="required">
             <xs:annotation>
-                <xs:documentation>Variable receiving XPath evaluation results[cite: 1, 3, 8].</xs:documentation>
+                <xs:documentation>Variable receiving XPath evaluation results.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
         <xs:attribute name="description" type="xs:string" use="optional">
             <xs:annotation>
-                <xs:documentation>Description of XPath step[cite: 8].</xs:documentation>
+                <xs:documentation>Description of XPath step.</xs:documentation>
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
@@ -1585,54 +1569,53 @@
     <!-- JSON PATH NODE -->
     <xs:complexType name="JsonPathType">
         <xs:annotation>
-            <xs:documentation>Evaluates JSONPath expressions against JSON sources[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Evaluates JSONPath expressions against JSON sources.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Source JSON file path[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Source JSON file path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable containing raw JSON source string[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable containing raw JSON source string.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="path" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>JSONPath query expression[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>JSONPath query expression.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="jsonpath" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for path[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="mode" type="xs:string" use="optional" default="value">
                     <xs:annotation>
-                        <xs:documentation>Output formatting: value (scalar), json, or
-                            json_array[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Output formatting: value (scalar), json, or json_array.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving extracted results[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving extracted results.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of JSONPath step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of JSONPath step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1642,54 +1625,53 @@
     <!-- YAML PATH NODE -->
     <xs:complexType name="YamlPathType">
         <xs:annotation>
-            <xs:documentation>Evaluates path queries against YAML sources[cite: 1, 3, 8].</xs:documentation>
+            <xs:documentation>Evaluates path queries against YAML sources.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="file" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Source YAML file path[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Source YAML file path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable containing raw YAML source string[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable containing raw YAML source string.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="path" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Path query expression[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Path query expression.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="yamlpath" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for path[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="mode" type="xs:string" use="optional" default="value">
                     <xs:annotation>
-                        <xs:documentation>Output mode: value, json, json_array, or yaml[cite: 1, 3,
-                            8].</xs:documentation>
+                        <xs:documentation>Output mode: value, json, json_array, or yaml.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving path evaluation results[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving path evaluation results.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of YAML path step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of YAML path step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1700,54 +1682,53 @@
     <xs:complexType name="SqlType">
         <xs:annotation>
             <xs:documentation>Executes standard SQL statements (DDL, DML, queries) on a database
-                handle[cite: 1, 3, 8].</xs:documentation>
+                handle.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Target database connection handle name[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Target database connection handle name.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="database" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for db[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for db.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable providing SQL query text[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable providing SQL query text.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving output logs or affected row
-                            counts[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable receiving output logs or affected row counts.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Description of SQL step[cite: 8].</xs:documentation>
+                        <xs:documentation>Description of SQL step.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
             </xs:extension>
@@ -1758,98 +1739,92 @@
     <xs:complexType name="SqlBulkType">
         <xs:annotation>
             <xs:documentation>Streams query results directly into a destination database table via
-                high-performance copy[cite: 1, 2, 8].</xs:documentation>
+                high-performance copy.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
                 <xs:attribute name="id" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Unique step identifier[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Unique step identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Source database handle executing source extraction
-                            query[cite: 1, 2, 8].</xs:documentation>
+                        <xs:documentation>Source database handle executing source extraction query.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="database" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for db[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for db.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="target_db" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Destination database connection name (defaults to source
-                            db)[cite: 1, 2, 8].</xs:documentation>
+                            db).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="target_database" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for target_db[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for target_db.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="target_table" type="xs:string" use="required">
                     <xs:annotation>
-                        <xs:documentation>Destination table name receiving copied rows[cite: 1, 2,
-                            8].</xs:documentation>
+                        <xs:documentation>Destination table name receiving copied rows.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="batch_size" type="xs:positiveInteger" use="optional"
                     default="10000">
                     <xs:annotation>
-                        <xs:documentation>Batch size per commit chunk (defaults to 10,000)[cite: 1,
-                            2, 8].</xs:documentation>
+                        <xs:documentation>Batch size per commit chunk (defaults to 10,000).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable supplying source query string[cite: 1, 3, 8].</xs:documentation>
+                        <xs:documentation>Variable supplying source query string.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Variable receiving total streamed row count[cite: 1, 3,
-                            8].</xs:documentation>
+                        <xs:documentation>Variable receiving total streamed row count.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="output_variable" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="out_var" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Alias for output_var[cite: 1, 8].</xs:documentation>
+                        <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="tablock" type="xs:boolean" use="optional" default="true">
                     <xs:annotation>
                         <xs:documentation>Acquires table lock during SQL Server bulk copy for
-                            minimal logging[cite: 1, 2, 8].</xs:documentation>
+                            minimal logging.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="check_constraints" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Enforces table constraints during bulk insert when
-                            true[cite: 1, 2, 8].</xs:documentation>
+                        <xs:documentation>Enforces table constraints during bulk insert when true.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="fire_triggers" type="xs:boolean" use="optional">
                     <xs:annotation>
                         <xs:documentation>Triggers target table trigger execution during bulk insert
-                            when true[cite: 1, 2, 8].</xs:documentation>
+                            when true.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="keep_nulls" type="xs:boolean" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Preserves explicit NULL values during copy when true[cite:
-                            1, 2, 8].</xs:documentation>
+                        <xs:documentation>Preserves explicit NULL values during copy when true.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">

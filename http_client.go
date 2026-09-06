@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// HTTPClientElement maps all attributes from the HttpClientType XML schema[cite: 1].
+// HTTPClientElement maps all attributes from the HttpClientType XML schema.
 type HTTPClientElement struct {
 	XMLName xml.Name `xml:"-"`
 

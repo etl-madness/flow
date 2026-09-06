@@ -1,0 +1,24 @@
+<pipeline description="etcd Configuration Management Example">
+    <variables>
+        <variable name="ETCD_ENDPOINTS" type="string" value="http://127.0.0.1:2379,http://127.0.0.1:22379" />
+        <variable name="CONFIG_KEY" type="string" value="max_worker_threads" />
+    </variables>
+
+    <databases>
+        <database name="etcd_cluster" driver="etcd" connection_string="{{ETCD_ENDPOINTS}}" />
+        <database name="postgres_db" driver="postgres" connection_string="postgres://user:pass@localhost:5432/app?sslmode=disable" />
+    </databases>
+
+    <flow>
+        <!-- Write cluster configuration item -->
+        <kv id="set_thread_limit" db="etcd_cluster" bucket="app_config" op="put" key="{{CONFIG_KEY}}" value="16" />
+
+        <!-- Fetch cluster configuration item -->
+        <kv id="get_thread_limit" db="etcd_cluster" bucket="app_config" op="get" key="{{CONFIG_KEY}}" output_var="THREAD_LIMIT" />
+
+        <!-- Bulk stream feature flags directly from PostgreSQL to etcd -->
+        <kv_bulk id="sync_feature_flags" db="postgres_db" target_db="etcd_cluster" target_bucket="feature_flags" batch_size="500">
+            SELECT flag_name AS key, flag_value AS value FROM sys_feature_flags WHERE is_active = true
+        </kv_bulk>
+    </flow>
+</pipeline>

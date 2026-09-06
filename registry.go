@@ -16,6 +16,7 @@ import (
 	_ "github.com/microsoft/go-mssqldb" // MSSQL driver
 	_ "github.com/sijms/go-ora/v2"      // Pure Go Oracle driver
 	goBolt "go.etcd.io/bbolt"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	_ "modernc.org/sqlite" // Pure Go SQLite driver
 )
 
@@ -29,8 +30,9 @@ type DBHandle struct {
 // and dynamic pipeline environment variables.
 type Registry struct {
 	dbRegistry     map[string]DBHandle
-	boltRegistry   map[string]*goBolt.DB // Track active BBolt instances
-	badgerRegistry map[string]*badger.DB // Track active BadgerDB instances
+	boltRegistry   map[string]*goBolt.DB       // Track active BBolt instances
+	badgerRegistry map[string]*badger.DB       // Track active BadgerDB instances
+	etcdRegistry   map[string]*clientv3.Client // Track active etcd client connections
 	dbMu           sync.RWMutex
 	varRegistry    map[string]interface{}
 	varMu          sync.RWMutex
@@ -43,6 +45,7 @@ func NewRegistry() *Registry {
 		dbRegistry:     make(map[string]DBHandle),
 		boltRegistry:   make(map[string]*goBolt.DB),
 		badgerRegistry: make(map[string]*badger.DB),
+		etcdRegistry:   make(map[string]*clientv3.Client),
 		varRegistry:    make(map[string]interface{}),
 		dirtyVars:      make(map[string]struct{}),
 	}
@@ -263,6 +266,21 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			r.badgerRegistry[cfg.Name] = db
 			continue
 		}
+		if driverName == "etcd" || driverName == "etcdv3" {
+			endpoints := strings.Split(connStr, ",")
+			for i, ep := range endpoints {
+				endpoints[i] = strings.TrimSpace(ep)
+			}
+			cli, err := clientv3.New(clientv3.Config{
+				Endpoints:   endpoints,
+				DialTimeout: 5 * time.Second,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to connect to etcd database '%s' at '%s': %w", cfg.Name, connStr, err)
+			}
+			r.etcdRegistry[cfg.Name] = cli
+			continue
+		}
 		if driverName == "" {
 			driverName = "sqlserver"
 		}
@@ -295,7 +313,10 @@ func (r *Registry) CloseDatabases() {
 		db.Close()
 		delete(r.badgerRegistry, name)
 	}
-
+	for name, cli := range r.etcdRegistry {
+		_ = cli.Close()
+		delete(r.etcdRegistry, name)
+	}
 	for name, handle := range r.dbRegistry {
 		handle.Conn.Close()
 		delete(r.dbRegistry, name)
@@ -392,7 +413,17 @@ func (r *Registry) Snapshot() *Registry {
 		dbRegistry:     r.dbRegistry,
 		boltRegistry:   r.boltRegistry,   // FIX: Preserve bbolt handles
 		badgerRegistry: r.badgerRegistry, // FIX: Preserve BadgerDB handles
+		etcdRegistry:   r.etcdRegistry, // Share etcd gRPC connection pool across threads
 		varRegistry:    varsCopy,
 		dirtyVars:      make(map[string]struct{}),
 	}
+}
+func (r *Registry) GetEtcdDB(name string) (*clientv3.Client, error) {
+	r.dbMu.RLock()
+	defer r.dbMu.RUnlock()
+	cli, ok := r.etcdRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("etcd database connection '%s' not registered", name)
+	}
+	return cli, nil
 }
