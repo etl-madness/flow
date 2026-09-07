@@ -41,11 +41,7 @@
                         pipeline.</xs:documentation>
                 </xs:annotation>
             </xs:attribute>
-            <xs:attribute name="id" type="xs:string" use="optional">
-                <xs:annotation>
-                    <xs:documentation>Unique identifier for the pipeline.</xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
+
         </xs:complexType>
     </xs:element>
 
