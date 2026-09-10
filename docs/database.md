@@ -99,13 +99,16 @@ Use a larger pool for high-throughput bulk workloads and a shorter idle lifetime
 ## Key AST Nodes
 
 ### 1. `<sql>`
-Used for executing standard SQL scripts (DDL, DML, standard queries).
+Used for executing standard SQL scripts (DDL, DML, multi-statement batches, and analytical queries).
 - **`db` / `database`**: Name of the configured database connection to execute against.
 - **`id`**: Unique identifier for this step.
-- **`output_var` / `var` / `variable`**: (Optional) Pipeline variable where the query output (with column headers) will be stored as a newline-delimited text block.
+- **`output_var` / `var` / `variable`**: (Optional) Pipeline variable where query results (with column headers) or affected row counts will be stored as a string.
+- **Intelligent Query vs. DML Classification**: Flow employs a token-aware query classifier (`isDMLQuery`) that strips SQL line comments (`--`), block comments (`/* ... */`), and XML `<![CDATA[...]]>` tags.
+  - **Query Mode**: Statements starting with `SELECT`, `WITH`, `SHOW`, `PRAGMA`, `DESCRIBE`, or containing row-returning clauses like `RETURNING` or `OUTPUT` are executed as queries. Results are formatted as a tabular text block into `output_var`. Columns named `deleted_at`, `is_deleted`, `insert_ts`, or `update_count` are recognized as regular projected columns without false DML classification.
+  - **DML / DDL Mode**: Pure mutating statements (`INSERT`, `UPDATE`, `DELETE`, `MERGE`, `DROP`, `CREATE`, `ALTER`, `TRUNCATE`) are executed as updates, and the affected row count is recorded.
 
 ### 2. `<sql_bulk>`
-Optimized for streaming huge datasets directly from a source database query into a target table, bypassing CPU/memory bottlenecks.
+Optimized for streaming massive datasets directly from a source database query into a target table across heterogeneous database engines (e.g., PostgreSQL to SQL Server, MySQL to SQLite), bypassing CPU and memory bottlenecks with constant $O(1)$ RAM usage.
 - **`db` / `database`**: The source database connection name.
 - **`target_db` / `target_database`**: The destination database connection name (defaults to the source database if omitted).
 - **`target_table`**: The destination table to bulk insert records into.
@@ -114,6 +117,9 @@ Optimized for streaming huge datasets directly from a source database query into
 - **`check_constraints`**: Evaluate table constraints during bulk insert (`true` / `false`).
 - **`fire_triggers`**: Execute target table triggers during insert (`true` / `false`).
 - **`keep_nulls`**: Preserve explicit NULL values (`true` / `false`).
+
+> [!TIP]
+> For in-depth guidance on choosing between `<sql>`, `<sql_bulk>`, and `<foreach>`, refer to the dedicated [SQL & SQL Bulk Guide](sql_sql_bulk.md).
 
 ### 3. `<kv>`
 Executes individual atomic operations (`get`, `put`/`set`, `delete`/`del`, `scan`/`list`) against Key-Value stores (`bbolt`, `badger`, `redis`, `etcd`).
@@ -131,10 +137,9 @@ Streams records directly from a SQL query source into a target Key-Value store b
 - **`db` / `database`**: Name of the source SQL database connection executing the query.
 - **`target_db`**: Target Key-Value database connection handle.
 - **`target_bucket`**: Target bucket or key namespace prefix in the destination KV store.
-- **`batch_size`**: Number of records committed per chunk (defaults to `10000`).
+- **`batch_size`**: Number of records committed per chunk (defaults to `10000`). Automatically flushes Badger write batches and submits transactional commits in Etcd.
 - **`output_var` / `var`**: (Optional) Pipeline variable receiving the total count of transferred records.
 - *Query Body*: The enclosed SQL query must project at least two columns: `key` (col 1) and `value` (col 2).
-
 
 ---
 
@@ -389,6 +394,11 @@ Extract data from a spreadsheet using `<excel_read>` and write it to a database 
 ### Example 7: Wrapping SQL Script Blocks inside Transactions
 Use `<group>` with `transaction="true"` to wrap multiple SQL operations inside an atomic transaction, ensuring automatic rollback on any failure.
 
+Flow implements a thread-safe transaction stack (`activeTxs`):
+- **Nested Transactions**: If an inner `<group transaction="true">` executes against the same database as an outer transaction, Flow automatically provisions a dialect-aware savepoint: ANSI `SAVEPOINT` / `ROLLBACK TO SAVEPOINT` / `RELEASE SAVEPOINT` for PostgreSQL, SQLite, and MySQL; T-SQL `SAVE TRANSACTION` / `ROLLBACK TRANSACTION` (with automatic release omission) for Microsoft SQL Server; and `SAVEPOINT` for Oracle. If the inner group completes successfully, its savepoint is committed/released; if it fails, it rolls back to the savepoint without corrupting the outer transaction.
+- **Fail-Safe Defer Rollback**: Any unhandled error, pipeline cancellation, or runtime panic triggers an immediate rollback, popping the transaction stack cleanly and preventing hanging database locks.
+- **Transaction Timeout**: You can specify `timeout="30s"` on the `<group>` node to ensure a stuck transaction does not block connection pools indefinitely.
+
 ```xml
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
@@ -396,22 +406,24 @@ Use `<group>` with `transaction="true"` to wrap multiple SQL operations inside a
         <database name="finance_db" driver="postgres" connection_string="postgresql://app:secret@localhost:5432/finance" />
     </databases>
     <flow>
-        <!-- Transactions are enabled at the group node level -->
-        <group id="transfer_funds_txn" transaction="true" db="finance_db" description="Transfers balance safely between accounts">
+        <!-- Outer transaction boundary with a 30s deadline -->
+        <group id="transfer_funds_txn" transaction="true" db="finance_db" timeout="30s" description="Transfers balance safely between accounts">
             
             <!-- Step 1: Withdraw from Account A -->
             <sql id="withdraw_acc_a" db="finance_db">
                 UPDATE accounts SET balance = balance - 250.00 WHERE account_id = 'ACC-001' AND balance >= 250.00;
             </sql>
             
-            <!-- Step 2: Deposit into Account B -->
+            <!-- Step 2: Nested transaction block using ANSI SAVEPOINT -->
+            <group id="nested_audit_log" transaction="true" db="finance_db">
+                <sql id="log_txn_event" db="finance_db">
+                    INSERT INTO transactions_ledger (from_account, to_account, amount) VALUES ('ACC-001', 'ACC-002', 250.00);
+                </sql>
+            </group>
+            
+            <!-- Step 3: Deposit into Account B -->
             <sql id="deposit_acc_b" db="finance_db">
                 UPDATE accounts SET balance = balance + 250.00 WHERE account_id = 'ACC-002';
-            </sql>
-            
-            <!-- Step 3: Record transaction event -->
-            <sql id="log_txn_event" db="finance_db">
-                INSERT INTO transactions_ledger (from_account, to_account, amount) VALUES ('ACC-001', 'ACC-002', 250.00);
             </sql>
             
         </group>

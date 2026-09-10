@@ -69,8 +69,13 @@ type HTTPClientElement struct {
 
 // BuildClientAndRequest constructs fully configured http.Client and http.Request instances.
 func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request, error) {
-	// 1. Configure Transport
-	transport := &http.Transport{}
+	// 1. Configure Transport: start with cloned DefaultTransport to inherit environment proxy, dialer timeouts, and HTTP/2
+	var transport *http.Transport
+	if defTr, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = defTr.Clone()
+	} else {
+		transport = &http.Transport{}
+	}
 
 	if elem.Proxy != "" {
 		proxyURL, err := url.Parse(elem.Proxy)
@@ -165,6 +170,9 @@ func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request,
 		if err == nil {
 			client.Timeout = d
 		}
+	}
+	if client.Timeout <= 0 {
+		client.Timeout = 30 * time.Second
 	}
 
 	if elem.CookieJar != nil && *elem.CookieJar {

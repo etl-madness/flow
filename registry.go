@@ -225,13 +225,63 @@ func applyDatabasePoolSettings(dbConn *sql.DB, cfg DatabaseConfig) {
 
 // InitDatabases opens connection pools for all supplied DatabaseConfigs with variable interpolation in connection strings.
 func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
+	return r.InitDatabasesWithContext(context.Background(), configs)
+}
+
+// InitDatabasesWithContext opens connection pools using the supplied context for cancellation and timeouts.
+// On partial failure, any databases opened during the invocation are automatically rolled back/closed.
+func (r *Registry) InitDatabasesWithContext(ctx context.Context, configs []DatabaseConfig) error {
 	r.dbMu.Lock()
 	defer r.dbMu.Unlock()
 
 	r.varMu.RLock()
 	defer r.varMu.RUnlock()
 
+	var openedBolt []string
+	var openedBadger []string
+	var openedEtcd []string
+	var openedRedis []string
+	var openedSQL []string
+
+	cleanupOpened := func() {
+		for _, name := range openedBolt {
+			if db, ok := r.boltRegistry[name]; ok {
+				_ = db.Close()
+				delete(r.boltRegistry, name)
+			}
+		}
+		for _, name := range openedBadger {
+			if db, ok := r.badgerRegistry[name]; ok {
+				_ = db.Close()
+				delete(r.badgerRegistry, name)
+			}
+		}
+		for _, name := range openedEtcd {
+			if cli, ok := r.etcdRegistry[name]; ok {
+				_ = cli.Close()
+				delete(r.etcdRegistry, name)
+			}
+		}
+		for _, name := range openedRedis {
+			if cli, ok := r.redisRegistry[name]; ok {
+				_ = cli.Close()
+				delete(r.redisRegistry, name)
+			}
+		}
+		for _, name := range openedSQL {
+			if h, ok := r.dbRegistry[name]; ok {
+				_ = h.Conn.Close()
+				delete(r.dbRegistry, name)
+			}
+		}
+	}
+
 	for _, cfg := range configs {
+		if err := ctx.Err(); err != nil {
+			cleanupOpened()
+			return err
+		}
+
 		connStr := cfg.ConnectionString
 
 		for name, val := range r.varRegistry {
@@ -245,19 +295,25 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			// Ensure path directory exists
 			dir := filepath.Dir(connStr)
 			if dir != "" && dir != "." {
-				_ = os.MkdirAll(dir, 0755)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					cleanupOpened()
+					return fmt.Errorf("failed to create directory for bbolt db '%s': %w", cfg.Name, err)
+				}
 			}
 
 			db, err := goBolt.Open(connStr, 0600, &goBolt.Options{Timeout: 2 * time.Second})
 			if err != nil {
+				cleanupOpened()
 				return fmt.Errorf("failed to open bbolt database '%s' at path '%s': %w", cfg.Name, connStr, err)
 			}
 			r.boltRegistry[cfg.Name] = db
+			openedBolt = append(openedBolt, cfg.Name)
 			continue
 		}
 		if driverName == "badger" || driverName == "badgerdb" {
 			// Badger stores data inside a directory
 			if err := os.MkdirAll(connStr, 0755); err != nil {
+				cleanupOpened()
 				return fmt.Errorf("failed to create directory for badger db '%s': %w", cfg.Name, err)
 			}
 
@@ -265,9 +321,11 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			opts := badger.DefaultOptions(connStr).WithLogger(nil)
 			db, err := badger.Open(opts)
 			if err != nil {
+				cleanupOpened()
 				return fmt.Errorf("failed to open badger database '%s' at path '%s': %w", cfg.Name, connStr, err)
 			}
 			r.badgerRegistry[cfg.Name] = db
+			openedBadger = append(openedBadger, cfg.Name)
 			continue
 		}
 		if driverName == "etcd" || driverName == "etcdv3" {
@@ -280,47 +338,53 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 				DialTimeout: 5 * time.Second,
 			})
 			if err != nil {
+				cleanupOpened()
 				return fmt.Errorf("failed to connect to etcd database '%s' at '%s': %w", cfg.Name, connStr, err)
 			}
 			r.etcdRegistry[cfg.Name] = cli
+			openedEtcd = append(openedEtcd, cfg.Name)
 			continue
 		}
 		if driverName == "redis" || driverName == "valkey" {
-	var opts *redis.Options
-	var err error
+			var opts *redis.Options
+			var err error
 
-	if strings.HasPrefix(connStr, "redis://") || strings.HasPrefix(connStr, "rediss://") {
-		opts, err = redis.ParseURL(connStr)
-		if err != nil {
-			return fmt.Errorf("invalid redis connection url for '%s': %w", cfg.Name, err)
+			if strings.HasPrefix(connStr, "redis://") || strings.HasPrefix(connStr, "rediss://") {
+				opts, err = redis.ParseURL(connStr)
+				if err != nil {
+					cleanupOpened()
+					return fmt.Errorf("invalid redis connection url for '%s': %w", cfg.Name, err)
+				}
+			} else {
+				opts = &redis.Options{
+					Addr: connStr,
+				}
+			}
+
+			client := redis.NewClient(opts)
+
+			// Create scoped context and call cancel() explicitly right after Ping (no defer in loop)
+			pingCtx, pingCancel := context.WithTimeout(ctx, 3*time.Second)
+			pingErr := client.Ping(pingCtx).Err()
+			pingCancel() // Explicitly release timer resources immediately
+
+			if pingErr != nil {
+				_ = client.Close() // Prevent connection leak on ping failure
+				cleanupOpened()
+				return fmt.Errorf("failed to ping redis database '%s' at '%s': %w", cfg.Name, connStr, pingErr)
+			}
+
+			r.redisRegistry[cfg.Name] = client
+			openedRedis = append(openedRedis, cfg.Name)
+			continue
 		}
-	} else {
-		opts = &redis.Options{
-			Addr: connStr,
-		}
-	}
-
-	client := redis.NewClient(opts)
-
-	// Create scoped context and call cancel() explicitly right after Ping (no defer in loop)
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 3*time.Second)
-	pingErr := client.Ping(pingCtx).Err()
-	pingCancel() // Explicitly release timer resources immediately
-
-	if pingErr != nil {
-		_ = client.Close() // Prevent connection leak on ping failure
-		return fmt.Errorf("failed to ping redis database '%s' at '%s': %w", cfg.Name, connStr, pingErr)
-	}
-
-	r.redisRegistry[cfg.Name] = client
-	continue
-}
 		if driverName == "" {
 			driverName = "sqlserver"
 		}
 
 		dbConn, err := sql.Open(driverName, connStr)
 		if err != nil {
+			cleanupOpened()
 			return fmt.Errorf("failed to open database '%s' (%s): %w", cfg.Name, driverName, err)
 		}
 
@@ -330,6 +394,7 @@ func (r *Registry) InitDatabases(configs []DatabaseConfig) error {
 			Conn:   dbConn,
 			Driver: driverName,
 		}
+		openedSQL = append(openedSQL, cfg.Name)
 	}
 	return nil
 }
@@ -448,12 +513,33 @@ func (r *Registry) Snapshot() *Registry {
 		varsCopy[k] = v
 	}
 
+	dbCopy := make(map[string]DBHandle, len(r.dbRegistry))
+	for k, v := range r.dbRegistry {
+		dbCopy[k] = v
+	}
+	boltCopy := make(map[string]*goBolt.DB, len(r.boltRegistry))
+	for k, v := range r.boltRegistry {
+		boltCopy[k] = v
+	}
+	badgerCopy := make(map[string]*badger.DB, len(r.badgerRegistry))
+	for k, v := range r.badgerRegistry {
+		badgerCopy[k] = v
+	}
+	etcdCopy := make(map[string]*clientv3.Client, len(r.etcdRegistry))
+	for k, v := range r.etcdRegistry {
+		etcdCopy[k] = v
+	}
+	redisCopy := make(map[string]*redis.Client, len(r.redisRegistry))
+	for k, v := range r.redisRegistry {
+		redisCopy[k] = v
+	}
+
 	return &Registry{
-		dbRegistry:     r.dbRegistry,
-		boltRegistry:   r.boltRegistry,   // FIX: Preserve bbolt handles
-		badgerRegistry: r.badgerRegistry, // FIX: Preserve BadgerDB handles
-		etcdRegistry:   r.etcdRegistry, // Share etcd gRPC connection pool across threads
-		redisRegistry:  r.redisRegistry, // Share thread-safe Redis connection pool across worker threads
+		dbRegistry:     dbCopy,
+		boltRegistry:   boltCopy,
+		badgerRegistry: badgerCopy,
+		etcdRegistry:   etcdCopy,
+		redisRegistry:  redisCopy,
 		varRegistry:    varsCopy,
 		dirtyVars:      make(map[string]struct{}),
 	}

@@ -3,9 +3,7 @@ package flow
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	htmltemplate "html/template"
@@ -46,66 +44,54 @@ type ScriptResult struct {
 
 // Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
-	registry    *Registry
-	resultsMu   sync.Mutex
-	sinksMu     sync.RWMutex
-	eventSinks  []EventSink
-	verbose     atomic.Bool
-	goPath      string
-	activeTxs   map[string]*sql.Tx // Track active transactions per database
-	interpHook  func(*interp.Options)
-	interpMu    sync.Mutex
-	interpCache map[string]*interp.Interpreter
+	registry   *Registry
+	resultsMu  sync.Mutex
+	sinksMu    sync.RWMutex
+	eventSinks []EventSink
+	verbose    atomic.Bool
+	goPath     string
+	txMu       sync.Mutex
+	activeTxs  map[string][]*sql.Tx // Stack of active transactions per database
+	interpHook func(*interp.Options)
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
 	return &Executor{
-		registry:    r,
-		interpCache: make(map[string]*interp.Interpreter),
+		registry:  r,
+		activeTxs: make(map[string][]*sql.Tx),
 	}
 }
 func (e *Executor) SetGoPath(goPath string) {
 	e.goPath = goPath
 }
-
-// SetVerbose sets whether execution start and finish events should be printed to the console.
-func (e *Executor) SetVerbose(verbose bool) {
-	e.verbose.Store(verbose)
+func (e *Executor) SetInterpreterHook(hook func(*interp.Options)) {
+	e.interpHook = hook
 }
-
-// SetEventSink replaces all event sinks with sink. A nil sink disables event emission.
+func (e *Executor) SetInterpHook(hook func(*interp.Options)) {
+	e.interpHook = hook
+}
 func (e *Executor) SetEventSink(sink EventSink) {
 	e.SetEventSinks(sink)
 }
-
-// SetEventSinks replaces the event sinks used by subsequent executions.
 func (e *Executor) SetEventSinks(sinks ...EventSink) {
 	e.sinksMu.Lock()
 	defer e.sinksMu.Unlock()
 	e.eventSinks = append([]EventSink(nil), sinks...)
 }
-
-// SetInterpHook registers a callback to customize Yaegi interpreter options.
-func (e *Executor) SetInterpHook(hook func(*interp.Options)) {
-	e.interpHook = hook
+func (e *Executor) AddEventSink(sink EventSink) {
+	if sink == nil {
+		return
+	}
+	e.sinksMu.Lock()
+	defer e.sinksMu.Unlock()
+	e.eventSinks = append(e.eventSinks, sink)
+}
+func (e *Executor) SetVerbose(verbose bool) {
+	e.verbose.Store(verbose)
 }
 
 func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts interp.Options) (*interp.Interpreter, error) {
-	cacheKey := script.ID
-	if cacheKey == "" {
-		hash := sha256.Sum256([]byte(script.Code))
-		cacheKey = hex.EncodeToString(hash[:])
-	}
-	cacheKey = fmt.Sprintf("%s|%s|%s", cacheKey, e.goPath, opts.GoPath)
-
-	e.interpMu.Lock()
-	if e.interpCache == nil {
-		e.interpCache = make(map[string]*interp.Interpreter)
-	}
-	_, _ = e.interpCache[cacheKey]
-	e.interpMu.Unlock()
-
 	interpInstance := interp.New(opts)
 	if err := interpInstance.Use(stdlib.Symbols); err != nil {
 		return nil, fmt.Errorf("failed to load stdlib symbols: %w", err)
@@ -140,12 +126,39 @@ func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts
 	return interpInstance, nil
 }
 
-// getActiveTx returns the active transaction for the specified database if one exists.
-func (e *Executor) getActiveTx(dbName string) *sql.Tx {
+func (e *Executor) pushTx(dbName string, tx *sql.Tx) {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
 	if e.activeTxs == nil {
+		e.activeTxs = make(map[string][]*sql.Tx)
+	}
+	e.activeTxs[dbName] = append(e.activeTxs[dbName], tx)
+}
+
+func (e *Executor) popTx(dbName string) *sql.Tx {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
+	stack := e.activeTxs[dbName]
+	if len(stack) == 0 {
 		return nil
 	}
-	return e.activeTxs[dbName]
+	top := stack[len(stack)-1]
+	e.activeTxs[dbName] = stack[:len(stack)-1]
+	if len(e.activeTxs[dbName]) == 0 {
+		delete(e.activeTxs, dbName)
+	}
+	return top
+}
+
+// getActiveTx returns the active transaction for the specified database if one exists.
+func (e *Executor) getActiveTx(dbName string) *sql.Tx {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
+	stack := e.activeTxs[dbName]
+	if len(stack) == 0 {
+		return nil
+	}
+	return stack[len(stack)-1]
 }
 
 // Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
@@ -225,6 +238,111 @@ func (e *Executor) evalCondition(varName string, expectedVal string) bool {
 	}
 }
 
+// isDMLQuery analyzes a query to determine if it is an INSERT/UPDATE/DELETE/MERGE/DDL statement
+// without misclassifying queries with column names like 'deleted_at' or 'is_deleted'.
+func isDMLQuery(queryStr string) bool {
+	q := strings.TrimSpace(queryStr)
+	if strings.HasPrefix(q, "<![CDATA[") {
+		q = strings.TrimPrefix(q, "<![CDATA[")
+		q = strings.TrimSuffix(q, "]]>")
+		q = strings.TrimSpace(q)
+	}
+
+	// Strip leading single-line comments (-- ...) and block comments (/* ... */)
+	for {
+		if strings.HasPrefix(q, "--") {
+			idx := strings.Index(q, "\n")
+			if idx == -1 {
+				return false
+			}
+			q = strings.TrimSpace(q[idx+1:])
+			continue
+		}
+		if strings.HasPrefix(q, "/*") {
+			idx := strings.Index(q, "*/")
+			if idx == -1 {
+				return false
+			}
+			q = strings.TrimSpace(q[idx+2:])
+			continue
+		}
+		break
+	}
+
+	upper := strings.ToUpper(q)
+	if upper == "" {
+		return false
+	}
+
+	if strings.Contains(upper, "RETURNING") ||
+		strings.Contains(upper, "OUTPUT") ||
+		strings.Contains(upper, "@@ROWCOUNT") {
+		return false
+	}
+
+	fields := strings.Fields(upper)
+	if len(fields) == 0 {
+		return false
+	}
+	firstToken := fields[0]
+
+	switch firstToken {
+	case "SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "PRAGMA":
+		return false
+	case "WITH":
+		if strings.Contains(upper, "SELECT") {
+			return false
+		}
+	}
+
+	if strings.Contains(upper, ";") && strings.Contains(upper, "SELECT") {
+		return false
+	}
+
+	switch firstToken {
+	case "INSERT", "UPDATE", "DELETE", "MERGE", "CREATE", "ALTER", "DROP", "TRUNCATE":
+		return true
+	}
+
+	return false
+}
+
+// savepointSQL returns the database-dialect specific SQL to create a savepoint.
+// SQL Server uses 'SAVE TRANSACTION <name>', while ANSI databases (Postgres, SQLite, MySQL) use 'SAVEPOINT <name>'.
+func savepointSQL(driver, spName string) string {
+	d := strings.ToLower(driver)
+	switch d {
+	case "sqlserver", "mssql":
+		return "SAVE TRANSACTION " + spName
+	default:
+		return "SAVEPOINT " + spName
+	}
+}
+
+// rollbackSavepointSQL returns the database-dialect specific SQL to rollback to a savepoint.
+// SQL Server uses 'ROLLBACK TRANSACTION <name>', while ANSI databases use 'ROLLBACK TO SAVEPOINT <name>'.
+func rollbackSavepointSQL(driver, spName string) string {
+	d := strings.ToLower(driver)
+	switch d {
+	case "sqlserver", "mssql":
+		return "ROLLBACK TRANSACTION " + spName
+	default:
+		return "ROLLBACK TO SAVEPOINT " + spName
+	}
+}
+
+// releaseSavepointSQL returns the database-dialect specific SQL to release a savepoint.
+// SQL Server and Oracle do not support or require releasing savepoints; it returns empty string (no-op).
+func releaseSavepointSQL(driver, spName string) string {
+	d := strings.ToLower(driver)
+	switch d {
+	case "sqlserver", "mssql", "oracle", "ora", "godror":
+		return ""
+	default:
+		return "RELEASE SAVEPOINT " + spName
+	}
+}
+
 func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr string) (resultsString string, rawOutput string, err error) {
 	if dbName == "" {
 		return "", "", fmt.Errorf("missing 'db' attribute on <sql> tag")
@@ -241,16 +359,11 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 		trimmedQuery = strings.TrimSuffix(trimmedQuery, "]]>")
 		trimmedQuery = strings.TrimSpace(trimmedQuery)
 	}
-	trimmedQuery = strings.ToUpper(trimmedQuery)
-	hasReturning := strings.Contains(trimmedQuery, "RETURNING") ||
-		strings.Contains(trimmedQuery, "OUTPUT") ||
-		strings.Contains(trimmedQuery, "@@ROWCOUNT") ||
-		(strings.Contains(trimmedQuery, ";") && strings.Contains(trimmedQuery, "SELECT"))
-	isDML := (strings.Contains(trimmedQuery, "INSERT") ||
-		strings.Contains(trimmedQuery, "UPDATE") ||
-		strings.Contains(trimmedQuery, "MERGE") ||
-		strings.Contains(trimmedQuery, "DELETE")) &&
-		!hasReturning
+	trimmedUpper := strings.ToUpper(trimmedQuery)
+	hasReturning := strings.Contains(trimmedUpper, "RETURNING") ||
+		strings.Contains(trimmedUpper, "OUTPUT") ||
+		strings.Contains(trimmedUpper, "@@ROWCOUNT")
+	isDML := isDMLQuery(queryStr)
 	// --- Execute DML statements with ExecContext ---
 	if isDML {
 		var res sql.Result
@@ -366,6 +479,13 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 }
 
 func (e *Executor) executeSQLNode(ctx context.Context, elem SQLElement, results *[]ScriptResult) bool {
+	if elem.Timeout != "" {
+		if d, err := time.ParseDuration(elem.Timeout); err == nil && d > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, d)
+			defer cancel()
+		}
+	}
 	startTime := time.Now()
 	if e.verbose.Load() {
 		if elem.DBName != "" {
@@ -415,6 +535,13 @@ func (e *Executor) executeSQLNode(ctx context.Context, elem SQLElement, results 
 }
 
 func (e *Executor) executeSQLBulkNode(ctx context.Context, elem SQLBulkElement, results *[]ScriptResult) bool {
+	if elem.Timeout != "" {
+		if d, err := time.ParseDuration(elem.Timeout); err == nil && d > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, d)
+			defer cancel()
+		}
+	}
 	startTime := time.Now()
 	if e.verbose.Load() {
 		if elem.DBName != "" && elem.TargetTable != "" {
@@ -555,39 +682,6 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		res.ResultsString = outBuf.String()
 		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
 		appendWithDuration(res)
-
-	} else if script.Language == "dotnet-script" || script.Language == "csx" {
-		var outBuf bytes.Buffer
-		opts := interp.Options{
-			GoPath: e.goPath,
-			Stdout: &outBuf,
-			Stderr: &outBuf,
-		}
-		if e.interpHook != nil {
-			e.interpHook(&opts)
-		}
-
-		i, err := e.getGoInterpreter(ctx, script, opts)
-		if err != nil {
-			res.ReturnCode = 1
-			res.ResultsString = err.Error()
-			appendWithDuration(res)
-			return true
-		}
-
-		_, err = i.Eval(codeToEval)
-		if err != nil {
-			res.ReturnCode = err.Error()
-			res.ResultsString = outBuf.String()
-			appendWithDuration(res)
-			return true
-		}
-
-		res.ReturnCode = 0
-		res.ResultsString = outBuf.String()
-		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
-		appendWithDuration(res)
-
 	} else if script.Language == "dotnet-script" || script.Language == "csx" {
 		tmpFile, err := os.CreateTemp("", "flow_script_*.csx")
 		if err != nil {
@@ -761,10 +855,90 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			return true
 		}
 
+		if node.Buffer {
+			// Opt-in buffer mode: loads small datasets into memory to release DB cursor early
+			const maxBufferCap = 100000
+			var bufferedRows [][]string
+			for rows.Next() {
+				if ctx.Err() != nil {
+					_ = rows.Close()
+					res := ScriptResult{ScriptID: script.ID, ReturnCode: ctx.Err().Error()}
+					appendWithDuration(res)
+					return true
+				}
+				vals := make([]interface{}, len(cols))
+				valPtrs := make([]interface{}, len(cols))
+				for i := range vals {
+					valPtrs[i] = &vals[i]
+				}
+				if err := rows.Scan(valPtrs...); err != nil {
+					_ = rows.Close()
+					res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
+					appendWithDuration(res)
+					return true
+				}
+				rowStrs := make([]string, len(cols))
+				for i, v := range vals {
+					if v == nil {
+						rowStrs[i] = "NULL"
+					} else if b, ok := v.([]byte); ok {
+						rowStrs[i] = string(b)
+					} else {
+						rowStrs[i] = fmt.Sprintf("%v", v)
+					}
+				}
+				bufferedRows = append(bufferedRows, rowStrs)
+				if len(bufferedRows) > maxBufferCap {
+					_ = rows.Close()
+					res := ScriptResult{
+						ScriptID:   script.ID,
+						ReturnCode: fmt.Sprintf("buffer mode cap exceeded (%d rows). Use default streaming for large datasets.", maxBufferCap),
+					}
+					appendWithDuration(res)
+					return true
+				}
+			}
+			if err := rows.Err(); err != nil {
+				_ = rows.Close()
+				res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
+				appendWithDuration(res)
+				return true
+			}
+			_ = rows.Close()
+
+			for loopIdx, rowStrs := range bufferedRows {
+				if ctx.Err() != nil {
+					res := ScriptResult{ScriptID: script.ID, ReturnCode: ctx.Err().Error()}
+					appendWithDuration(res)
+					return true
+				}
+				e.registry.SetVar("LOOP_INDEX", loopIdx)
+				for i, col := range cols {
+					strVal := rowStrs[i]
+					e.registry.SetVar(col, strVal)
+					e.registry.SetVar(strings.ToLower(col), strVal)
+					e.registry.SetVar(strings.ToUpper(col), strVal)
+				}
+				if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
+					return true
+				}
+			}
+			summary := ScriptResult{
+				ScriptID:   script.ID,
+				ReturnCode: 0,
+				ResultsString: fmt.Sprintf(
+					"foreach '%s' buffered loop driver executed %d iteration(s).", node.GroupID, len(bufferedRows)),
+			}
+			appendWithDuration(summary)
+			return false
+		}
+
+		// Streaming mode (default): constant O(1) memory, supports 60M+ rows
 		loopIdx := 0
 		for rows.Next() {
 			select {
 			case <-ctx.Done():
+				_ = rows.Close()
 				res := ScriptResult{ScriptID: script.ID, ReturnCode: ctx.Err().Error()}
 				appendWithDuration(res)
 				return true
@@ -778,6 +952,7 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			}
 
 			if err := rows.Scan(valPtrs...); err != nil {
+				_ = rows.Close()
 				res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
 				appendWithDuration(res)
 				return true
@@ -799,6 +974,7 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			}
 
 			if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
+				_ = rows.Close()
 				return true
 			}
 
@@ -806,10 +982,13 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 		}
 
 		if err := rows.Err(); err != nil {
+			_ = rows.Close()
 			res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
 			appendWithDuration(res)
 			return true
 		}
+		_ = rows.Close()
+
 		summary := ScriptResult{
 			ScriptID:   script.ID,
 			ReturnCode: 0,
@@ -866,6 +1045,9 @@ func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, r
 		maxThreads = 4
 	}
 
+	pCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	sem := make(chan struct{}, maxThreads)
 	var wg sync.WaitGroup
 	var hasErr atomic.Bool
@@ -873,9 +1055,21 @@ func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, r
 	// Track worker registries to collect variables after execution
 	workerRegistries := make([]*Registry, len(node.Children))
 
+Loop:
 	for i, child := range node.Children {
+		if hasErr.Load() || pCtx.Err() != nil {
+			break Loop
+		}
+		select {
+		case <-pCtx.Done():
+			break Loop
+		case sem <- struct{}{}:
+		}
+		if hasErr.Load() || pCtx.Err() != nil {
+			<-sem
+			break Loop
+		}
 		wg.Add(1)
-		sem <- struct{}{}
 
 		// Create worker-isolated Executor with cloned variables
 		workerReg := e.registry.Snapshot()
@@ -885,21 +1079,26 @@ func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, r
 		workerReg.SetVar("_THREAD_ID", i)
 
 		workerExec := &Executor{
-			registry: workerReg,
-			goPath:   e.goPath,
+			registry:   workerReg,
+			goPath:     e.goPath,
+			interpHook: e.interpHook,
+			activeTxs:  make(map[string][]*sql.Tx),
 		}
 		workerExec.verbose.Store(e.verbose.Load())
+		e.sinksMu.RLock()
+		workerExec.eventSinks = append([]EventSink(nil), e.eventSinks...)
+		e.sinksMu.RUnlock()
 
 		go func(childNode PipelineNode, exec *Executor) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			if hasErr.Load() || ctx.Err() != nil {
+			if hasErr.Load() || pCtx.Err() != nil {
 				return
 			}
 
 			var localResults []ScriptResult
-			childErr := exec.executeNodes(ctx, []PipelineNode{childNode}, &localResults)
+			childErr := exec.executeNodes(pCtx, []PipelineNode{childNode}, &localResults)
 
 			e.resultsMu.Lock()
 			*results = append(*results, localResults...)
@@ -907,6 +1106,7 @@ func (e *Executor) executeParallelNode(ctx context.Context, node PipelineNode, r
 
 			if childErr {
 				hasErr.Store(true)
+				cancel()
 			}
 		}(child, workerExec)
 	}
@@ -1030,7 +1230,7 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 					hasErr = true
 					break
 				}
-				dbConn, err := e.registry.GetDB(node.DBName)
+				dbHandle, err := e.registry.GetDBHandle(node.DBName)
 				if err != nil {
 					res := ScriptResult{
 						ScriptID:   node.GroupID,
@@ -1040,38 +1240,102 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 					hasErr = true
 					break
 				}
-				tx, err := dbConn.BeginTx(ctx, nil)
-				if err != nil {
-					res := ScriptResult{
-						ScriptID:   node.GroupID,
-						ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
+				dbConn := dbHandle.Conn
+				driver := dbHandle.Driver
+				txCtx := nodeCtx
+				if node.Timeout != "" {
+					if d, dErr := time.ParseDuration(node.Timeout); dErr == nil && d > 0 {
+						var txCancel context.CancelFunc
+						txCtx, txCancel = context.WithTimeout(nodeCtx, d)
+						defer txCancel()
 					}
-					e.appendResult(&nodeResults, res)
-					hasErr = true
-					break
 				}
 
-				if e.activeTxs == nil {
-					e.activeTxs = make(map[string]*sql.Tx)
+				existingTx := e.getActiveTx(node.DBName)
+				var isNestedOnSameDB bool
+				var savepointName string
+				var tx *sql.Tx
+
+				if existingTx != nil {
+					isNestedOnSameDB = true
+					savepointName = fmt.Sprintf("sp_%d", time.Now().UnixNano())
+					createSQL := savepointSQL(driver, savepointName)
+					if _, spErr := existingTx.ExecContext(txCtx, createSQL); spErr != nil {
+						savepointName = ""
+					}
+					e.pushTx(node.DBName, existingTx)
+				} else {
+					var err error
+					tx, err = dbConn.BeginTx(txCtx, nil)
+					if err != nil {
+						res := ScriptResult{
+							ScriptID:   node.GroupID,
+							ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
+						}
+						e.appendResult(&nodeResults, res)
+						hasErr = true
+						break
+					}
+					e.pushTx(node.DBName, tx)
 				}
-				e.activeTxs[node.DBName] = tx
 
-				hasErr = e.executeNodes(nodeCtx, node.Children, &nodeResults)
+				func() {
+					committed := false
+					defer func() {
+						if r := recover(); r != nil {
+							if isNestedOnSameDB {
+								if savepointName != "" {
+									rollbackSQL := rollbackSavepointSQL(driver, savepointName)
+									_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
+								}
+							} else if tx != nil && !committed {
+								_ = tx.Rollback()
+							}
+							e.popTx(node.DBName)
+							panic(r)
+						}
+						if !committed {
+							if isNestedOnSameDB {
+								if savepointName != "" {
+									rollbackSQL := rollbackSavepointSQL(driver, savepointName)
+									_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
+								}
+							} else if tx != nil {
+								_ = tx.Rollback()
+							}
+							e.popTx(node.DBName)
+						}
+					}()
 
-				delete(e.activeTxs, node.DBName)
+					hasErr = e.executeNodes(txCtx, node.Children, &nodeResults)
+					if hasErr {
+						return
+					}
+
+					if isNestedOnSameDB {
+						if savepointName != "" {
+							if relSQL := releaseSavepointSQL(driver, savepointName); relSQL != "" {
+								_, _ = existingTx.ExecContext(txCtx, relSQL)
+							}
+						}
+						committed = true
+						e.popTx(node.DBName)
+					} else {
+						if err := tx.Commit(); err != nil {
+							res := ScriptResult{
+								ScriptID:   node.GroupID,
+								ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
+							}
+							e.appendResult(&nodeResults, res)
+							hasErr = true
+							return
+						}
+						committed = true
+						e.popTx(node.DBName)
+					}
+				}()
 
 				if hasErr {
-					tx.Rollback()
-					break
-				}
-
-				if err := tx.Commit(); err != nil {
-					res := ScriptResult{
-						ScriptID:   node.GroupID,
-						ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
-					}
-					e.appendResult(&nodeResults, res)
-					hasErr = true
 					break
 				}
 			} else {
@@ -1180,9 +1444,8 @@ func (e *Executor) executeHTTPClientNode(ctx context.Context, elem HTTPClientEle
 		e.appendResult(results, res)
 		return true
 	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 50*1024*1024))
+	_ = resp.Body.Close()
 	if err != nil {
 		res.ReturnCode = fmt.Sprintf("failed to read response body: %v", err)
 		res.Duration = time.Since(startTime).String()
@@ -1489,6 +1752,15 @@ func (e *Executor) executeExcelReadNode(ctx context.Context, elem ExcelReadEleme
 			}
 			records = append(records, record)
 		}
+	} else if !hasHeader && len(rows) > 0 {
+		for _, row := range rows {
+			record := make(map[string]string)
+			for i, colCell := range row {
+				colName := fmt.Sprintf("col%d", i+1)
+				record[colName] = colCell
+			}
+			records = append(records, record)
+		}
 	}
 
 	jsonBytes, err := json.Marshal(records)
@@ -1537,34 +1809,55 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 	defer f.Close()
 
 	// 2. Create the sheet if it doesn't exist, or select it if it does
-	sheetIdx, _ := f.GetSheetIndex(sheet)
-	if sheetIdx == -1 {
-		sheetIdx, _ = f.NewSheet(sheet)
+	sheetIdx, err := f.GetSheetIndex(sheet)
+	if err != nil || sheetIdx == -1 {
+		idx, err := f.NewSheet(sheet)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to create sheet '%s': %v", sheet, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		sheetIdx = idx
 	}
 	f.SetActiveSheet(sheetIdx)
 
 	var rowCount int
 
 	if elem.DBName != "" && elem.Query != "" {
-		dbConn, err := e.registry.GetDB(elem.DBName)
-		if err != nil {
-			res.ReturnCode = fmt.Sprintf("db connection error: %v", err)
-			res.Duration = time.Since(startTime).String()
-			e.appendResult(results, res)
-			return true
-		}
+		var rows *sql.Rows
+		var queryErr error
 
 		queryStr := interpolateVars(strings.TrimSpace(elem.Query), variables)
-		rows, err := dbConn.QueryContext(ctx, queryStr)
-		if err != nil {
-			res.ReturnCode = fmt.Sprintf("query error: %v", err)
+		if tx := e.getActiveTx(elem.DBName); tx != nil {
+			rows, queryErr = tx.QueryContext(ctx, queryStr)
+		} else {
+			dbConn, err := e.registry.GetDB(elem.DBName)
+			if err != nil {
+				res.ReturnCode = fmt.Sprintf("db connection error: %v", err)
+				res.Duration = time.Since(startTime).String()
+				e.appendResult(results, res)
+				return true
+			}
+			rows, queryErr = dbConn.QueryContext(ctx, queryStr)
+		}
+
+		if queryErr != nil {
+			res.ReturnCode = fmt.Sprintf("query error: %v", queryErr)
 			res.Duration = time.Since(startTime).String()
 			e.appendResult(results, res)
 			return true
 		}
 		defer rows.Close()
 
-		cols, _ := rows.Columns()
+		cols, err := rows.Columns()
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("columns error: %v", err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+
 		for i, col := range cols {
 			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 			f.SetCellValue(sheet, cell, col)
@@ -1594,11 +1887,23 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 			}
 			rowIdx++
 		}
+		if err := rows.Err(); err != nil {
+			res.ReturnCode = fmt.Sprintf("rows iteration error: %v", err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
+		_ = rows.Close()
 		rowCount = rowIdx - 2
 	}
 
 	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
-		os.MkdirAll(dir, 0755)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to create directory structure %s: %v", dir, err)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
 	}
 
 	if err := f.SaveAs(filePath); err != nil {
@@ -2141,12 +2446,17 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 	}
 
 	var totalCopied int64
+	if batchSize <= 0 {
+		batchSize = 1000
+	}
+	batchCount := 0
 	wb := badgerDB.NewWriteBatch()
 	defer wb.Cancel()
 
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
+			_ = rows.Close()
 			return totalCopied, ctx.Err()
 		default:
 		}
@@ -2154,6 +2464,7 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 		var kStr, vStr string
 		if len(cols) == 2 {
 			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
@@ -2163,6 +2474,7 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 				valPtrs[i] = &vals[i]
 			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
@@ -2171,17 +2483,33 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 
 		key := badgerKey(targetBucket, kStr)
 		if err := wb.Set(key, []byte(vStr)); err != nil {
+			_ = rows.Close()
 			return totalCopied, fmt.Errorf("badger write batch set error: %w", err)
 		}
 		totalCopied++
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := wb.Flush(); err != nil {
+				_ = rows.Close()
+				return totalCopied, fmt.Errorf("badger write batch flush error: %w", err)
+			}
+			wb = badgerDB.NewWriteBatch()
+			defer wb.Cancel()
+			batchCount = 0
+		}
 	}
 
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
 	}
+	_ = rows.Close()
 
-	if err := wb.Flush(); err != nil {
-		return totalCopied, fmt.Errorf("badger write batch flush error: %w", err)
+	if batchCount > 0 {
+		if err := wb.Flush(); err != nil {
+			return totalCopied, fmt.Errorf("badger write batch flush error: %w", err)
+		}
 	}
 
 	return totalCopied, nil
@@ -2695,10 +3023,37 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 	}
 
 	var totalCopied int64
+	if batchSize <= 0 {
+		batchSize = 128
+	} else if batchSize > 128 {
+		batchSize = 128
+	}
+
+	var batchOps []clientv3.Op
+
+	flushOps := func() error {
+		if len(batchOps) == 0 {
+			return nil
+		}
+		if _, tErr := etcdClient.Txn(ctx).Then(batchOps...).Commit(); tErr != nil {
+			if strings.Contains(tErr.Error(), "Unimplemented") {
+				for _, op := range batchOps {
+					if _, pErr := etcdClient.Do(ctx, op); pErr != nil {
+						return fmt.Errorf("etcd put fallback error: %w", pErr)
+					}
+				}
+			} else {
+				return fmt.Errorf("etcd txn batch commit error: %w", tErr)
+			}
+		}
+		batchOps = batchOps[:0]
+		return nil
+	}
 
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
+			_ = rows.Close()
 			return totalCopied, ctx.Err()
 		default:
 		}
@@ -2706,6 +3061,7 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 		var kStr, vStr string
 		if len(cols) == 2 {
 			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
+				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
@@ -2715,6 +3071,7 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 				valPtrs[i] = &vals[i]
 			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
+				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
@@ -2722,14 +3079,25 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 		}
 
 		key := etcdKey(targetBucket, kStr)
-		if _, pErr := etcdClient.Put(ctx, key, vStr); pErr != nil {
-			return totalCopied, fmt.Errorf("etcd put error: %w", pErr)
-		}
+		batchOps = append(batchOps, clientv3.OpPut(key, vStr))
 		totalCopied++
+
+		if len(batchOps) >= batchSize {
+			if err := flushOps(); err != nil {
+				_ = rows.Close()
+				return totalCopied, err
+			}
+		}
 	}
 
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+	}
+	_ = rows.Close()
+
+	if err := flushOps(); err != nil {
+		return totalCopied, err
 	}
 
 	return totalCopied, nil

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	mssql "github.com/microsoft/go-mssqldb"
 )
@@ -189,7 +190,11 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		rowCopy := make([]interface{}, len(cols))
 		for i, v := range vals {
 			if b, ok := v.([]byte); ok {
-				rowCopy[i] = string(b)
+				if utf8.Valid(b) {
+					rowCopy[i] = string(b)
+				} else {
+					rowCopy[i] = b
+				}
 			} else {
 				rowCopy[i] = v
 			}

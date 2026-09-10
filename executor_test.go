@@ -2,11 +2,15 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 // TestShellVariablePassing verifies that output_var variables pass correctly
@@ -553,3 +557,556 @@ func TestSQLDMLWithReturning(t *testing.T) {
 		t.Errorf("expected results[4].ResultsString to be %q, got %q", expected, results[4].ResultsString)
 	}
 }
+
+func TestDMLClassification(t *testing.T) {
+	selectQueries := []string{
+		"SELECT deleted_at FROM users WHERE id = 1",
+		"SELECT is_deleted, updated_at FROM accounts",
+		"-- comment\nSELECT * FROM orders",
+		"/* comment */ SELECT * FROM orders",
+		"<![CDATA[ SELECT deleted_at FROM users ]]>",
+		"WITH user_cte AS (SELECT id, deleted_at FROM users) SELECT * FROM user_cte",
+		"SHOW TABLES",
+		"PRAGMA table_info(users)",
+		"INSERT INTO users (name) VALUES ('alice') RETURNING id",
+		"UPDATE users SET name = 'bob' OUTPUT INSERTED.id",
+	}
+
+	for _, q := range selectQueries {
+		if isDMLQuery(q) {
+			t.Errorf("expected isDMLQuery to be false for: %q", q)
+		}
+	}
+
+	dmlQueries := []string{
+		"INSERT INTO users (name) VALUES ('alice')",
+		"UPDATE users SET deleted_at = datetime('now') WHERE id = 1",
+		"DELETE FROM users WHERE id = 1",
+		"-- comment\nDELETE FROM users WHERE id = 2",
+		"/* comment */ TRUNCATE TABLE users",
+		"CREATE TABLE test (id INT)",
+		"DROP TABLE test",
+		"ALTER TABLE users ADD COLUMN age INT",
+	}
+
+	for _, q := range dmlQueries {
+		if !isDMLQuery(q) {
+			t.Errorf("expected isDMLQuery to be true for: %q", q)
+		}
+	}
+}
+
+func TestSQLExecutionDoesNotDropDeletedAtColumns(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="dml_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<flow>
+			<sql id="setup" db="dml_test_db">
+				CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, deleted_at TEXT);
+				INSERT INTO users (id, name, deleted_at) VALUES (1, 'Alice', '2026-01-01');
+			</sql>
+			<sql id="fetch_deleted" db="dml_test_db" output_var="deleted_rows">
+				SELECT id, name, deleted_at FROM users WHERE id = 1;
+			</sql>
+		</flow>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse config: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("pipeline failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	fetchRes := results[1]
+	if !strings.Contains(fetchRes.ResultsString, "2026-01-01") {
+		t.Errorf("expected output to contain '2026-01-01', got: %s", fetchRes.ResultsString)
+	}
+	if !strings.Contains(fetchRes.ResultsString, "deleted_at") {
+		t.Errorf("expected output to contain column name 'deleted_at', got: %s", fetchRes.ResultsString)
+	}
+}
+
+func TestForEachHybridStreamingAndBuffering(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="loop_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<flow>
+			<sql id="init_db" db="loop_db">
+				CREATE TABLE items (id INT, label TEXT);
+				INSERT INTO items VALUES (1, 'Alpha'), (2, 'Beta'), (3, 'Gamma');
+			</sql>
+
+			<!-- Test 1: Buffered mode -->
+			<foreach id="buffered_loop" db="loop_db" buffer="true">
+				SELECT id, label FROM items ORDER BY id;
+				<sql id="child_buffered" db="loop_db">
+					SELECT '{{label}}' AS current_item;
+				</sql>
+			</foreach>
+
+			<!-- Test 2: Streaming mode (default) -->
+			<foreach id="streaming_loop" db="loop_db" buffer="false">
+				SELECT id, label FROM items ORDER BY id;
+				<sql id="child_streaming" db="loop_db">
+					SELECT '{{label}}' AS current_item;
+				</sql>
+			</foreach>
+		</flow>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse config: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("pipeline execution failed: %v", err)
+	}
+
+	var bufferedDriverResult, streamingDriverResult *ScriptResult
+	for i := range results {
+		if results[i].ScriptID == "buffered_loop_driver" {
+			bufferedDriverResult = &results[i]
+		}
+		if results[i].ScriptID == "streaming_loop_driver" {
+			streamingDriverResult = &results[i]
+		}
+	}
+
+	if bufferedDriverResult == nil {
+		t.Fatal("expected buffered_loop_driver result")
+	}
+	if !strings.Contains(bufferedDriverResult.ResultsString, "3 iteration(s)") {
+		t.Errorf("expected buffered loop to execute 3 iterations, got: %s", bufferedDriverResult.ResultsString)
+	}
+
+	if streamingDriverResult == nil {
+		t.Fatal("expected streaming_loop_driver result")
+	}
+	if !strings.Contains(streamingDriverResult.ResultsString, "3 iteration(s)") {
+		t.Errorf("expected streaming loop to execute 3 iterations, got: %s", streamingDriverResult.ResultsString)
+	}
+}
+
+func TestNestedTransactions(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="nested_tx_db" driver="sqlite" connection_string="file:nested_tx?mode=memory&amp;cache=shared" />
+		</databases>
+		<flow>
+			<sql id="setup" db="nested_tx_db">
+				CREATE TABLE audit_log (msg TEXT);
+			</sql>
+			<group id="outer_group" transaction="true" db="nested_tx_db">
+				<sql id="outer_insert" db="nested_tx_db">
+					INSERT INTO audit_log VALUES ('outer_start');
+				</sql>
+				<group id="inner_group" transaction="true" db="nested_tx_db">
+					<sql id="inner_insert" db="nested_tx_db">
+						INSERT INTO audit_log VALUES ('inner_commit');
+					</sql>
+				</group>
+				<sql id="outer_end" db="nested_tx_db">
+					INSERT INTO audit_log VALUES ('outer_finish');
+				</sql>
+			</group>
+			<sql id="verify" db="nested_tx_db" output_var="total_logs">
+				SELECT COUNT(*) as count FROM audit_log;
+			</sql>
+		</flow>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("pipeline execution failed: %v", err)
+	}
+
+	var verifyRes *ScriptResult
+	for i := range results {
+		if results[i].ScriptID == "verify" {
+			verifyRes = &results[i]
+			break
+		}
+	}
+	if verifyRes == nil {
+		t.Fatal("verify step result missing")
+	}
+	if !strings.Contains(verifyRes.ResultsString, "3") {
+		t.Errorf("expected 3 audit log records, got: %s", verifyRes.ResultsString)
+	}
+}
+
+func TestExcelReadWithoutHeader(t *testing.T) {
+	tmpDir := t.TempDir()
+	excelFile := filepath.Join(tmpDir, "no_header.xlsx")
+
+	f := excelize.NewFile()
+	sheet := "Data"
+	f.NewSheet(sheet)
+	f.SetCellValue(sheet, "A1", "Val1")
+	f.SetCellValue(sheet, "B1", "Val2")
+	f.SetCellValue(sheet, "A2", "Val3")
+	f.SetCellValue(sheet, "B2", "Val4")
+	if err := f.SaveAs(excelFile); err != nil {
+		t.Fatalf("failed to save test excel: %v", err)
+	}
+	f.Close()
+
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<flow>
+			<excel_read id="read_no_header" file="` + filepath.ToSlash(excelFile) + `" sheet="Data" header="false" var="excel_data" />
+		</flow>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	executor := NewExecutor(registry)
+	_, err = executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("excel read execution failed: %v", err)
+	}
+
+	rawJSON := registry.GetVarString("excel_data")
+	if rawJSON == "" {
+		t.Fatal("expected excel_data variable to be populated")
+	}
+
+	var records []map[string]string
+	if err := json.Unmarshal([]byte(rawJSON), &records); err != nil {
+		t.Fatalf("failed to unmarshal excel JSON: %v", err)
+	}
+
+	if len(records) != 2 {
+		t.Fatalf("expected 2 records, got %d", len(records))
+	}
+	if records[0]["col1"] != "Val1" || records[0]["col2"] != "Val2" {
+		t.Errorf("unexpected record 0: %v", records[0])
+	}
+	if records[1]["col1"] != "Val3" || records[1]["col2"] != "Val4" {
+		t.Errorf("unexpected record 1: %v", records[1])
+	}
+}
+
+func TestASTValidationOmittedNodes(t *testing.T) {
+	// 1. Missing file in NodeFileSave
+	nodeFileSaveInvalid := []PipelineNode{
+		{
+			Kind: NodeFileSave,
+			FileSave: &FileSaveElement{
+				ID: "save1",
+			},
+		},
+	}
+	if err := ValidateAST(nil, nodeFileSaveInvalid, nil); err == nil {
+		t.Error("expected validation error for NodeFileSave missing file")
+	}
+
+	// 2. Missing var in NodeFileRead
+	nodeFileReadInvalid := []PipelineNode{
+		{
+			Kind: NodeFileRead,
+			FileRead: &FileReadElement{
+				ID:   "read1",
+				File: "test.txt",
+			},
+		},
+	}
+	if err := ValidateAST(nil, nodeFileReadInvalid, nil); err == nil {
+		t.Error("expected validation error for NodeFileRead missing var")
+	}
+
+	// 3. NodeExcelWrite referencing non-existent DB
+	nodeExcelWriteInvalid := []PipelineNode{
+		{
+			Kind: NodeExcelWrite,
+			ExcelWrite: &ExcelWriteElement{
+				ID:     "write_excel",
+				File:   "out.xlsx",
+				DBName: "missing_db",
+				Query:  "SELECT 1",
+			},
+		},
+	}
+	if err := ValidateAST(nil, nodeExcelWriteInvalid, nil); err == nil {
+		t.Error("expected validation error for NodeExcelWrite referencing missing DB")
+	}
+
+	// 4. NodeGroup with transaction referencing non-existent DB
+	nodeGroupInvalid := []PipelineNode{
+		{
+			Kind:        NodeGroup,
+			GroupID:     "group1",
+			Transaction: true,
+			DBName:      "missing_db",
+		},
+	}
+	if err := ValidateAST(nil, nodeGroupInvalid, nil); err == nil {
+		t.Error("expected validation error for NodeGroup transaction referencing missing DB")
+	}
+}
+
+func TestParallelFailFastCancellation(t *testing.T) {
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<pipeline>
+		<databases>
+			<database name="p_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
+		</databases>
+		<flow>
+			<parallel id="test_parallel" max_threads="1">
+				<sql id="fast_fail" db="p_db">
+					SELECT * FROM table_that_does_not_exist;
+				</sql>
+				<script id="slow_worker" language="go">
+					package main
+					import (
+						"time"
+					)
+					func main() {
+						time.Sleep(3 * time.Second)
+					}
+				</script>
+			</parallel>
+		</flow>
+	</pipeline>`)
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	executor := NewExecutor(registry)
+	startTime := time.Now()
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	duration := time.Since(startTime)
+
+	if err == nil {
+		t.Fatal("expected parallel execution to fail")
+	}
+
+	if duration > 2000*time.Millisecond {
+		t.Errorf("expected fail-fast cancellation in < 2s, but took %v", duration)
+	}
+
+	// Verify slow_worker was never executed
+	for _, res := range results {
+		if res.ScriptID == "slow_worker" {
+			t.Errorf("slow_worker should have been canceled and skipped, but was executed")
+		}
+	}
+}
+
+func TestDatabaseInitWithContextRollback(t *testing.T) {
+	configs := []DatabaseConfig{
+		{Name: "valid_sqlite", Driver: "sqlite", ConnectionString: "file::memory:?cache=shared"},
+		{Name: "invalid_db", Driver: "nonexistent_driver", ConnectionString: "foo"},
+	}
+
+	reg := NewRegistry()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := reg.InitDatabasesWithContext(ctx, configs)
+	if err == nil {
+		t.Fatal("expected error with nonexistent_driver")
+	}
+
+	_, getErr := reg.GetDB("valid_sqlite")
+	if getErr == nil {
+		t.Error("expected valid_sqlite handle to be cleared after partial failure rollback")
+	}
+}
+
+func TestXSDAlignedNodeAttributes(t *testing.T) {
+	xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+    <flow>
+        <group tx="true" timeout="30s" db="testdb">
+            <sql id="step1" db="testdb" timeout="10s">
+                CREATE TABLE IF NOT EXISTS items (id INT);
+            </sql>
+            <sql_bulk id="bulk1" db="testdb" target_table="items" timeout="15s">
+                SELECT 1 AS id;
+            </sql_bulk>
+            <foreach id="loop1" db="testdb" buffer="true" mode="buffer">
+                SELECT id FROM items;
+                <group>
+                    <html_template id="tmpl1" var="rendered">
+                        &lt;b&gt;Item {{.id}}&lt;/b&gt;
+                    </html_template>
+                </group>
+            </foreach>
+        </group>
+    </flow>
+</pipeline>`
+
+	cfg, err := ParseXMLConfig([]byte(xmlContent))
+	if err != nil {
+		t.Fatalf("failed to parse pipeline with XSD-aligned attributes: %v", err)
+	}
+
+	if len(cfg.FlowNodes) == 0 {
+		t.Fatal("expected at least one flow node")
+	}
+
+	groupNode := cfg.FlowNodes[0]
+	if groupNode.Kind != NodeGroup {
+		t.Fatalf("expected NodeGroup, got %v", groupNode.Kind)
+	}
+	if !groupNode.Transaction {
+		t.Errorf("expected Transaction=true from tx='true'")
+	}
+	if groupNode.Timeout != "30s" {
+		t.Errorf("expected Timeout='30s', got %q", groupNode.Timeout)
+	}
+
+	if len(groupNode.Children) < 3 {
+		t.Fatalf("expected at least 3 children in group, got %d", len(groupNode.Children))
+	}
+
+	sqlNode := groupNode.Children[0]
+	if sqlNode.SQL == nil || sqlNode.SQL.Timeout != "10s" {
+		t.Errorf("expected SQL.Timeout='10s', got %v", sqlNode.SQL)
+	}
+
+	sqlBulkNode := groupNode.Children[1]
+	if sqlBulkNode.SQLBulk == nil || sqlBulkNode.SQLBulk.Timeout != "15s" {
+		t.Errorf("expected SQLBulk.Timeout='15s', got %v", sqlBulkNode.SQLBulk)
+	}
+
+	forEachNode := groupNode.Children[2]
+	if forEachNode.Kind != NodeForEach || !forEachNode.Buffer {
+		t.Errorf("expected NodeForEach with Buffer=true, got kind=%v, buffer=%v", forEachNode.Kind, forEachNode.Buffer)
+	}
+
+	if len(forEachNode.Children) > 0 && len(forEachNode.Children[0].Children) > 0 {
+		htmlTmplNode := forEachNode.Children[0].Children[0]
+		if htmlTmplNode.Kind != NodeHtmlTemplate {
+			t.Errorf("expected NodeHtmlTemplate from <html_template>, got %v", htmlTmplNode.Kind)
+		}
+	}
+}
+
+func TestSavepointDialectSQL(t *testing.T) {
+	tests := []struct {
+		driver           string
+		spName           string
+		expectedCreate   string
+		expectedRollback string
+		expectedRelease  string
+	}{
+		{
+			driver:           "sqlserver",
+			spName:           "sp_12345",
+			expectedCreate:   "SAVE TRANSACTION sp_12345",
+			expectedRollback: "ROLLBACK TRANSACTION sp_12345",
+			expectedRelease:  "",
+		},
+		{
+			driver:           "mssql",
+			spName:           "sp_nested",
+			expectedCreate:   "SAVE TRANSACTION sp_nested",
+			expectedRollback: "ROLLBACK TRANSACTION sp_nested",
+			expectedRelease:  "",
+		},
+		{
+			driver:           "postgres",
+			spName:           "sp_1",
+			expectedCreate:   "SAVEPOINT sp_1",
+			expectedRollback: "ROLLBACK TO SAVEPOINT sp_1",
+			expectedRelease:  "RELEASE SAVEPOINT sp_1",
+		},
+		{
+			driver:           "sqlite",
+			spName:           "sp_sub",
+			expectedCreate:   "SAVEPOINT sp_sub",
+			expectedRollback: "ROLLBACK TO SAVEPOINT sp_sub",
+			expectedRelease:  "RELEASE SAVEPOINT sp_sub",
+		},
+		{
+			driver:           "mysql",
+			spName:           "sp_my",
+			expectedCreate:   "SAVEPOINT sp_my",
+			expectedRollback: "ROLLBACK TO SAVEPOINT sp_my",
+			expectedRelease:  "RELEASE SAVEPOINT sp_my",
+		},
+		{
+			driver:           "oracle",
+			spName:           "sp_ora",
+			expectedCreate:   "SAVEPOINT sp_ora",
+			expectedRollback: "ROLLBACK TO SAVEPOINT sp_ora",
+			expectedRelease:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.driver, func(t *testing.T) {
+			gotCreate := savepointSQL(tt.driver, tt.spName)
+			if gotCreate != tt.expectedCreate {
+				t.Errorf("savepointSQL(%q) = %q; want %q", tt.driver, gotCreate, tt.expectedCreate)
+			}
+
+			gotRollback := rollbackSavepointSQL(tt.driver, tt.spName)
+			if gotRollback != tt.expectedRollback {
+				t.Errorf("rollbackSavepointSQL(%q) = %q; want %q", tt.driver, gotRollback, tt.expectedRollback)
+			}
+
+			gotRelease := releaseSavepointSQL(tt.driver, tt.spName)
+			if gotRelease != tt.expectedRelease {
+				t.Errorf("releaseSavepointSQL(%q) = %q; want %q", tt.driver, gotRelease, tt.expectedRelease)
+			}
+		})
+	}
+}
+
+

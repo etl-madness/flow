@@ -279,6 +279,11 @@
                         escaping.</xs:documentation>
                 </xs:annotation>
             </xs:element>
+            <xs:element name="html_template" type="TemplateHtmlType">
+                <xs:annotation>
+                    <xs:documentation>Alias for template_html.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
             <xs:element name="file_save" type="FileSaveType">
                 <xs:annotation>
                     <xs:documentation>Writes string payload or variable contents to disk.</xs:documentation>
@@ -951,6 +956,11 @@
                         <xs:documentation>Wraps child steps in an atomic database transaction.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="tx" type="xs:boolean" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for transaction.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Database connection name for the transaction group.</xs:documentation>
@@ -959,6 +969,11 @@
                 <xs:attribute name="database" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Alias for db.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="timeout" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Transaction timeout or execution deadline duration (e.g. 30s, 5m).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
@@ -1035,6 +1050,7 @@
                 <xs:element name="http_client" type="HttpClientType" />
                 <xs:element name="template" type="TemplateType" />
                 <xs:element name="template_html" type="TemplateHtmlType" />
+                <xs:element name="html_template" type="TemplateHtmlType" />
                 <xs:element name="file_save" type="FileSaveType" />
                 <xs:element name="file_read" type="FileReadType" />
                 <xs:element name="excel_read" type="ExcelReadType" />
@@ -1144,6 +1160,21 @@
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Alias for variable.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="buffer" type="xs:boolean" use="optional" default="false">
+                    <xs:annotation>
+                        <xs:documentation>Opt-in in-memory buffering to read all rows up front (capped at 100,000) and release the database connection/cursor early.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="mode" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Loop execution mode: 'stream' (default, constant O(1) memory for 60M+ rows) or 'buffer' (pre-buffer up to 100k rows in memory).</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="stream" type="xs:boolean" use="optional" default="true">
+                    <xs:annotation>
+                        <xs:documentation>Forces constant-memory streaming cursor mode (defaults to true).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
@@ -1517,6 +1548,11 @@
                         <xs:documentation>Database connection name executing source export query.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="database" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for db.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Variable containing the SQL query to execute.</xs:documentation>
@@ -1733,6 +1769,11 @@
                         <xs:documentation>Alias for output_var.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="timeout" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Statement execution timeout duration (e.g. 30s, 45m).</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Description of SQL step.</xs:documentation>
@@ -1832,6 +1873,11 @@
                 <xs:attribute name="keep_nulls" type="xs:boolean" use="optional">
                     <xs:annotation>
                         <xs:documentation>Preserves explicit NULL values during copy when true.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="timeout" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Bulk copy operation timeout duration (e.g. 10m, 1h).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">

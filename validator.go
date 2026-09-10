@@ -173,7 +173,155 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 				}
 				inspect(node.Children)
 
+			case NodeFileSave:
+				f := node.FileSave
+				if f != nil {
+					if f.ID != "" {
+						if knownIDs[f.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", f.ID))
+						}
+						knownIDs[f.ID] = true
+					}
+					if f.GetFilePath() == "" {
+						errs = append(errs, fmt.Sprintf("file_save node '%s' is missing target file path attribute", f.ID))
+					}
+				}
+
+			case NodeFileRead:
+				f := node.FileRead
+				if f != nil {
+					if f.ID != "" {
+						if knownIDs[f.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", f.ID))
+						}
+						knownIDs[f.ID] = true
+					}
+					if f.GetFilePath() == "" {
+						errs = append(errs, fmt.Sprintf("file_read node '%s' is missing target file path attribute", f.ID))
+					}
+					if f.GetOutputVar() == "" {
+						errs = append(errs, fmt.Sprintf("file_read node '%s' is missing required output variable attribute", f.ID))
+					}
+				}
+
+			case NodeExcelRead:
+				e := node.ExcelRead
+				if e != nil {
+					if e.ID != "" {
+						if knownIDs[e.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", e.ID))
+						}
+						knownIDs[e.ID] = true
+					}
+					if e.File == "" {
+						errs = append(errs, fmt.Sprintf("excel_read node '%s' is missing required 'file' attribute", e.ID))
+					}
+				}
+
+			case NodeExcelWrite:
+				e := node.ExcelWrite
+				if e != nil {
+					if e.ID != "" {
+						if knownIDs[e.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", e.ID))
+						}
+						knownIDs[e.ID] = true
+					}
+					if e.File == "" {
+						errs = append(errs, fmt.Sprintf("excel_write node '%s' is missing required 'file' attribute", e.ID))
+					}
+					if e.DBName != "" && !definedDBs[e.DBName] {
+						errs = append(errs, fmt.Sprintf("excel_write node '%s' references unregistered database '%s'", e.ID, e.DBName))
+					}
+				}
+
+			case NodeTemplate:
+				t := node.Template
+				if t != nil {
+					if t.ID != "" {
+						if knownIDs[t.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", t.ID))
+						}
+						knownIDs[t.ID] = true
+					}
+					if t.File == "" && strings.TrimSpace(t.Content) == "" && t.Var == "" {
+						errs = append(errs, fmt.Sprintf("template node '%s' must specify 'file', 'var', or inline content", t.ID))
+					}
+				}
+
+			case NodeHtmlTemplate:
+				h := node.HtmlTemplate
+				if h != nil {
+					if h.ID != "" {
+						if knownIDs[h.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", h.ID))
+						}
+						knownIDs[h.ID] = true
+					}
+					if h.File == "" && strings.TrimSpace(h.Content) == "" && h.Var == "" {
+						errs = append(errs, fmt.Sprintf("html_template node '%s' must specify 'file', 'var', or inline content", h.ID))
+					}
+				}
+
+			case NodeXMLXPath:
+				x := node.XmlXPath
+				if x != nil {
+					if x.ID != "" {
+						if knownIDs[x.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", x.ID))
+						}
+						knownIDs[x.ID] = true
+					}
+					if x.File == "" && x.Var == "" {
+						errs = append(errs, fmt.Sprintf("xml_xpath node '%s' must specify source 'file' or 'var' attribute", x.ID))
+					}
+					if x.GetXPath() == "" {
+						errs = append(errs, fmt.Sprintf("xml_xpath node '%s' is missing required 'xpath' expression", x.ID))
+					}
+				}
+
+			case NodeJSONPath:
+				j := node.JsonPath
+				if j != nil {
+					if j.ID != "" {
+						if knownIDs[j.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", j.ID))
+						}
+						knownIDs[j.ID] = true
+					}
+					if j.File == "" && j.Var == "" {
+						errs = append(errs, fmt.Sprintf("json_path node '%s' must specify source 'file' or 'var' attribute", j.ID))
+					}
+					if j.GetJSONPath() == "" {
+						errs = append(errs, fmt.Sprintf("json_path node '%s' is missing required 'path' expression", j.ID))
+					}
+				}
+
+			case NodeYAMLPath:
+				y := node.YamlPath
+				if y != nil {
+					if y.ID != "" {
+						if knownIDs[y.ID] {
+							errs = append(errs, fmt.Sprintf("duplicate ID found: '%s'", y.ID))
+						}
+						knownIDs[y.ID] = true
+					}
+					if y.File == "" && y.Var == "" {
+						errs = append(errs, fmt.Sprintf("yaml_path node '%s' must specify source 'file' or 'var' attribute", y.ID))
+					}
+					if y.GetYAMLPath() == "" {
+						errs = append(errs, fmt.Sprintf("yaml_path node '%s' is missing required 'path' expression", y.ID))
+					}
+				}
+
 			case NodeGroup:
+				if node.Transaction {
+					if node.DBName == "" {
+						errs = append(errs, "transaction group is missing 'db' or 'database' attribute")
+					} else if !definedDBs[node.DBName] {
+						errs = append(errs, fmt.Sprintf("transaction group references unregistered database '%s'", node.DBName))
+					}
+				}
 				inspect(node.Children)
 			}
 		}

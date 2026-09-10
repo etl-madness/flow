@@ -56,6 +56,7 @@ type SQLElement struct {
 	VarName          string // Input environment variable to pull script code from dynamically
 	OutputVar        string // Environment variable to store the command's outputs or logs into
 	Code             string // Inner script text/payload
+	Timeout          string // Optional execution timeout duration (e.g. 30s, 45m)
 }
 type SQLBulkElement struct {
 	ID               string // Unique identifier of the script
@@ -70,6 +71,7 @@ type SQLBulkElement struct {
 	CheckConstraints bool   // Evaluate constraints during MSSQL bulk insert
 	FireTriggers     bool   // Execute target table triggers during MSSQL bulk insert
 	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
+	Timeout          string // Optional execution timeout duration (e.g. 10m, 1h)
 }
 // NodeKind represents the structural type of a PipelineNode.
 type NodeKind int
@@ -123,6 +125,8 @@ type PipelineNode struct {
 	ElseNodes     []PipelineNode       // Else branching steps (only used for NodeIf)
 	Transaction   bool                 // Start transaction for this group
 	DBName        string               // Database name for the transaction
+	Timeout       string               // Optional transaction/node timeout
+	Buffer        bool                 // Opt-in in-memory buffering for NodeForEach
 	Template      *TemplateElement     // New payload field for template inclusion step
 	FileSave      *FileSaveElement     // New payload field for file save operation
 	FileRead      *FileReadElement     // New payload field for file read operation
@@ -560,6 +564,8 @@ case "kv_bulk":
 				s.VarName = attr.Value
 			case "output_var", "out_var", "output_variable":
 				s.OutputVar = attr.Value
+			case "timeout":
+				s.Timeout = attr.Value
 			}
 		}
 		if s.ID == "" {
@@ -591,7 +597,7 @@ case "kv_bulk":
 				}
 			case "var", "variable":
 				s.VarName = attr.Value
-			case "output_var", "out_var":
+			case "output_var", "out_var", "output_variable":
 				s.OutputVar = attr.Value
 			case "tablock":
 				if b, err := strconv.ParseBool(attr.Value); err == nil {
@@ -609,6 +615,8 @@ case "kv_bulk":
 				if b, err := strconv.ParseBool(attr.Value); err == nil {
 					s.KeepNulls = b
 				}
+			case "timeout":
+				s.Timeout = attr.Value
 			}
 		}
 		if s.ID == "" {
@@ -694,7 +702,7 @@ case "kv_bulk":
 			Kind:     NodeFileRead,
 			FileRead: &elem,
 		}, nil
-	case "template_html":
+	case "template_html", "html_template":
 		var elem HtmlTemplateElement
 		if err := decoder.DecodeElement(&elem, &se); err != nil {
 			return nil, err
@@ -776,7 +784,7 @@ case "kv_bulk":
 		}
 
 	case "group":
-		var groupID, ifVar, ifEquals, condition, dbName string
+		var groupID, ifVar, ifEquals, condition, dbName, timeout string
 		var transaction bool
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
@@ -789,12 +797,14 @@ case "kv_bulk":
 				ifEquals = attr.Value
 			case "condition", "cond":
 				condition = attr.Value
-			case "transaction":
+			case "transaction", "tx":
 				if b, err := strconv.ParseBool(attr.Value); err == nil {
 					transaction = b
 				}
 			case "db", "database":
 				dbName = attr.Value
+			case "timeout":
+				timeout = attr.Value
 			}
 		}
 		if condition != "" && ifVar == "" {
@@ -814,6 +824,7 @@ case "kv_bulk":
 			Children:    children,
 			Transaction: transaction,
 			DBName:      dbName,
+			Timeout:     timeout,
 		}, nil
 
 	case "parallel":
@@ -870,6 +881,7 @@ case "kv_bulk":
 
 	case "foreach", "loop":
 		var foreachID, lang, dbName, varName string
+		var buffer bool
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
 			switch attrName {
@@ -881,6 +893,14 @@ case "kv_bulk":
 				dbName = attr.Value
 			case "variable", "var":
 				varName = attr.Value
+			case "buffer":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					buffer = b
+				}
+			case "mode":
+				if strings.ToLower(attr.Value) == "buffer" {
+					buffer = true
+				}
 			}
 		}
 
@@ -909,6 +929,7 @@ case "kv_bulk":
 			GroupID:       foreachID,
 			ForEachScript: driverScript,
 			Children:      children,
+			Buffer:        buffer,
 		}, nil
 
 	case "while":

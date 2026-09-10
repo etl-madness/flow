@@ -116,6 +116,29 @@ func (s *mockEtcdServer) DeleteRange(ctx context.Context, req *etcdserverpb.Dele
 	}, nil
 }
 
+func (s *mockEtcdServer) Txn(ctx context.Context, req *etcdserverpb.TxnRequest) (*etcdserverpb.TxnResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var responses []*etcdserverpb.ResponseOp
+	for _, successOp := range req.Success {
+		if putReq := successOp.GetRequestPut(); putReq != nil {
+			s.data[string(putReq.Key)] = string(putReq.Value)
+			responses = append(responses, &etcdserverpb.ResponseOp{
+				Response: &etcdserverpb.ResponseOp_ResponsePut{
+					ResponsePut: &etcdserverpb.PutResponse{
+						Header: &etcdserverpb.ResponseHeader{Revision: 1},
+					},
+				},
+			})
+		}
+	}
+	return &etcdserverpb.TxnResponse{
+		Header:    &etcdserverpb.ResponseHeader{Revision: 1},
+		Succeeded: true,
+		Responses: responses,
+	}, nil
+}
+
 func startMockEtcdServer(t *testing.T) (string, func()) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
