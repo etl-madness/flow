@@ -1781,7 +1781,7 @@
                         <xs:documentation>Destination table name receiving copied rows.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
-                <xs:attribute name="batch_size" type="xs:positiveInteger" use="optional"
+                <xs:attribute name="batch_size" type="xs:string" use="optional"
                     default="10000">
                     <xs:annotation>
                         <xs:documentation>Batch size per commit chunk (defaults to 10,000).</xs:documentation>
