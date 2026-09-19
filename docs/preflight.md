@@ -74,7 +74,7 @@ A preflight block is defined using the `<preflight>` element. Within this block,
 This example checks if the correct database connectivity is established and that critical environment variables are set before proceeding.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
@@ -118,7 +118,7 @@ This example checks if the correct database connectivity is established and that
 This example ensures that the destination folder structure exists and logs a marker file before downloading bulk records.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
@@ -149,7 +149,7 @@ This example ensures that the destination folder structure exists and logs a mar
 This example reads a remote configuration file or local manifest to assert that the pipeline version is supported.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <preflight>
@@ -184,7 +184,7 @@ It is common to separate your static pipeline execution structure (`pipeline.xml
 This file defines environment-specific databases, parameters, and **preflight validation checks** tailored strictly to this staging environment (e.g., verifying that the staging API is online).
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <variables>
@@ -220,7 +220,7 @@ This file defines environment-specific databases, parameters, and **preflight va
 This file defines the general validation logic (within `<preflight>`) and the heavy data movement tasks (within `<flow>`), completely independent of hardcoded credentials.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <preflight>

@@ -7,7 +7,7 @@ import (
 )
 
 func TestPreflight_ParsingAndExecution(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="preflight_done" type="string" value="no" />

@@ -130,14 +130,14 @@ import (
 
 func main() {
 	xsdSchema := flow.GetSchemaXSD() // Load embedded XSD schema for validation
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="TargetTable" value="processed_logs" />
 			<variable name="Threshold" type="int" value="100" />
 		</variables>
 	</pipeline>`)
-	xmlScript := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlScript := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="TargetTable" value="processed_logs" />

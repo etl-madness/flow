@@ -4,7 +4,7 @@
 This section provides an example of how to describe a pipeline, including its purpose, the databases it interacts with, and the scripts it executes. A well-documented pipeline helps in understanding its workflow and facilitates maintenance and collaboration.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline description="Monthly Sales and Inventory Report Pipeline" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
     <databases>

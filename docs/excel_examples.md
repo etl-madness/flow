@@ -138,7 +138,7 @@ Extract multiple datasets simultaneously from the database into different Excel 
 You can create multiple sheets within a single Excel file by specifying different `sheet` attributes in multiple `<excel_write>` nodes pointing to the same file.
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <pipeline xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/etl-madness/flow/main/xsd/pipeline.xsd">
 <pipeline description="Monthly Sales and Inventory Report Pipeline">

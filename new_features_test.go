@@ -21,7 +21,7 @@ func TestFileSaveAndRead(t *testing.T) {
 
 	filePath := filepath.Join(tmpDir, "sub", "test_file.txt")
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="my_content" type="string" value="Hello, from Variable!" />
@@ -92,7 +92,7 @@ func TestTemplate(t *testing.T) {
 		t.Fatalf("failed to write template file: %v", err)
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="name" type="string" value="World" />
@@ -144,7 +144,7 @@ func TestTemplate(t *testing.T) {
 }
 
 func TestDatabasePoolConfigParsing(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="pool_db" driver="sqlite" connection_string="file::memory:?cache=shared" max_open_conns="42" max_idle_conns="7" conn_max_lifetime_seconds="90" workload="oltp" />
@@ -180,7 +180,7 @@ func TestExcelReadAndWrite(t *testing.T) {
 
 	excelFilePath := filepath.Join(tmpDir, "output.xlsx")
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="excel_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -267,7 +267,7 @@ func TestXMLXPath(t *testing.T) {
 		t.Fatalf("failed to write XML file: %v", err)
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="xml_path" type="string" value="` + strings.ReplaceAll(xmlFilePath, `\`, `/`) + `" />
@@ -362,7 +362,7 @@ func TestJSONPath(t *testing.T) {
 		t.Fatalf("failed to write JSON file: %v", err)
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="json_path" type="string" value="` + strings.ReplaceAll(jsonFilePath, `\`, `/`) + `" />
@@ -460,7 +460,7 @@ store:
 		t.Fatalf("failed to write YAML file: %v", err)
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="yaml_path" type="string" value="` + strings.ReplaceAll(yamlFilePath, `\`, `/`) + `" />
@@ -558,7 +558,7 @@ func TestExcelMultiTabs(t *testing.T) {
 
 	excelFilePath := filepath.Join(tmpDir, "report.xlsx")
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="excel_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />

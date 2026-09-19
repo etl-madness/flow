@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html/charset"
 )
 
 // VariableConfig represents an individual environment variable loaded from XML.
@@ -51,12 +53,12 @@ type ScriptItem struct {
 	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
 }
 type SQLElement struct {
-	ID               string // Unique identifier of the script
-	DBName           string // Target database identifier for SQL queries
-	VarName          string // Input environment variable to pull script code from dynamically
-	OutputVar        string // Environment variable to store the command's outputs or logs into
-	Code             string // Inner script text/payload
-	Timeout          string // Optional execution timeout duration (e.g. 30s, 45m)
+	ID        string // Unique identifier of the script
+	DBName    string // Target database identifier for SQL queries
+	VarName   string // Input environment variable to pull script code from dynamically
+	OutputVar string // Environment variable to store the command's outputs or logs into
+	Code      string // Inner script text/payload
+	Timeout   string // Optional execution timeout duration (e.g. 30s, 45m)
 }
 type SQLBulkElement struct {
 	ID               string // Unique identifier of the script
@@ -73,6 +75,7 @@ type SQLBulkElement struct {
 	KeepNulls        bool   // Preserve explicit NULL values during MSSQL bulk insert
 	Timeout          string // Optional execution timeout duration (e.g. 10m, 1h)
 }
+
 // NodeKind represents the structural type of a PipelineNode.
 type NodeKind int
 
@@ -106,8 +109,8 @@ const (
 	NodeSQL        // New enum item for standard SQL execution
 	NodeSQLBulk    // New enum item for bulk SQL execution
 	NodeAssert     // New enum item for assert operation
-	NodeKV // New enum item for key-value store operations
-	NodeKVBulk // New enum item for bulk key-value store operations
+	NodeKV         // New enum item for key-value store operations
+	NodeKVBulk     // New enum item for bulk key-value store operations
 )
 
 // PipelineNode is an AST node in the pipeline execution tree.
@@ -137,10 +140,10 @@ type PipelineNode struct {
 	HtmlTemplate  *HtmlTemplateElement // New payload field for HTML template inclusion step
 	YamlPath      *YamlPathElement     // New payload field for YAML path extraction
 	Assert        *AssertElement       // New enum item for assert operation
-	SQL        *SQLElement           // New payload field for standard SQL execution
-	SQLBulk    *SQLBulkElement     // New payload field for bulk SQL execution
-	KV        *KVElement        // New payload field for key-value store operations
-	KVBulk    *KVBulkElement    // New payload field for bulk key-value store operations
+	SQL           *SQLElement          // New payload field for standard SQL execution
+	SQLBulk       *SQLBulkElement      // New payload field for bulk SQL execution
+	KV            *KVElement           // New payload field for key-value store operations
+	KVBulk        *KVBulkElement       // New payload field for bulk key-value store operations
 }
 type KVElement struct {
 	ID        string `xml:"id,attr"`
@@ -335,9 +338,40 @@ func normalizeXMLAttributeName(name string) string {
 
 // PipelineConfig encapsulates the complete parsed AST structure.
 
+func isLikelyUTF8XML(data []byte) bool {
+	for i := 0; i < len(data) && i < 64; i++ {
+		if data[i] == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // ParseXMLConfig parses XML pipeline config definitions into separate Preflight and Flow ASTs.
 func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(xmlData))
+	decoder.CharsetReader = func(charsetLabel string, input io.Reader) (io.Reader, error) {
+		data, err := io.ReadAll(input)
+		if err != nil {
+			return nil, err
+		}
+		if isLikelyUTF8XML(data) {
+			if charsetLabel == "" || strings.EqualFold(charsetLabel, "UTF-8") {
+				return bytes.NewReader(data), nil
+			}
+			if strings.HasPrefix(strings.ToLower(charsetLabel), "utf-16") || strings.HasPrefix(strings.ToLower(charsetLabel), "utf-32") {
+				return bytes.NewReader(data), nil
+			}
+		}
+		reader, err := charset.NewReaderLabel(strings.ToLower(charsetLabel), bytes.NewReader(data))
+		if err == nil {
+			return reader, nil
+		}
+		if isLikelyUTF8XML(data) {
+			return bytes.NewReader(data), nil
+		}
+		return nil, err
+	}
 	var cfg PipelineConfig
 	scriptIndex := 1
 
@@ -431,72 +465,72 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 	switch elemName {
 	// In config.go -> parseNodeElement switch elemName
 	case "kv":
-    var elem KVElement
-    for _, attr := range se.Attr {
-        switch strings.ToLower(attr.Name.Local) {
-        case "id":
-            elem.ID = attr.Value
-        case "db", "database":
-            elem.DBName = attr.Value
-        case "bucket":
-            elem.Bucket = attr.Value
-        case "op", "operation":
-            elem.Op = strings.ToLower(attr.Value)
-        case "key":
-            elem.Key = attr.Value
-        case "value", "val":
-            elem.Value = attr.Value
-        case "var", "variable":
-            elem.VarName = attr.Value
-        case "output_var", "out_var", "output_variable":
-            elem.OutputVar = attr.Value
-        }
-    }
-    if elem.ID == "" {
-        elem.ID = fmt.Sprintf("kv_%d", *scriptIndex)
-        (*scriptIndex)++
-    }
-    var content string
-    if err := decoder.DecodeElement(&content, &se); err == nil {
-        elem.Code = strings.TrimSpace(content)
-    }
-    return &PipelineNode{Kind: NodeKV, KV: &elem}, nil
+		var elem KVElement
+		for _, attr := range se.Attr {
+			switch strings.ToLower(attr.Name.Local) {
+			case "id":
+				elem.ID = attr.Value
+			case "db", "database":
+				elem.DBName = attr.Value
+			case "bucket":
+				elem.Bucket = attr.Value
+			case "op", "operation":
+				elem.Op = strings.ToLower(attr.Value)
+			case "key":
+				elem.Key = attr.Value
+			case "value", "val":
+				elem.Value = attr.Value
+			case "var", "variable":
+				elem.VarName = attr.Value
+			case "output_var", "out_var", "output_variable":
+				elem.OutputVar = attr.Value
+			}
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("kv_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		var content string
+		if err := decoder.DecodeElement(&content, &se); err == nil {
+			elem.Code = strings.TrimSpace(content)
+		}
+		return &PipelineNode{Kind: NodeKV, KV: &elem}, nil
 
-case "kv_bulk":
-    var elem KVBulkElement
-    for _, attr := range se.Attr {
-        switch strings.ToLower(attr.Name.Local) {
-        case "id":
-            elem.ID = attr.Value
-        case "db", "database":
-            elem.DBName = attr.Value
-        case "target_db", "target_database":
-            elem.TargetDB = attr.Value
-        case "bucket":
-            elem.Bucket = attr.Value
-        case "target_bucket":
-            elem.TargetBucket = attr.Value
-        case "target_table":
-            elem.TargetTable = attr.Value
-        case "batch_size":
-            if b, err := strconv.Atoi(attr.Value); err == nil {
-                elem.BatchSize = b
-            }
-        case "var", "variable":
-            elem.VarName = attr.Value
-        case "output_var", "out_var":
-            elem.OutputVar = attr.Value
-        }
-    }
-    if elem.ID == "" {
-        elem.ID = fmt.Sprintf("kv_bulk_%d", *scriptIndex)
-        (*scriptIndex)++
-    }
-    var content string
-    if err := decoder.DecodeElement(&content, &se); err == nil {
-        elem.Code = strings.TrimSpace(content)
-    }
-    return &PipelineNode{Kind: NodeKVBulk, KVBulk: &elem}, nil
+	case "kv_bulk":
+		var elem KVBulkElement
+		for _, attr := range se.Attr {
+			switch strings.ToLower(attr.Name.Local) {
+			case "id":
+				elem.ID = attr.Value
+			case "db", "database":
+				elem.DBName = attr.Value
+			case "target_db", "target_database":
+				elem.TargetDB = attr.Value
+			case "bucket":
+				elem.Bucket = attr.Value
+			case "target_bucket":
+				elem.TargetBucket = attr.Value
+			case "target_table":
+				elem.TargetTable = attr.Value
+			case "batch_size":
+				if b, err := strconv.Atoi(attr.Value); err == nil {
+					elem.BatchSize = b
+				}
+			case "var", "variable":
+				elem.VarName = attr.Value
+			case "output_var", "out_var":
+				elem.OutputVar = attr.Value
+			}
+		}
+		if elem.ID == "" {
+			elem.ID = fmt.Sprintf("kv_bulk_%d", *scriptIndex)
+			(*scriptIndex)++
+		}
+		var content string
+		if err := decoder.DecodeElement(&content, &se); err == nil {
+			elem.Code = strings.TrimSpace(content)
+		}
+		return &PipelineNode{Kind: NodeKVBulk, KVBulk: &elem}, nil
 
 	case "assert":
 		var elem AssertElement
@@ -553,7 +587,7 @@ case "kv_bulk":
 
 		return &PipelineNode{Kind: NodeAssert, Assert: &elem}, nil
 	case "sql":
-		s := SQLElement{ }
+		s := SQLElement{}
 		for _, attr := range se.Attr {
 			switch strings.ToLower(attr.Name.Local) {
 			case "id":
@@ -580,7 +614,7 @@ case "kv_bulk":
 		return &PipelineNode{Kind: NodeSQL, SQL: &s}, nil
 
 	case "sql_bulk":
-		s := SQLBulkElement{ Tablock: true}
+		s := SQLBulkElement{Tablock: true}
 		for _, attr := range se.Attr {
 			switch strings.ToLower(attr.Name.Local) {
 			case "id":
@@ -1149,6 +1183,7 @@ type PipelineConfig struct {
 	PreflightNodes []PipelineNode
 	FlowNodes      []PipelineNode
 }
+
 func (k *KVElement) GetOutputVar() string {
 	if k.OutputVar != "" {
 		return k.OutputVar

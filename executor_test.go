@@ -26,7 +26,7 @@ func TestShellVariablePassing(t *testing.T) {
 		varCmd = "echo Data: %GCLOUD_BILLING_JSON%"
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<scripts>
 			<script id="extract" language="` + lang + `" output_var="GCLOUD_BILLING_JSON">
@@ -99,7 +99,7 @@ func TestIsShellLanguage(t *testing.T) {
 // TestGroupTransactions verifies transaction commits and rollbacks within group blocks.
 func TestGroupTransactions(t *testing.T) {
 	// Initialize in-memory SQLite database
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="tx_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -231,7 +231,7 @@ func TestDotnetScriptExecution(t *testing.T) {
 		t.Skip("dotnet-script or dotnet script is not installed/available in PATH")
 	}
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="TEST_VAR" value="AntigravityPower" />
@@ -287,7 +287,7 @@ func TestDotnetScriptExecution(t *testing.T) {
 */
 // TestExecutorContextCancellation verifies that canceling a context terminates long loops immediately.
 func TestExecutorContextCancellation(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<variables>
 			<variable name="LoopCond" value="true" />
@@ -417,7 +417,7 @@ func TestParallelVariableIsolationAndNamespacing(t *testing.T) {
 }
 
 func TestSQLAndSQLBulk(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="test_sql_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -488,7 +488,7 @@ func TestSQLAndSQLBulk(t *testing.T) {
 }
 
 func TestSQLDMLWithReturning(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="dml_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -597,7 +597,7 @@ func TestDMLClassification(t *testing.T) {
 }
 
 func TestSQLExecutionDoesNotDropDeletedAtColumns(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="dml_test_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -644,7 +644,7 @@ func TestSQLExecutionDoesNotDropDeletedAtColumns(t *testing.T) {
 }
 
 func TestForEachHybridStreamingAndBuffering(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="loop_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -716,7 +716,7 @@ func TestForEachHybridStreamingAndBuffering(t *testing.T) {
 }
 
 func TestNestedTransactions(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="nested_tx_db" driver="sqlite" connection_string="file:nested_tx?mode=memory&amp;cache=shared" />
@@ -792,7 +792,7 @@ func TestExcelReadWithoutHeader(t *testing.T) {
 	}
 	f.Close()
 
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<flow>
 			<excel_read id="read_no_header" file="` + filepath.ToSlash(excelFile) + `" sheet="Data" header="false" var="excel_data" />
@@ -891,7 +891,7 @@ func TestASTValidationOmittedNodes(t *testing.T) {
 }
 
 func TestParallelFailFastCancellation(t *testing.T) {
-	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="p_db" driver="sqlite" connection_string="file::memory:?cache=shared" />
@@ -968,7 +968,7 @@ func TestDatabaseInitWithContextRollback(t *testing.T) {
 }
 
 func TestXSDAlignedNodeAttributes(t *testing.T) {
-	xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
+	xmlContent := `<?xml version="1.0" encoding="UTF-16"?>
 <pipeline>
     <flow>
         <group tx="true" timeout="30s" db="testdb">

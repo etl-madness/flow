@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-16"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <!-- ROOT ELEMENT -->
@@ -973,7 +973,8 @@
                 </xs:attribute>
                 <xs:attribute name="timeout" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Transaction timeout or execution deadline duration (e.g. 30s, 5m).</xs:documentation>
+                        <xs:documentation>Transaction timeout or execution deadline duration (e.g.
+                            30s, 5m).</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="description" type="xs:string" use="optional">
@@ -1119,71 +1120,96 @@
     </xs:complexType>
 
     <!-- FOREACH / LOOP NODE -->
-    <xs:complexType name="ForEachType">
+    <xs:complexType name="ForEachType" mixed="true">
         <xs:annotation>
             <xs:documentation>Executes child nodes for each record returned by the driver SQL query,
                 mapping columns to variables. The driver query can be supplied as inline SQL text
                 inside the element body or via the var / variable attribute.</xs:documentation>
         </xs:annotation>
-        <xs:complexContent>
-            <xs:extension base="PipelineNodesType">
-                <xs:attribute name="id" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Unique step identifier.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="language" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Driver query language runtime (defaults to sql).</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="lang" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Alias for language.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="db" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Database handle executing the query driver.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="database" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Alias for db.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="variable" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Variable containing the driver query text.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="var" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Alias for variable.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="buffer" type="xs:boolean" use="optional" default="false">
-                    <xs:annotation>
-                        <xs:documentation>Opt-in in-memory buffering to read all rows up front (capped at 100,000) and release the database connection/cursor early.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="mode" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Loop execution mode: 'stream' (default, constant O(1) memory for 60M+ rows) or 'buffer' (pre-buffer up to 100k rows in memory).</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="stream" type="xs:boolean" use="optional" default="true">
-                    <xs:annotation>
-                        <xs:documentation>Forces constant-memory streaming cursor mode (defaults to true).</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-                <xs:attribute name="description" type="xs:string" use="optional">
-                    <xs:annotation>
-                        <xs:documentation>Description of the foreach iteration.</xs:documentation>
-                    </xs:annotation>
-                </xs:attribute>
-            </xs:extension>
-        </xs:complexContent>
+        <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="script" type="ScriptType" />
+                <xs:element name="sql" type="SqlType" />
+                <xs:element name="sql_bulk" type="SqlBulkType" />
+                <xs:element name="kv" type="KVType" />
+                <xs:element name="kv_bulk" type="KVBulkType" />
+                <xs:element name="group" type="GroupType" />
+                <xs:element name="parallel" type="ParallelType" />
+                <xs:element name="if" type="IfType" />
+                <xs:element name="foreach" type="ForEachType" />
+                <xs:element name="loop" type="ForEachType" />
+                <xs:element name="while" type="WhileType" />
+                <xs:element name="http_client" type="HttpClientType" />
+                <xs:element name="template" type="TemplateType" />
+                <xs:element name="template_html" type="TemplateHtmlType" />
+                <xs:element name="html_template" type="TemplateHtmlType" />
+                <xs:element name="file_save" type="FileSaveType" />
+                <xs:element name="file_read" type="FileReadType" />
+                <xs:element name="excel_read" type="ExcelReadType" />
+                <xs:element name="excel_write" type="ExcelWriteType" />
+                <xs:element name="xml_xpath" type="XmlXPathType" />
+                <xs:element name="json_path" type="JsonPathType" />
+                <xs:element name="yaml_path" type="YamlPathType" />
+                <xs:element name="assert" type="AssertType" />
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Unique step identifier.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="language" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Driver query language runtime (defaults to sql).</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="lang" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Alias for language.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="db" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Database handle executing the query driver.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="database" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Alias for db.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="variable" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Variable containing the driver query text.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="var" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Alias for variable.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="buffer" type="xs:boolean" use="optional" default="false">
+            <xs:annotation>
+                <xs:documentation>Opt-in in-memory buffering to read all rows up front (capped at
+                    100,000) and release the database connection/cursor early.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="mode" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Loop execution mode: 'stream' (default, constant O(1) memory for
+                    60M+ rows) or 'buffer' (pre-buffer up to 100k rows in memory).</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="stream" type="xs:boolean" use="optional" default="true">
+            <xs:annotation>
+                <xs:documentation>Forces constant-memory streaming cursor mode (defaults to true).</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="description" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Description of the foreach iteration.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:complexType>
 
     <!-- WHILE LOOP NODE -->

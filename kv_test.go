@@ -383,7 +383,7 @@ func TestBoltKVOperations(t *testing.T) {
 
 	dbPath := filepath.Join(tmpDir, "test_bolt.db")
 
-	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="bolt_store" driver="bbolt" connection_string="%s" />
@@ -485,7 +485,7 @@ func TestBadgerKVOperations(t *testing.T) {
 
 	dbDir := filepath.Join(tmpDir, "badger_data")
 
-	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="badger_store" driver="badger" connection_string="%s" />
@@ -582,7 +582,7 @@ func TestRedisKVOperations(t *testing.T) {
 	redisAddr, cleanup := startMockRedisServer(t)
 	defer cleanup()
 
-	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="redis_store" driver="redis" connection_string="%s" />
@@ -679,7 +679,7 @@ func TestEtcdKVOperations(t *testing.T) {
 	etcdAddr, cleanup := startMockEtcdServer(t)
 	defer cleanup()
 
-	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
 	<pipeline>
 		<databases>
 			<database name="etcd_cluster" driver="etcd" connection_string="%s" />
