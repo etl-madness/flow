@@ -212,6 +212,14 @@ type XmlXPathElement struct {
 	Content   string `xml:",chardata"` // Captures inner element body text
 	Mode      string `xml:"mode,attr"` // "text", "xml", "json_array"
 	OutputVar string `xml:"output_var,attr"`
+	OutVar    string `xml:"out_var,attr"`
+}
+
+func (x *XmlXPathElement) GetOutputVar() string {
+	if x.OutputVar != "" {
+		return x.OutputVar
+	}
+	return x.OutVar
 }
 type TemplateElement struct {
 	ID        string `xml:"id,attr"`
@@ -317,7 +325,15 @@ func ValidateXSD(xmlPath string, xsdPath string) error {
 		return fmt.Errorf("'xmllint' executable not found in PATH. Please install libxml2-utils / xmllint to enable XSD validation")
 	}
 
-	cmd := exec.Command("xmllint", "--schema", xsdPath, "--noout", xmlPath)
+	xmlData, err := os.ReadFile(xmlPath)
+	if err != nil {
+		return fmt.Errorf("XML file not found at path: %s", xmlPath)
+	}
+
+	normalized := NormalizeXMLBytes(xmlData)
+
+	cmd := exec.Command("xmllint", "--schema", xsdPath, "--noout", "-")
+	cmd.Stdin = bytes.NewReader(normalized)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
@@ -326,6 +342,7 @@ func ValidateXSD(xmlPath string, xsdPath string) error {
 		if errStr == "" {
 			errStr = err.Error()
 		}
+		errStr = strings.ReplaceAll(errStr, "-: ", fmt.Sprintf("%s: ", xmlPath))
 		return fmt.Errorf("XSD Schema Validation Failure:\n%s", errStr)
 	}
 
@@ -349,7 +366,8 @@ func isLikelyUTF8XML(data []byte) bool {
 
 // ParseXMLConfig parses XML pipeline config definitions into separate Preflight and Flow ASTs.
 func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(xmlData))
+	normalized := NormalizeXMLBytes(xmlData)
+	decoder := xml.NewDecoder(bytes.NewReader(normalized))
 	decoder.CharsetReader = func(charsetLabel string, input io.Reader) (io.Reader, error) {
 		data, err := io.ReadAll(input)
 		if err != nil {

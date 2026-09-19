@@ -1693,7 +1693,7 @@ func (e *Executor) executeFileReadNode(ctx context.Context, elem FileReadElement
 		return true
 	}
 
-	contentStr := string(fileBytes)
+	contentStr := DecodeTextBytes(fileBytes)
 
 	// Save to pipeline variables
 	e.storeScriptOutput(outVar, contentStr)
@@ -1946,9 +1946,9 @@ func (e *Executor) executeXMLXPathNode(ctx context.Context, elem XmlXPathElement
 			e.appendResult(results, res)
 			return true
 		}
-		rawXML = string(fileBytes)
+		rawXML = string(NormalizeXMLBytes(fileBytes))
 	} else if elem.Var != "" {
-		rawXML = e.registry.GetVarString(elem.Var)
+		rawXML = string(NormalizeXMLBytes([]byte(e.registry.GetVarString(elem.Var))))
 	}
 
 	// 3. Parse XML & Execute Query
@@ -1986,7 +1986,7 @@ func (e *Executor) executeXMLXPathNode(ctx context.Context, elem XmlXPathElement
 		finalOutput = strings.Join(resultsArray, "\n")
 	}
 
-	e.storeScriptOutput(elem.OutputVar, finalOutput)
+	e.storeScriptOutput(elem.GetOutputVar(), finalOutput)
 
 	res.ReturnCode = 0
 	res.ResultsString = fmt.Sprintf("XPath query matched %d node(s)", len(nodes))
