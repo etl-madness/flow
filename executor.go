@@ -44,15 +44,16 @@ type ScriptResult struct {
 
 // Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
-	registry   *Registry
-	resultsMu  sync.Mutex
-	sinksMu    sync.RWMutex
-	eventSinks []EventSink
-	verbose    atomic.Bool
-	goPath     string
-	txMu       sync.Mutex
-	activeTxs  map[string][]*sql.Tx // Stack of active transactions per database
-	interpHook func(*interp.Options)
+	registry    *Registry
+	resultsMu   sync.Mutex
+	sinksMu     sync.RWMutex
+	eventSinks  []EventSink
+	verbose     atomic.Bool
+	goPath      string
+	optionsPath string
+	txMu        sync.Mutex
+	activeTxs   map[string][]*sql.Tx // Stack of active transactions per database
+	interpHook  func(*interp.Options)
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
@@ -89,6 +90,10 @@ func (e *Executor) AddEventSink(sink EventSink) {
 }
 func (e *Executor) SetVerbose(verbose bool) {
 	e.verbose.Store(verbose)
+}
+
+func (e *Executor) SetOptionsPath(path string) {
+	e.optionsPath = path
 }
 
 func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts interp.Options) (*interp.Interpreter, error) {
@@ -178,8 +183,8 @@ func (e *Executor) executeRun(ctx context.Context, nodes []PipelineNode) (RunRes
 	e.sinksMu.RLock()
 	sinks := append([]EventSink(nil), e.eventSinks...)
 	e.sinksMu.RUnlock()
-	collector := newRunCollector(sinks)
-	collector.emit(ctx, ExecutionEvent{Type: EventRunStarted, Status: RunStatusSucceeded})
+	collector := newRunCollector(sinks, e.optionsPath)
+	collector.emit(ctx, ExecutionEvent{Type: EventRunStarted, Status: RunStatusSucceeded, OptionsPath: e.optionsPath})
 	ctx = context.WithValue(ctx, executionScopeKey{}, &executionScope{collector: collector})
 	hasErr := e.executeNodes(ctx, nodes, &results)
 	run := collector.finish(ctx, hasErr)

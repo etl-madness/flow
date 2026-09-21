@@ -167,6 +167,38 @@ func TestExecuteRunIncludesRuntimeIdentityInRunAndEvents(t *testing.T) {
 	}
 }
 
+func TestExecuteRunIncludesOptionsPathInRunAndEvents(t *testing.T) {
+	registry := NewRegistry()
+	registry.SetVar("environment", "test")
+	sink := &recordingEventSink{}
+	executor := NewExecutor(registry)
+	executor.SetEventSink(sink)
+	executor.SetOptionsPath("C:/config/options.xml")
+
+	run, err := executor.ExecuteRun(context.Background(), []PipelineNode{{
+		Kind: NodeAssert,
+		Assert: &AssertElement{
+			ID:     "environment_check",
+			Var:    "environment",
+			Equals: "test",
+		},
+	}})
+	if err != nil {
+		t.Fatalf("ExecuteRun() error = %v", err)
+	}
+	if run.OptionsPath != "C:/config/options.xml" {
+		t.Fatalf("run options path = %q, want %q", run.OptionsPath, "C:/config/options.xml")
+	}
+
+	events := sink.Events()
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+	if events[0].OptionsPath != run.OptionsPath {
+		t.Fatalf("first event options path = %q, want %q", events[0].OptionsPath, run.OptionsPath)
+	}
+}
+
 func TestJSONLineSinkWritesEventAndRedactsSensitiveErrors(t *testing.T) {
 	var output bytes.Buffer
 	sink := &JSONLineSink{Writer: &output}

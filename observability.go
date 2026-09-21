@@ -91,6 +91,7 @@ type RunResult struct {
 	Status       RunStatus    `json:"status"`
 	UserName     string       `json:"user_name,omitempty"`
 	Hostname     string       `json:"hostname,omitempty"`
+	OptionsPath  string       `json:"options_path,omitempty"`
 	ErrorClass   ErrorClass   `json:"error_class,omitempty"`
 	ErrorMessage string       `json:"error_message,omitempty"`
 	RowCounts    RowCounts    `json:"row_counts,omitempty"`
@@ -122,6 +123,7 @@ type ExecutionEvent struct {
 	Status            RunStatus  `json:"status,omitempty"`
 	UserName          string     `json:"user_name,omitempty"`
 	Hostname          string     `json:"hostname,omitempty"`
+	OptionsPath       string     `json:"options_path,omitempty"`
 	RowCounts         RowCounts  `json:"row_counts,omitempty"`
 	ErrorClass        ErrorClass `json:"error_class,omitempty"`
 	ErrorMessage      string     `json:"error_message,omitempty"`
@@ -204,10 +206,10 @@ type runCollector struct {
 	sinks    []EventSink
 }
 
-func newRunCollector(sinks []EventSink) *runCollector {
+func newRunCollector(sinks []EventSink, optionsPath string) *runCollector {
 	startedAt := time.Now().UTC()
 	userName, hostname := runtimeIdentity()
-	return &runCollector{run: RunResult{RunID: newExecutionID(), StartedAt: startedAt, UserName: userName, Hostname: hostname}, sinks: sinks}
+	return &runCollector{run: RunResult{RunID: newExecutionID(), StartedAt: startedAt, UserName: userName, Hostname: hostname, OptionsPath: optionsPath}, sinks: sinks}
 }
 
 func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
@@ -218,6 +220,7 @@ func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
 	event.RunID = c.run.RunID
 	event.UserName = c.run.UserName
 	event.Hostname = c.run.Hostname
+	event.OptionsPath = c.run.OptionsPath
 
 	// Only apply global run-level counts to run lifecycle events.
 	// Preserves node and attempt event RowCounts.
@@ -322,7 +325,7 @@ func (c *runCollector) finish(ctx context.Context, hasError bool) RunResult {
 	}
 	run := c.run
 	c.mu.Unlock()
-	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, UserName: run.UserName, Hostname: run.Hostname, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage, RowCounts: run.RowCounts})
+	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, UserName: run.UserName, Hostname: run.Hostname, OptionsPath: run.OptionsPath, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage, RowCounts: run.RowCounts})
 	return run
 }
 
