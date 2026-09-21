@@ -369,19 +369,31 @@ func fqdnHostname() string {
 	if err != nil || hostname == "" {
 		return ""
 	}
+	hostname = strings.TrimSuffix(hostname, ".")
 	if strings.Contains(hostname, ".") {
-		return strings.TrimSuffix(hostname, ".")
+		return hostname
 	}
-	if hostnames, err := net.LookupCNAME(hostname); err == nil && hostnames != "" {
-		return strings.TrimSuffix(hostnames, ".")
+
+	if canonical, err := net.LookupCNAME(hostname); err == nil {
+		canonical = strings.TrimSuffix(canonical, ".")
+		if strings.Contains(canonical, ".") {
+			return canonical
+		}
 	}
-	if ip, err := net.LookupIP(hostname); err == nil && len(ip) > 0 {
-		for _, value := range ip {
-			if names, err := net.LookupAddr(value.String()); err == nil && len(names) > 0 {
-				return strings.TrimSuffix(names[0], ".")
+
+	if addresses, err := net.LookupIP(hostname); err == nil {
+		for _, addr := range addresses {
+			if names, err := net.LookupAddr(addr.String()); err == nil {
+				for _, name := range names {
+					name = strings.TrimSuffix(name, ".")
+					if strings.Contains(name, ".") {
+						return name
+					}
+				}
 			}
 		}
 	}
+
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
 			addresses, err := iface.Addrs()
@@ -399,13 +411,19 @@ func fqdnHostname() string {
 				if ip == nil || ip.IsLoopback() || ip.To4() == nil {
 					continue
 				}
-				if names, err := net.LookupAddr(ip.String()); err == nil && len(names) > 0 {
-					return strings.TrimSuffix(names[0], ".")
+				if names, err := net.LookupAddr(ip.String()); err == nil {
+					for _, name := range names {
+						name = strings.TrimSuffix(name, ".")
+						if strings.Contains(name, ".") {
+							return name
+						}
+					}
 				}
 			}
 		}
 	}
-	return strings.TrimSuffix(hostname, ".")
+
+	return hostname
 }
 
 func scriptResultError(result ScriptResult) string {
