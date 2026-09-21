@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/url"
 	"os"
+	"os/user"
 	"regexp"
 	"strconv"
 	"strings"
@@ -87,6 +89,8 @@ type RunResult struct {
 	StartedAt    time.Time    `json:"started_at"`
 	FinishedAt   time.Time    `json:"finished_at"`
 	Status       RunStatus    `json:"status"`
+	UserName     string       `json:"user_name,omitempty"`
+	Hostname     string       `json:"hostname,omitempty"`
 	ErrorClass   ErrorClass   `json:"error_class,omitempty"`
 	ErrorMessage string       `json:"error_message,omitempty"`
 	RowCounts    RowCounts    `json:"row_counts,omitempty"`
@@ -116,6 +120,8 @@ type ExecutionEvent struct {
 	NodePath          string     `json:"node_path,omitempty"`
 	Attempt           int        `json:"attempt,omitempty"`
 	Status            RunStatus  `json:"status,omitempty"`
+	UserName          string     `json:"user_name,omitempty"`
+	Hostname          string     `json:"hostname,omitempty"`
 	RowCounts         RowCounts  `json:"row_counts,omitempty"`
 	ErrorClass        ErrorClass `json:"error_class,omitempty"`
 	ErrorMessage      string     `json:"error_message,omitempty"`
@@ -200,7 +206,8 @@ type runCollector struct {
 
 func newRunCollector(sinks []EventSink) *runCollector {
 	startedAt := time.Now().UTC()
-	return &runCollector{run: RunResult{RunID: newExecutionID(), StartedAt: startedAt}, sinks: sinks}
+	userName, hostname := runtimeIdentity()
+	return &runCollector{run: RunResult{RunID: newExecutionID(), StartedAt: startedAt, UserName: userName, Hostname: hostname}, sinks: sinks}
 }
 
 func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
@@ -209,6 +216,8 @@ func (c *runCollector) emit(ctx context.Context, event ExecutionEvent) {
 	event.Sequence = c.sequence
 	event.OccurredAt = time.Now().UTC()
 	event.RunID = c.run.RunID
+	event.UserName = c.run.UserName
+	event.Hostname = c.run.Hostname
 
 	// Only apply global run-level counts to run lifecycle events.
 	// Preserves node and attempt event RowCounts.
@@ -313,7 +322,7 @@ func (c *runCollector) finish(ctx context.Context, hasError bool) RunResult {
 	}
 	run := c.run
 	c.mu.Unlock()
-	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage, RowCounts: run.RowCounts})
+	c.emit(ctx, ExecutionEvent{Type: EventRunFinished, Status: run.Status, UserName: run.UserName, Hostname: run.Hostname, ErrorClass: run.ErrorClass, ErrorMessage: run.ErrorMessage, RowCounts: run.RowCounts})
 	return run
 }
 
@@ -331,6 +340,72 @@ func newExecutionID() string {
 		return time.Now().UTC().Format("20060102150405.000000000")
 	}
 	return hex.EncodeToString(bytes)
+}
+
+func runtimeIdentity() (string, string) {
+	userName := ""
+	if currentUser, err := user.Current(); err == nil && currentUser != nil {
+		userName = currentUser.Username
+	}
+	if userName == "" {
+		userName = os.Getenv("USER")
+	}
+	if userName == "" {
+		userName = os.Getenv("USERNAME")
+	}
+
+	hostname := fqdnHostname()
+	if hostname == "" {
+		hostname = os.Getenv("HOSTNAME")
+	}
+	if hostname == "" {
+		hostname = os.Getenv("COMPUTERNAME")
+	}
+	return userName, hostname
+}
+
+func fqdnHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		return ""
+	}
+	if strings.Contains(hostname, ".") {
+		return strings.TrimSuffix(hostname, ".")
+	}
+	if hostnames, err := net.LookupCNAME(hostname); err == nil && hostnames != "" {
+		return strings.TrimSuffix(hostnames, ".")
+	}
+	if ip, err := net.LookupIP(hostname); err == nil && len(ip) > 0 {
+		for _, value := range ip {
+			if names, err := net.LookupAddr(value.String()); err == nil && len(names) > 0 {
+				return strings.TrimSuffix(names[0], ".")
+			}
+		}
+	}
+	if interfaces, err := net.Interfaces(); err == nil {
+		for _, iface := range interfaces {
+			addresses, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, address := range addresses {
+				var ip net.IP
+				switch v := address.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+				if ip == nil || ip.IsLoopback() || ip.To4() == nil {
+					continue
+				}
+				if names, err := net.LookupAddr(ip.String()); err == nil && len(names) > 0 {
+					return strings.TrimSuffix(names[0], ".")
+				}
+			}
+		}
+	}
+	return strings.TrimSuffix(hostname, ".")
 }
 
 func scriptResultError(result ScriptResult) string {

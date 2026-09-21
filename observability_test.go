@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"os/user"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -113,6 +116,54 @@ func TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors(t *testing.T) {
 	}
 	if len(sink.Events()) == 0 {
 		t.Error("expected events even when the sink returns errors")
+	}
+}
+
+func TestExecuteRunIncludesRuntimeIdentityInRunAndEvents(t *testing.T) {
+	registry := NewRegistry()
+	registry.SetVar("environment", "test")
+	sink := &recordingEventSink{}
+	executor := NewExecutor(registry)
+	executor.SetEventSink(sink)
+
+	run, err := executor.ExecuteRun(context.Background(), []PipelineNode{{
+		Kind: NodeAssert,
+		Assert: &AssertElement{
+			ID:     "environment_check",
+			Var:    "environment",
+			Equals: "test",
+		},
+	}})
+	if err != nil {
+		t.Fatalf("ExecuteRun() error = %v", err)
+	}
+
+	currentUser, err := user.Current()
+	if err == nil && currentUser.Username != "" {
+		if run.UserName != currentUser.Username {
+			t.Fatalf("run user name = %q, want %q", run.UserName, currentUser.Username)
+		}
+	} else if run.UserName == "" {
+		t.Fatal("run user name is empty")
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatalf("os.Hostname() error = %v", err)
+	}
+	if run.Hostname == "" {
+		t.Fatal("run hostname is empty")
+	}
+	if run.Hostname != hostname && !strings.Contains(run.Hostname, hostname) {
+		t.Fatalf("run hostname = %q, want to include %q", run.Hostname, hostname)
+	}
+
+	events := sink.Events()
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+	if events[0].UserName != run.UserName || events[0].Hostname != run.Hostname {
+		t.Fatalf("first event identity = %+v, want user=%q hostname=%q", events[0], run.UserName, run.Hostname)
 	}
 }
 
