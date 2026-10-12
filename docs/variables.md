@@ -27,13 +27,18 @@ For SQL nodes, variables are dynamically interpolated before execution using dou
 ```
 
 ### Go Scripts (Yaegi `vars` Exports)
-Inside dynamic Go scripts, variables are retrieved using the built-in host package `"host/vars"`. The package exposes typed getters:
+Inside dynamic Go scripts, variables are retrieved using the built-in host package `"host/vars"`. The package exposes typed getters and a snapshot helper:
 
 *   `vars.Get(name string) interface{}`
+*   `vars.GetAll() map[string]interface{}`
 *   `vars.GetString(name string) string`
 *   `vars.GetInt(name string) int`
 *   `vars.GetBool(name string) bool`
 *   `vars.GetFloat(name string) float64`
+*   `vars.GetTime(name string) time.Time`
+*   `vars.GetDateTime(name string) time.Time`
+
+`GetAll()` returns a copy of the currently loaded variable registry, which is useful for enumerating all values without exposing the live shared map.
 
 ```go
 package main
@@ -46,7 +51,10 @@ import (
 func main() {
     threshold := vars.GetInt("Threshold")
     table := vars.GetString("TargetTable")
+    allVars := vars.GetAll()
+
     fmt.Printf("Processing %s with threshold: %d\n", table, threshold)
+    fmt.Printf("Loaded vars: %d\n", len(allVars))
 }
 ```
 

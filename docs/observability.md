@@ -241,3 +241,84 @@ Document the JSON event schema as a compatibility contract, add an example consu
 ## Documentation and Examples
 
 Update the README API reference when implementation begins. Include examples showing an `ExecuteRun` call, JSON Lines logging to a file or standard output, and how to inspect failed node results. Keep verbose console output available during the transition, but reimplement it as an event sink so console messages and structured telemetry describe the same lifecycle.
+
+### Inspect runtime identity and options metadata
+
+`ExecuteRun` records both the process identity and the active options source alongside the run lifecycle. That makes it easier to trace where an execution came from without logging raw configuration payloads.
+
+```go
+executor := flow.NewExecutor(registry)
+executor.SetOptionsPath("C:/deploy/config/options.xml")
+
+run, err := executor.ExecuteRun(ctx, nodes)
+if err != nil {
+    log.Printf("run=%s failed: %s", run.RunID, err)
+}
+
+log.Printf(
+    "run=%s user=%s host=%s options=%s status=%s",
+    run.RunID,
+    run.UserName,
+    run.Hostname,
+    run.OptionsPath,
+    run.Status,
+)
+```
+
+This produces metadata such as:
+
+```text
+run=8f3d2d71... user=svc-etl host=etl-app.internal.example.com options=C:/deploy/config/options.xml status=succeeded
+```
+
+When a `JSONLineSink` is attached, the same information is written into each event as structured fields:
+
+```go
+executor.SetEventSink(&flow.JSONLineSink{Writer: os.Stdout})
+_, _ = executor.ExecuteRun(ctx, nodes)
+```
+
+Example event:
+
+```json
+{
+  "sequence": 1,
+  "type": "run.started",
+  "occurred_at": "2026-09-21T12:34:56Z",
+  "run_id": "8f3d2d71d7b845bb8a0b2d90548fe1d4",
+  "status": "succeeded",
+  "user_name": "svc-etl",
+  "hostname": "etl-app.internal.example.com",
+  "options_path": "C:/deploy/config/options.xml"
+}
+```
+
+### Use both fields for audit and troubleshooting
+
+A common pattern is to combine the process identity and the options source to answer the operational questions "who ran this?" and "which config did it use?" without dumping the full YAML/XML payload:
+
+```go
+type AuditSink struct{}
+
+func (AuditSink) Emit(_ context.Context, event flow.ExecutionEvent) error {
+    if event.Type != flow.EventRunFinished {
+        return nil
+    }
+
+    log.Printf(
+        "run=%s user=%s host=%s options=%s status=%s error_class=%s",
+        event.RunID,
+        event.UserName,
+        event.Hostname,
+        event.OptionsPath,
+        event.Status,
+        event.ErrorClass,
+    )
+    return nil
+}
+
+executor.SetEventSink(AuditSink{})
+_, _ = executor.ExecuteRun(ctx, nodes)
+```
+
+This is especially useful when the same pipeline is launched from multiple environments, such as a shared config file, database-backed options, or a URI-backed runtime configuration source.

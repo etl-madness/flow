@@ -111,6 +111,7 @@ func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts
 
 	varsExports := map[string]reflect.Value{
 		"Get":         reflect.ValueOf(e.registry.GetVar),
+		"GetAll":      reflect.ValueOf(e.registry.CopyVariables),
 		"GetString":   reflect.ValueOf(e.registry.GetVarString),
 		"GetInt":      reflect.ValueOf(e.registry.GetVarInt),
 		"GetBool":     reflect.ValueOf(e.registry.GetVarBool),

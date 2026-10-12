@@ -35,6 +35,16 @@
                     </xs:annotation>
                 </xs:element>
             </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>Unique name or identifier for the pipeline definition.</xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="id" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>Alternative identifier attribute for the pipeline.</xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
             <xs:attribute name="description" type="xs:string" use="optional">
                 <xs:annotation>
                     <xs:documentation>Human-readable summary or metadata description of the
