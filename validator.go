@@ -133,8 +133,8 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 					knownIDs[s.ID] = true
 				}
 
-				if strings.TrimSpace(s.Code) == "" && s.VarName == "" {
-					errs = append(errs, fmt.Sprintf("script '%s' has an empty body and no driver variable", s.ID))
+				if strings.TrimSpace(s.Code) == "" && strings.TrimSpace(s.VarName) == "" && strings.TrimSpace(s.FilePath) == "" {
+					errs = append(errs, fmt.Sprintf("script '%s' has an empty body, no file_path, and no driver variable", s.ID))
 				}
 
 			case NodeParallel:

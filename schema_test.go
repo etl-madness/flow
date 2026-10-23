@@ -19,5 +19,13 @@ func TestGetSchemaXSD(t *testing.T) {
 	if !bytes.Contains(xsdBytes, []byte("<xs:element name=\"pipeline\"")) {
 		t.Error("expected embedded XSD schema to contain pipeline element definition")
 	}
+
+	if !bytes.Contains(xsdBytes, []byte("<xs:enumeration value=\"lua\" />")) {
+		t.Error("expected embedded XSD schema to contain lua enumeration in ScriptType")
+	}
+
+	if !bytes.Contains(xsdBytes, []byte("<xs:attribute name=\"file_path\"")) {
+		t.Error("expected embedded XSD schema to contain file_path attribute in ScriptType")
+	}
 }
 

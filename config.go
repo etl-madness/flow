@@ -36,14 +36,15 @@ type DatabaseConfig struct {
 	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics)
 }
 
-// ScriptItem represents an executable script payload (such as Go, Shell, or .NET script) with metadata.
+// ScriptItem represents an executable script payload (such as Go, Lua, Shell, or .NET script) with metadata.
 type ScriptItem struct {
 	ID               string // Unique identifier of the script
-	Language         string // Language identifier (e.g. go, shell, pwsh)
+	Language         string // Language identifier (e.g. go, lua, shell, pwsh)
 	DBName           string // Target database identifier for SQL queries
 	TargetDB         string // Destination database identifier for streaming ETL
 	TargetTable      string // Destination table name for streaming ETL
 	BatchSize        int    // Maximum rows loaded per batch
+	FilePath         string // Path to an external script file to load and execute
 	VarName          string // Input environment variable to pull script code from dynamically
 	OutputVar        string // Environment variable to store the command's outputs or logs into
 	Code             string // Inner script text/payload
@@ -307,6 +308,15 @@ func (t *HtmlTemplateElement) GetOutputVar() string {
 		return t.OutputVar
 	}
 	return t.Var
+}
+
+// stripCDATAWrapper removes literal <![CDATA[ ... ]]> wrappers if present.
+func stripCDATAWrapper(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if len(trimmed) >= 12 && strings.EqualFold(trimmed[:9], "<![CDATA[") && strings.HasSuffix(trimmed, "]]>") {
+		return strings.TrimSpace(trimmed[9 : len(trimmed)-3])
+	}
+	return s
 }
 func (e *ExcelReadElement) GetOutputVar() string {
 	if e.OutputVar != "" {
@@ -794,7 +804,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			HTTPClient: &elem,
 		}, nil
 	case "script":
-		lang, scriptID, varName, outputVar := "", "", "", ""
+		lang, scriptID, filePath, varName, outputVar := "", "", "", "", ""
 
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
@@ -803,6 +813,8 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 				lang = strings.ToLower(attr.Value)
 			case "id":
 				scriptID = attr.Value
+			case "file_path", "file-path", "filepath", "file", "path":
+				filePath = attr.Value
 			case "variable", "var":
 				varName = attr.Value
 			case "output_var", "output_variable", "out_var":
@@ -810,7 +822,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			}
 		}
 
-		if lang == "go" || lang == "shell" || lang == "cmd" ||
+		if lang == "go" || lang == "lua" || lang == "shell" || lang == "cmd" ||
 			lang == "powershell" || lang == "pwsh" || lang == "bash" ||
 			lang == "git-bash" || lang == "gitbash" || lang == "zsh" ||
 			lang == "ksh" || lang == "csh" || lang == "tcsh" || lang == "dash" ||
@@ -828,9 +840,10 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 				Script: &ScriptItem{
 					ID:        scriptID,
 					Language:  lang,
+					FilePath:  filePath,
 					VarName:   varName,
 					OutputVar: outputVar,
-					Code:      strings.TrimSpace(content),
+					Code:      strings.TrimSpace(stripCDATAWrapper(content)),
 				},
 			}, nil
 		}

@@ -29,6 +29,7 @@ import (
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 	"github.com/xuri/excelize/v2"
+	lua "github.com/yuin/gopher-lua"
 	goBolt "go.etcd.io/bbolt"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
@@ -130,6 +131,183 @@ func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts
 	}
 
 	return interpInstance, nil
+}
+
+func (e *Executor) executeLuaScript(ctx context.Context, code string, outBuf *bytes.Buffer) error {
+	L := lua.NewState()
+	defer L.Close()
+	L.SetContext(ctx)
+
+	variables := e.registry.CopyVariables()
+	interpolatedCode := interpolateVars(code, variables)
+
+	// Redirect Lua global print(...) to outBuf
+	L.SetGlobal("print", L.NewFunction(func(L *lua.LState) int {
+		top := L.GetTop()
+		for i := 1; i <= top; i++ {
+			outBuf.WriteString(L.ToStringMeta(L.Get(i)).String())
+			if i != top {
+				outBuf.WriteString("\t")
+			}
+		}
+		outBuf.WriteString("\n")
+		return 0
+	}))
+
+	// Helper to support both vars.Func(k) and vars:Func(k)
+	extractKeyArg := func(L *lua.LState) string {
+		if L.GetTop() >= 2 {
+			if _, ok := L.Get(1).(*lua.LTable); ok {
+				return L.CheckString(2)
+			}
+		}
+		return L.CheckString(1)
+	}
+
+	varsTable := L.NewTable()
+	L.SetField(varsTable, "Get", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		val := e.registry.GetVar(key)
+		L.Push(goValueToLua(L, val))
+		return 1
+	}))
+	L.SetField(varsTable, "GetString", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		L.Push(lua.LString(e.registry.GetVarString(key)))
+		return 1
+	}))
+	L.SetField(varsTable, "GetInt", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		L.Push(lua.LNumber(e.registry.GetVarInt(key)))
+		return 1
+	}))
+	L.SetField(varsTable, "GetNumber", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		L.Push(lua.LNumber(e.registry.GetVarFloat(key)))
+		return 1
+	}))
+	L.SetField(varsTable, "GetFloat", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		L.Push(lua.LNumber(e.registry.GetVarFloat(key)))
+		return 1
+	}))
+	L.SetField(varsTable, "GetBool", L.NewFunction(func(L *lua.LState) int {
+		key := extractKeyArg(L)
+		L.Push(lua.LBool(e.registry.GetVarBool(key)))
+		return 1
+	}))
+	L.SetField(varsTable, "GetAll", L.NewFunction(func(L *lua.LState) int {
+		allVars := e.registry.CopyVariables()
+		tbl := L.NewTable()
+		for k, v := range allVars {
+			L.SetField(tbl, k, goValueToLua(L, v))
+		}
+		L.Push(tbl)
+		return 1
+	}))
+	L.SetField(varsTable, "Set", L.NewFunction(func(L *lua.LState) int {
+		var key string
+		var lval lua.LValue
+		if L.GetTop() >= 3 {
+			if _, ok := L.Get(1).(*lua.LTable); ok {
+				key = L.CheckString(2)
+				lval = L.Get(3)
+			}
+		}
+		if key == "" {
+			key = L.CheckString(1)
+			lval = L.Get(2)
+		}
+		e.registry.SetVar(key, luaValueToGo(lval))
+		return 0
+	}))
+
+	L.SetGlobal("vars", varsTable)
+
+	return L.DoString(interpolatedCode)
+}
+
+func goValueToLua(L *lua.LState, val any) lua.LValue {
+	if val == nil {
+		return lua.LNil
+	}
+	switch v := val.(type) {
+	case bool:
+		return lua.LBool(v)
+	case int:
+		return lua.LNumber(v)
+	case int8:
+		return lua.LNumber(v)
+	case int16:
+		return lua.LNumber(v)
+	case int32:
+		return lua.LNumber(v)
+	case int64:
+		return lua.LNumber(v)
+	case uint:
+		return lua.LNumber(v)
+	case uint8:
+		return lua.LNumber(v)
+	case uint16:
+		return lua.LNumber(v)
+	case uint32:
+		return lua.LNumber(v)
+	case uint64:
+		return lua.LNumber(v)
+	case float32:
+		return lua.LNumber(v)
+	case float64:
+		return lua.LNumber(v)
+	case string:
+		return lua.LString(v)
+	case []any:
+		tbl := L.NewTable()
+		for _, item := range v {
+			tbl.Append(goValueToLua(L, item))
+		}
+		return tbl
+	case map[string]any:
+		tbl := L.NewTable()
+		for k, item := range v {
+			L.SetField(tbl, k, goValueToLua(L, item))
+		}
+		return tbl
+	default:
+		return lua.LString(fmt.Sprintf("%v", v))
+	}
+}
+
+func luaValueToGo(lval lua.LValue) any {
+	switch v := lval.(type) {
+	case *lua.LNilType:
+		return nil
+	case lua.LBool:
+		return bool(v)
+	case lua.LNumber:
+		f := float64(v)
+		if f == float64(int64(f)) {
+			return int(f)
+		}
+		return f
+	case lua.LString:
+		return string(v)
+	case *lua.LTable:
+		maxn := v.MaxN()
+		if maxn > 0 {
+			arr := make([]any, 0, maxn)
+			for i := 1; i <= maxn; i++ {
+				arr = append(arr, luaValueToGo(v.RawGetInt(i)))
+			}
+			return arr
+		}
+		m := make(map[string]any)
+		v.ForEach(func(k, val lua.LValue) {
+			m[k.String()] = luaValueToGo(val)
+		})
+		return m
+	default:
+		return lval.String()
+	}
 }
 
 func (e *Executor) pushTx(dbName string, tx *sql.Tx) {
@@ -630,17 +808,6 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 	if e.verbose.Load() {
 		fmt.Printf("Starting execution of script %q", script.ID)
 	}
-	codeToEval := script.Code
-
-	if script.VarName != "" {
-		val := e.registry.GetVar(script.VarName)
-		if val != nil {
-			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
-			if strVal != "" && strVal != "<nil>" {
-				codeToEval = strVal
-			}
-		}
-	}
 
 	res := ScriptResult{ScriptID: script.ID}
 
@@ -656,6 +823,33 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		}
 		e.appendResult(results, r)
 	}
+
+	codeToEval := script.Code
+
+	if strings.TrimSpace(script.FilePath) != "" {
+		variables := e.registry.CopyVariables()
+		resolvedPath := strings.TrimSpace(interpolateVars(script.FilePath, variables))
+		rawBytes, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			res.ReturnCode = fmt.Sprintf("failed to read script file '%s': %v", resolvedPath, err)
+			res.ResultsString = fmt.Sprintf("failed to read script file '%s': %v", resolvedPath, err)
+			appendWithDuration(res)
+			return true
+		}
+		codeToEval = DecodeTextBytes(rawBytes)
+	}
+
+	if script.VarName != "" {
+		val := e.registry.GetVar(script.VarName)
+		if val != nil {
+			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
+			if strVal != "" && strVal != "<nil>" {
+				codeToEval = strVal
+			}
+		}
+	}
+
+	codeToEval = stripCDATAWrapper(codeToEval)
 
 	if script.Language == "go" {
 		var outBuf bytes.Buffer
@@ -677,6 +871,20 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		}
 
 		_, err = i.Eval(codeToEval)
+		if err != nil {
+			res.ReturnCode = err.Error()
+			res.ResultsString = outBuf.String()
+			appendWithDuration(res)
+			return true
+		}
+
+		res.ReturnCode = 0
+		res.ResultsString = outBuf.String()
+		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
+		appendWithDuration(res)
+	} else if script.Language == "lua" {
+		var outBuf bytes.Buffer
+		err := e.executeLuaScript(ctx, codeToEval, &outBuf)
 		if err != nil {
 			res.ReturnCode = err.Error()
 			res.ResultsString = outBuf.String()

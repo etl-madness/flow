@@ -234,6 +234,52 @@ Notes:
 Support under `<flow>` and `<preflight>` including tasks within the conditional branches, groups and loops.
 Some tasks may support their own sub-tasks or nested structure, such as `<assert>`.
 
+#### `<script>`
+
+The `<script>` element executes code in an embedded interpreter (`go` via Yaegi, `lua` via Gopher-Lua), an operating system shell (`shell`, `cmd`, `powershell`, `pwsh`, `bash`, `git-bash`, `zsh`, `ksh`, `csh`, `tcsh`, `dash`, `fish`, `sh`), or a .NET C# script runner (`dotnet-script`, `csx`). Script code can be provided inline (including inside `<![CDATA[ ... ]]>` blocks), loaded from an external file (`file_path`, `file`, or `path`), or read dynamically from a pipeline variable (`var` or `variable`).
+
+| Attribute / field | Mandatory | Description |
+| --- | --- | --- |
+| `id` | No | Unique identifier for the script step. If omitted, Flow generates an identifier in the form `script_N`. |
+| `language` | Yes | Target runtime environment (`go`, `lua`, `shell`, `cmd`, `powershell`, `pwsh`, `bash`, `git-bash`, `gitbash`, `zsh`, `ksh`, `csh`, `tcsh`, `dash`, `fish`, `sh`, `dotnet-script`, `csx`). |
+| `lang` | No | Alias for `language`. |
+| `file_path` | Conditional | Path to an external script file to load and execute. Supports `{{Variable}}` interpolation and automatic UTF-8 / UTF-16 decoding. |
+| `file` | Conditional | Alias for `file_path`. |
+| `path` | Conditional | Alias for `file_path`. |
+| `var` | Conditional | Name of a pipeline variable supplying the script code dynamically. When its value is non-empty, it overrides inline or file-sourced code. |
+| `variable` | Conditional | Alias for `var`. |
+| `output_var` | No | Name of the pipeline variable that receives the trimmed standard output. |
+| `out_var` | No | Alias for `output_var`. |
+| `output_variable` | No | Alias for `output_var`. |
+| `description` | No | Human-readable description of the script step. |
+| `content` | Conditional | Inline script body placed between `<script>` and `</script>` (optionally wrapped in `<![CDATA[ ... ]]>`). Required when neither `file_path` nor `var` is set. |
+
+Notes:
+- Embedded Lua (`language="lua"`) provides a global `vars` table (`vars.Get`, `vars.GetString`, `vars.GetInt`, `vars.GetNumber`, `vars.GetFloat`, `vars.GetBool`, `vars.GetAll`, `vars.Set`) for reading and mutating pipeline variables directly, and captures `print(...)` calls into `LAST_OUTPUT` and `output_var`.
+- Wrapping inline code in `<![CDATA[ ... ]]>` allows unescaped `<`, `>`, and `&` operators in Lua, Go, Shell, and C# scripts.
+
+```xml
+<flow>
+    <!-- Inline Lua script wrapped in CDATA -->
+    <script id="lua_transform" language="lua" output_var="LUA_SUMMARY">
+        <![CDATA[
+        local threshold = vars.GetNumber("MIN_SCORE")
+        local count = 0
+        for i = 1, 100 do
+            if i > threshold and i < 90 then
+                count = count + 1
+            end
+        end
+        vars.Set("QUALIFIED_COUNT", count)
+        print("Qualified items: " .. tostring(count))
+        ]]>
+    </script>
+
+    <!-- External Lua script loaded via file_path -->
+    <script id="external_lua" language="lua" file_path="{{SCRIPTS_DIR}}/enrich_records.lua" output_var="ENRICH_RESULT" />
+</flow>
+```
+
 #### `<template>`
 
 The `<template>` element renders Go text templates using the current pipeline variables. It can read the template from an external file or from inline XML content, and it can optionally store the rendered output in a variable.

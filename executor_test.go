@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1108,5 +1109,82 @@ func TestSavepointDialectSQL(t *testing.T) {
 		})
 	}
 }
+
+func TestLuaScriptInlineCDATAAndFilePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	luaFilePath := filepath.Join(tmpDir, "enrich.lua")
+	luaFileContent := `local base = vars.GetInt("QUALIFIED_COUNT")
+local label = vars.GetString("PROJECT_NAME")
+local doubled = base * 2
+vars.Set("FINAL_SCORE", doubled)
+print(label .. ":" .. tostring(doubled))
+`
+	if err := os.WriteFile(luaFilePath, []byte(luaFileContent), 0644); err != nil {
+		t.Fatalf("failed to write temp lua file: %v", err)
+	}
+
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+	<variables>
+		<variable name="PROJECT_NAME" type="string" value="Apollo" />
+		<variable name="MIN_SCORE" type="int" value="10" />
+		<variable name="SCRIPTS_DIR" type="string" value="%s" />
+	</variables>
+	<flow>
+		<script id="lua_cdata" language="lua" output_var="LUA_INLINE_OUT">
+			<![CDATA[
+			local threshold = vars.GetNumber("MIN_SCORE")
+			local count = 0
+			for i = 1, 25 do
+				if i > threshold and i < 20 then
+					count = count + 1
+				end
+			end
+			vars.Set("QUALIFIED_COUNT", count)
+			print("InlineCount=" .. tostring(count))
+			]]>
+		</script>
+		<script id="lua_file" language="lua" file_path="{{SCRIPTS_DIR}}/enrich.lua" output_var="LUA_FILE_OUT" />
+	</flow>
+</pipeline>`, filepath.ToSlash(tmpDir)))
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	if err := ValidateAST(cfg.PreflightNodes, cfg.FlowNodes, cfg.Databases); err != nil {
+		t.Fatalf("expected ValidateAST to pass for script with file_path, got: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitVariables(cfg.Variables); err != nil {
+		t.Fatalf("failed to init variables: %v", err)
+	}
+
+	executor := NewExecutor(registry)
+	results, err := executor.Execute(context.Background(), cfg.FlowNodes)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 script results, got %d", len(results))
+	}
+
+	if got := registry.GetVarString("LUA_INLINE_OUT"); got != "InlineCount=9" {
+		t.Errorf("expected LUA_INLINE_OUT = 'InlineCount=9', got %q", got)
+	}
+	if got := registry.GetVarInt("QUALIFIED_COUNT"); got != 9 {
+		t.Errorf("expected QUALIFIED_COUNT = 9, got %d", got)
+	}
+	if got := registry.GetVarInt("FINAL_SCORE"); got != 18 {
+		t.Errorf("expected FINAL_SCORE = 18, got %d", got)
+	}
+	if got := registry.GetVarString("LUA_FILE_OUT"); got != "Apollo:18" {
+		t.Errorf("expected LUA_FILE_OUT = 'Apollo:18', got %q", got)
+	}
+}
+
 
 
