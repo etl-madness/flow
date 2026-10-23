@@ -12,13 +12,15 @@
 - **Dynamic Configuration Decoder**: Built-in support for XML parsers and optional XSD schema schema validations.
 - **Direct Streaming ETL**: Copy bulk datasets line-by-line across heterogeneous engines (PostgreSQL, SQLite, MySQL, Oracle, SQL Server) with automatic parameter placeholder syntax correction.
 - **Flexible Flow Controls**: Execution structures for Sequential steps, Parallel queues, If/Else branching, ForEach loops, and While loops.
-- **Embedded Script Interpreter**: Dynamic runtime Go evaluations via Yaegi with closure-bound environment state injection.
+- **Embedded Script Interpreters**: Dynamic runtime Go evaluations via Yaegi and embedded Lua via Gopher-Lua (`language="lua"`) with closure-bound environment state injection (`vars` host bridge), `<![CDATA[...]]>` block support, and external file sourcing via `file_path`.
 
 ---
-## 🐚 OS Shell & Command Execution
+## 🐚 Polyglot Scripting, OS Shell & Command Execution
 
-`flow` supports, in addition to database connections, the execution of native host shell commands and binaries directly on the operating system without passing through the Go interpreter. Supported `language` options on `<script>` tags include:
+`flow` supports, in addition to database connections, embedded scripting engines and the execution of native host shell commands and binaries directly on the operating system. Supported `language` options on `<script>` tags include:
 
+* **`go`**: Embedded Go interpreter via Yaegi with `host/vars` and `host/db` packages.
+* **`lua`**: Embedded pure-Go Lua VM via Gopher-Lua with global `vars` table (`vars.Get`, `vars.GetString`, `vars.GetInt`, `vars.GetNumber`, `vars.GetBool`, `vars.GetAll`, `vars.Set`) and `print(...)` stdout capture.
 * **`shell`**: Cross-platform default shell (`cmd /C` on Windows, `sh -c` on Linux/macOS).
 * **`cmd`**: Windows Command Prompt (`cmd /C`).
 * **`powershell,pwsh`**: Windows PowerShell (`powershell -NoProfile -NonInteractive -Command`).
@@ -26,8 +28,10 @@
 * **`dotnet-script`** (or **`csx`**): Executed using C# script files with `dotnet-script` or `dotnet script`. Allows full inline C# execution including external NuGet package references (`#r "nuget: ..."`). This requires the `dotnet-script` tool to be installed on the host machine and the ability to create temporary files.
 
 ### Key Capabilities
-* **Variable Interpolation**: Use `{{var_name}}` syntax inside script bodies to dynamically inject pipeline variables.
-* **Output Capture**: Define the `output_var` attribute to save standard output/error into a pipeline variable for downstream consumption by SQL or Go steps.
+* **Inline CDATA Blocks**: Wrap script code in `<![CDATA[ ... ]]>` so operators such as `<`, `>`, and `&` do not need XML entity escaping.
+* **External Script Files (`file_path`)**: Load script code from disk via `file_path="path/to/script.lua"` (or aliases `file` and `path`), with `{{var_name}}` path interpolation and automatic UTF-8 / UTF-16 decoding.
+* **Variable Interpolation & Host Bindings**: Use `{{var_name}}` syntax inside script bodies or programmatic `vars` bindings in Go and Lua.
+* **Output Capture**: Define the `output_var` attribute to save standard output/error into a pipeline variable for downstream consumption by SQL, Go, or Lua steps.
 
 ### XML Examples
 
@@ -35,8 +39,28 @@
 <pipeline>
     <variables>
         <variable name="export_dir" value="C:\exports" />
+        <variable name="scripts_dir" value="C:\scripts" />
+        <variable name="min_threshold" type="int" value="25" />
     </variables>
     <flow>
+        <!-- Embedded Lua execution inside a CDATA block -->
+        <script id="TransformMetrics" language="lua" output_var="LUA_SUMMARY">
+            <![CDATA[
+            local threshold = vars.GetInt("min_threshold")
+            local total = 0
+            for i = 1, 50 do
+                if i > threshold and i < 45 then
+                    total = total + i
+                end
+            end
+            vars.Set("COMPUTED_TOTAL", total)
+            print("Computed total: " .. tostring(total))
+            ]]>
+        </script>
+
+        <!-- Embedded Lua loaded from an external file_path -->
+        <script id="EnrichData" language="lua" file_path="{{scripts_dir}}/enrich.lua" output_var="ENRICH_OUT" />
+
         <!-- Run external executable and store output in variable -->
         <script id="ExtractData" language="shell" output_var="GCLOUD_BILLING_JSON">
             ..\bqBilling.exe

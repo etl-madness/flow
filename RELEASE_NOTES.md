@@ -1,3 +1,42 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.2.32)
+
+## Overview
+
+Version **v1.2.32** introduces embedded **Lua** scripting (`<script language="lua">`) powered by a pure-Go Lua VM (`gopher-lua`), external script file sourcing via `file_path` (with `file` and `path` aliases), first-class `<![CDATA[...]]>` block support across all script sources, and aligned XSD schema (`xsd/pipeline.xsd`) and AST validation rules.
+
+---
+
+## 🌟 What's New in v1.2.32
+
+- **Embedded Lua Scripting (`<script language="lua">`)**:
+  - Executes Lua scripts in-process using the pure-Go `github.com/yuin/gopher-lua` VM with full `context.Context` cancellation and timeout propagation.
+  - Exposes a global `vars` bridge table (`vars.Get`, `vars.GetString`, `vars.GetInt`, `vars.GetNumber`, `vars.GetFloat`, `vars.GetBool`, `vars.GetAll`, and `vars.Set`) for reading and mutating pipeline variables directly from Lua (supporting both `vars.Func(...)` and `vars:Func(...)` call styles).
+  - Captures Lua `print(...)` output directly into `ScriptResult.ResultsString`, `LAST_OUTPUT`, and `output_var`, while also supporting `{{Variable}}` placeholder interpolation.
+- **External Script File Sourcing (`file_path`, `file`, `path`)**:
+  - `<script>` nodes can now load their executable code from external files via `file_path` (or aliases `file` and `path`).
+  - File paths support dynamic `{{Variable}}` interpolation and automatic character encoding detection (UTF-8, UTF-8 BOM, UTF-16 LE, and UTF-16 BE via `DecodeTextBytes`).
+- **First-Class `<![CDATA[...]]>` Support**:
+  - Inline `<script>` bodies wrapped in `<![CDATA[ ... ]]>` are cleanly unwrapped so scripts containing `<`, `>`, and `&` require no XML escaping, with defensive stripping of literal `<![CDATA[...]]>` wrappers across inline XML, `file_path` files, and `var`-sourced scripts.
+- **XSD Schema & AST Validator Updates**:
+  - Updated `xsd/pipeline.xsd` (`ScriptType`) to include `<xs:enumeration value="lua" />` and optional `file_path`, `file`, and `path` attributes.
+  - Updated `ValidateAST` in `validator.go` to allow `<script>` nodes with an empty inline body when `file_path` is provided.
+- **Numeric Variable Conversion Hardening**:
+  - Enhanced `Registry.GetVarInt` and `Registry.GetVarFloat` in `registry.go` to convert seamlessly across `int`, `int64`, `float32`, `float64`, and `string` values.
+
+### 📋 v1.2.32 Component Change Matrix
+
+| Component | Node Type / Function | Change Description | File |
+| :--- | :--- | :--- | :--- |
+| **Core Engine** | `<script language="lua">` | Embedded Gopher-Lua VM with `vars` host table and `print` capture | `executor.go` |
+| **Core Engine** | `<script file_path="...">` | External script loading with `{{Var}}` interpolation and UTF-8/UTF-16 decoding | `config.go`, `executor.go` |
+| **XML Parser** | `parseNodeElement` / `stripCDATAWrapper` | Added `lua`, `file_path`/`file`/`path` attributes, and CDATA unwrapping | `config.go` |
+| **AST Validator** | `ValidateAST` (`NodeScript`) | Validated `<script>` nodes sourced via `file_path` | `validator.go` |
+| **Registry** | `GetVarInt` / `GetVarFloat` | Cross-numeric type conversion (`int`, `int64`, `float32`, `float64`, `string`) | `registry.go` |
+| **XSD Schema** | `ScriptType` | Added `lua` enumeration and `file_path`, `file`, `path` attributes | `xsd/pipeline.xsd` |
+| **Documentation** | Guides & Reference | Added Lua, CDATA, and `file_path` examples and attribute tables | `README.md`, `docs/execution.md`, `docs/summary_of_available_components.md` |
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.2.31)
 
 ## Overview

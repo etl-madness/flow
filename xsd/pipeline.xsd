@@ -208,8 +208,8 @@
         <xs:choice minOccurs="0" maxOccurs="unbounded">
             <xs:element name="script" type="ScriptType">
                 <xs:annotation>
-                    <xs:documentation>Executes code in Go (Yaegi), Shell (Bash, PowerShell, Cmd), or
-                        .NET Script (CSX).</xs:documentation>
+                    <xs:documentation>Executes code in Go (Yaegi), Lua (Gopher-Lua), Shell (Bash,
+                        PowerShell, Cmd), or .NET Script (CSX).</xs:documentation>
                 </xs:annotation>
             </xs:element>
             <xs:element name="sql" type="SqlType">
@@ -603,8 +603,9 @@
     <!-- SCRIPT NODE -->
     <xs:complexType name="ScriptType">
         <xs:annotation>
-            <xs:documentation>Executes dynamic code in Go, Shell, PowerShell, Bash, or .NET Script
-                (CSX).</xs:documentation>
+            <xs:documentation>Executes dynamic code in Go, Lua, Shell, PowerShell, Bash, or .NET
+                Script (CSX). Supports inline code (including &lt;![CDATA[...]]&gt; blocks),
+                external files via file_path, or dynamic variables via variable/var.</xs:documentation>
         </xs:annotation>
         <xs:simpleContent>
             <xs:extension base="xs:string">
@@ -615,12 +616,13 @@
                 </xs:attribute>
                 <xs:attribute name="language" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Script runtime (e.g., go, shell, cmd, powershell, pwsh,
-                            bash, zsh, dotnet-script, csx).</xs:documentation>
+                        <xs:documentation>Script runtime (e.g., go, lua, shell, cmd, powershell,
+                            pwsh, bash, zsh, dotnet-script, csx).</xs:documentation>
                     </xs:annotation>
                     <xs:simpleType>
                         <xs:restriction base="xs:string">
                             <xs:enumeration value="go" />
+                            <xs:enumeration value="lua" />
                             <xs:enumeration value="shell" />
                             <xs:enumeration value="cmd" />
                             <xs:enumeration value="powershell" />
@@ -643,6 +645,22 @@
                 <xs:attribute name="lang" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Alias for language.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="file_path" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Path to an external script file to load and execute.
+                            Supports {{Variable}} interpolation.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="file" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for file_path.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="path" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for file_path.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="variable" type="xs:string" use="optional">

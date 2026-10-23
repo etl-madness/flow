@@ -90,11 +90,15 @@ func (r *Registry) GetVarInt(name string) int {
 	if val == nil {
 		return 0
 	}
-	if v, ok := val.(int); ok {
+	switch v := val.(type) {
+	case int:
 		return v
-	}
-	if str, ok := val.(string); ok {
-		if i, err := strconv.Atoi(str); err == nil {
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
 	}
@@ -122,11 +126,17 @@ func (r *Registry) GetVarFloat(name string) float64 {
 	if val == nil {
 		return 0.0
 	}
-	if v, ok := val.(float64); ok {
+	switch v := val.(type) {
+	case float64:
 		return v
-	}
-	if str, ok := val.(string); ok {
-		if f, err := r.parseFloat(str); err == nil {
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		if f, err := r.parseFloat(v); err == nil {
 			return f
 		}
 	}

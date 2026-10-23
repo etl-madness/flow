@@ -211,3 +211,60 @@ run, err := executor.ExecuteRun(ctx, config.FlowNodes)
 Do not call both methods for the same work. Each call starts a new pipeline run with a new run ID and executes the nodes again. Use `ExecuteRun` as the single call when a caller needs both execution and run-level observability.
 
 See [observability_usage.md](observability_usage.md) for JSON Lines, multiple sinks, and custom sink examples.
+
+---
+
+## Scripting & Code Execution (`<script>`)
+
+`<script>` nodes support embedded Go (`language="go"`), embedded Lua (`language="lua"`), OS shells (`shell`, `cmd`, `powershell`, `pwsh`, `bash`, `zsh`, etc.), and C# scripts (`dotnet-script`, `csx`).
+
+### Embedded Lua (`language="lua"`)
+
+Lua scripts execute in an isolated, pure-Go Gopher-Lua VM bound to the pipeline `context.Context` for automatic cancellation and timeout propagation:
+
+- **Host Variable Bridge (`vars`)**:
+  - `vars.Get(key)`: Returns the variable's native Lua value (`string`, `number`, `boolean`, `table`, or `nil`).
+  - `vars.GetString(key)`: Returns the variable formatted as a Lua `string`.
+  - `vars.GetInt(key)`: Returns the variable as an integer Lua `number`.
+  - `vars.GetNumber(key)` / `vars.GetFloat(key)`: Returns the variable as a floating-point Lua `number`.
+  - `vars.GetBool(key)`: Returns the variable as a Lua `boolean`.
+  - `vars.GetAll()`: Returns a Lua table snapshot of all pipeline variables.
+  - `vars.Set(key, value)`: Writes a `string`, `number`, `boolean`, or `table` back into the pipeline `Registry` so downstream steps immediately observe the updated value.
+- **Standard Output Capture**: Calls to `print(...)` are captured into `ScriptResult.ResultsString`, `LAST_OUTPUT`, and the configured `output_var`.
+- **Template Interpolation**: `{{Variable}}` placeholders are also interpolated before script evaluation.
+
+### Code Sourcing: `<![CDATA[...]]>`, `file_path`, and `var`
+
+Script bodies can be supplied in three ways:
+1. **Inline XML / `<![CDATA[ ... ]]>`**: Place code directly inside `<script>...</script>`. Wrapping code in `<![CDATA[ ... ]]>` avoids having to escape `<`, `>`, and `&` characters.
+2. **External File (`file_path`, `file`, or `path`)**: Load script code from disk. The path supports `{{Variable}}` interpolation and automatically decodes UTF-8, UTF-8 with BOM, UTF-16 LE, and UTF-16 BE files.
+3. **Dynamic Variable (`var` or `variable`)**: Pull the script body at runtime from a pipeline variable.
+
+```xml
+<pipeline>
+    <variables>
+        <variable name="MIN_SCORE" type="int" value="50" />
+        <variable name="SCRIPTS_DIR" type="string" value="./scripts" />
+    </variables>
+    <flow>
+        <!-- Inline Lua script wrapped in CDATA -->
+        <script id="lua_transform" language="lua" output_var="LUA_SUMMARY">
+            <![CDATA[
+            local threshold = vars.GetNumber("MIN_SCORE")
+            local count = 0
+            for i = 1, 100 do
+                if i > threshold and i < 90 then
+                    count = count + 1
+                end
+            end
+            vars.Set("QUALIFIED_COUNT", count)
+            print("Qualified items: " .. tostring(count))
+            ]]>
+        </script>
+
+        <!-- External script loaded from file_path with variable interpolation -->
+        <script id="external_lua" language="lua" file_path="{{SCRIPTS_DIR}}/enrich_records.lua" output_var="ENRICH_RESULT" />
+    </flow>
+</pipeline>
+```
+
