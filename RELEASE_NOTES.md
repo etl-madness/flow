@@ -1,12 +1,12 @@
-# Release Notes - Flow Pipeline & ETL Engine (v1.2.32)
+# Release Notes - Flow Pipeline & ETL Engine (v1.3.4)
 
 ## Overview
 
-Version **v1.2.32** introduces embedded **Lua** scripting (`<script language="lua">`) powered by a pure-Go Lua VM (`gopher-lua`), external script file sourcing via `file_path` (with `file` and `path` aliases), first-class `<![CDATA[...]]>` block support across all script sources, and aligned XSD schema (`xsd/pipeline.xsd`) and AST validation rules.
+Version **v1.3.4** introduces embedded **Lua** scripting (`<script language="lua">`) powered by a pure-Go Lua VM (`gopher-lua`), external script file sourcing via `file_path` (with `file` and `path` aliases), first-class `<![CDATA[...]]>` block support across all script sources, and aligned XSD schema (`xsd/pipeline.xsd`) and AST validation rules.
 
 ---
 
-## 🌟 What's New in v1.2.32
+## 🌟 What's New in v1.3.4
 
 - **Embedded Lua Scripting (`<script language="lua">`)**:
   - Executes Lua scripts in-process using the pure-Go `github.com/yuin/gopher-lua` VM with full `context.Context` cancellation and timeout propagation.
@@ -23,7 +23,7 @@ Version **v1.2.32** introduces embedded **Lua** scripting (`<script language="lu
 - **Numeric Variable Conversion Hardening**:
   - Enhanced `Registry.GetVarInt` and `Registry.GetVarFloat` in `registry.go` to convert seamlessly across `int`, `int64`, `float32`, `float64`, and `string` values.
 
-### 📋 v1.2.32 Component Change Matrix
+### 📋 v1.3.4 Component Change Matrix
 
 | Component | Node Type / Function | Change Description | File |
 | :--- | :--- | :--- | :--- |
