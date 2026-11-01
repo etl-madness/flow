@@ -1,3 +1,18 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.3.5)
+
+## Overview
+
+Version **v1.3.5** introduces **flowcrypto**, bringing built-in cryptographic support for Flow pipelines and ETL workflows.
+
+---
+
+## 🌟 What's New in v1.3.5
+
+- **flowcrypto Support**:
+  - Added built-in flowcrypto capabilities for secure hashing, encryption, and related cryptographic operations in Flow pipelines.
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.3.4)
 
 ## Overview
