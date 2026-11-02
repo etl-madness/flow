@@ -128,3 +128,40 @@ Here is how configuration options impact bulk copy:
 ### Summary Best Practice
 *   **Use `<group transaction="true">`** for transactional business logic, updates, inserts, and system state steps.
 *   **Do NOT use outer group transactions** for high-volume data streams (`StreamETL`). Instead, let the streaming engine handle batch-level transaction commits naturally.
+
+---
+
+## 5. Session Connection Pinning & Temporary Tables (`session="true"`)
+
+Database engines scope temporary tables (such as `#Temp` in SQL Server, `CREATE TEMP TABLE` in PostgreSQL/SQLite, and `CREATE TEMPORARY TABLE` in MySQL) to the **physical database session/connection**. Because Go's `*sql.DB` is a connection pool, consecutive `<sql>` or `<sql_bulk>` tags normally borrow arbitrary connections from the pool, causing session-scoped temp tables to be invisible or dropped between steps.
+
+To share and persist temporary tables (and session settings such as `SET NOCOUNT ON` or `SET LOCAL`) across separate pipeline steps **without** holding an open transaction lock across the entire flow, wrap the steps in `<group session="true" db="...">` (aliases: `pin_connection="true"`, `pin_conn="true"`, `sticky="true"`):
+
+```xml
+<group id="staging_session" session="true" db="warehouse" timeout="10m">
+    <!-- 1. Create a session-scoped temp table -->
+    <sql id="create_temp" db="warehouse">
+        CREATE TEMP TABLE temp_staging (id INT, amount INT);
+    </sql>
+
+    <!-- 2. Bulk load into the temp table on the same pinned connection -->
+    <sql_bulk id="load_temp" db="warehouse" target_table="temp_staging" batch_size="5000">
+        SELECT id, amount FROM raw_orders WHERE status = 'PENDING'
+    </sql_bulk>
+
+    <!-- 3. Optionally use an atomic transaction on the same pinned session -->
+    <group id="enrich_temp" transaction="true" db="warehouse">
+        <sql id="dedup_temp" db="warehouse">
+            DELETE FROM temp_staging WHERE amount &lt;= 0;
+        </sql>
+    </group>
+
+    <!-- 4. Query or stream out of the temp table -->
+    <sql id="merge_final" db="warehouse">
+        INSERT INTO final_orders SELECT id, amount FROM temp_staging;
+        DROP TABLE temp_staging;
+    </sql>
+</group>
+```
+
+When `<group session="true" db="...">` starts, Flow pins a dedicated `*sql.Conn` from the pool for that database, routes all child `<sql>`, `<sql_bulk>`, `<foreach>`, `<excel_write>`, `<kv_bulk>`, and nested `<group transaction="true">` operations on that database through the pinned connection, and automatically returns the connection to the pool when the group exits.

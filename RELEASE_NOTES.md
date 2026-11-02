@@ -1,3 +1,45 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.3.6)
+
+## Overview
+
+Version **v1.3.6** introduces **Session Connection Pinning** on `<group>` (`session="true"` with aliases `pin_connection`, `pin_conn`, and `sticky`), enabling separate `<sql>`, `<sql_bulk>`, `<foreach>`, `<excel_write>`, `<kv_bulk>`, and nested `<group transaction="true">` nodes to share a dedicated physical database connection (`*sql.Conn`) and persist session-scoped temporary tables (such as `#Temp` in SQL Server, `CREATE TEMP TABLE` in PostgreSQL/SQLite, and `CREATE TEMPORARY TABLE` in MySQL) without holding long-lived transaction locks across the entire workflow. It also expands `<group>` attribute support (`name` and `val` aliases), updates `xsd/pipeline.xsd` and `ValidateAST`, and adds comprehensive documentation for all supported `<group>` options.
+
+---
+
+## 🌟 What's New in v1.3.6
+
+- **Session-Pinned `<group>` (`session="true"`) for Temporary Table Persistence**:
+  - Acquires and pins a dedicated `*sql.Conn` from the database pool (`db.Conn(ctx)`) for the duration of the `<group>` block (or reuses an ancestor's pinned connection when nested on the same database) and automatically returns it to the pool on group exit.
+  - Supports attribute aliases `session="true"`, `pin_connection="true"`, `pin_conn="true"`, and `sticky="true"`.
+  - Routes all child `<sql>`, `<sql_bulk>`, `<foreach>`, `<excel_write>`, and `<kv_bulk>` queries/DML for the target database through the pinned `*sql.Conn`, allowing individual steps to auto-commit immediately while preserving session-scoped temporary tables (`#Temp`, `TEMP TABLE`) and session settings (`SET NOCOUNT ON`, `SET LOCAL`, etc.).
+- **Nested Atomic Transactions Inside Pinned Sessions**:
+  - When a `<group transaction="true" db="...">` is nested inside (or combined on the same node with) a `<group session="true" db="...">`, the transaction is started directly on the pinned `*sql.Conn` (`conn.BeginTx(ctx, nil)`) rather than checking out a separate connection from `*sql.DB`.
+  - Enables multi-step ETL workflows to create and bulk-load `#Temp` tables outside a transaction, and then wrap only the final publish/merge steps in an atomic transaction that still has full visibility into the session's `#Temp` tables.
+- **Single-Connection Cursor Buffering in `StreamETL` & `<foreach>`**:
+  - Extended `ETLOptions` and `StreamETL` in `etl.go` (including `flushMSSQLBatch`) to accept pinned connections (`SrcConn`, `DstConn`) and active transactions (`SrcTx`, `DstTx`).
+  - Automatically buffers source rows and closes the source `*sql.Rows` cursor before executing destination batch writes when `src_db` and `dst_db` share the same pinned `*sql.Conn` or `*sql.Tx`, preventing single-connection mutex contention in `database/sql`.
+  - Updated `<foreach>` (`executeForEachNode`) to automatically buffer driver query rows when an active transaction or pinned session connection is present on the driver database, releasing the connection before child nodes execute queries on that same session.
+- **Expanded `<group>` Attribute Aliases, XSD Schema & AST Validation**:
+  - Added `name` (alias for `id`) and `val` (alias for `equals`) attribute support on `<group>` in `config.go`.
+  - Updated `GroupType` in `xsd/pipeline.xsd` with `session`, `pin_connection`, `pin_conn`, `sticky`, and `name` attributes.
+  - Updated `ValidateAST` in `validator.go` to enforce `db` / `database` presence and database registration for `session="true"` groups.
+- **Documentation for Supported `<group>` Options**:
+  - Added comprehensive `<group>` documentation covering all attributes, aliases, and execution modes in `docs/groups.md`, `docs/summary_of_available_components.md`, and `docs/transactions.md`.
+
+### 📋 v1.3.6 Component Change Matrix
+
+| Component | Node Type / Function | Change Description | File |
+| :--- | :--- | :--- | :--- |
+| **Core Engine** | `<group session="true">` | Pinned `*sql.Conn` stack (`activeConns`), connection lifecycle, and nested transaction binding (`activeConn.BeginTx`) | `executor.go` |
+| **Core Engine** | `querySQLContext` / `execSQLContext` | Unified SQL routing prioritizing `activeTxs` → `activeConns` → `*sql.DB` pool across `<sql>`, `<foreach>`, `<excel_write>`, and `<kv_bulk>` | `executor.go` |
+| **ETL Engine** | `StreamETL` / `flushMSSQLBatch` | Support for `SrcConn`, `DstConn`, `SrcTx`, `DstTx` and automatic cursor buffering on shared single-connection ETL | `etl.go`, `executor.go` |
+| **XML Parser** | `parseNodeElement` (`group`) | Parsed `session`, `pin_connection`, `pin_conn`, `sticky`, `name`, and `val` attributes | `config.go` |
+| **AST Validator** | `ValidateAST` (`NodeGroup`) | Validated required `db` attribute and registered database lookup when `session="true"` | `validator.go` |
+| **XSD Schema** | `GroupType` | Added `session`, `pin_connection`, `pin_conn`, `sticky`, and `name` attributes | `xsd/pipeline.xsd` |
+| **Documentation** | Guides & Reference | Added `<group>` reference guide and updated component and transaction docs | `docs/groups.md`, `docs/summary_of_available_components.md`, `docs/transactions.md` |
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.3.5)
 
 ## Overview

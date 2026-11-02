@@ -322,6 +322,13 @@ func ValidateAST(preflightNodes []PipelineNode, flowNodes []PipelineNode, regist
 						errs = append(errs, fmt.Sprintf("transaction group references unregistered database '%s'", node.DBName))
 					}
 				}
+				if node.Session {
+					if node.DBName == "" {
+						errs = append(errs, "session group is missing 'db' or 'database' attribute")
+					} else if !definedDBs[node.DBName] {
+						errs = append(errs, fmt.Sprintf("session group references unregistered database '%s'", node.DBName))
+					}
+				}
 				inspect(node.Children)
 			}
 		}

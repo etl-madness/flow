@@ -128,6 +128,7 @@ type PipelineNode struct {
 	Children      []PipelineNode       // List of sequential child execution steps
 	ElseNodes     []PipelineNode       // Else branching steps (only used for NodeIf)
 	Transaction   bool                 // Start transaction for this group
+	Session       bool                 // Pin a single database connection (*sql.Conn) for this group
 	DBName        string               // Database name for the transaction
 	Timeout       string               // Optional transaction/node timeout
 	Buffer        bool                 // Opt-in in-memory buffering for NodeForEach
@@ -222,6 +223,7 @@ func (x *XmlXPathElement) GetOutputVar() string {
 	}
 	return x.OutVar
 }
+
 type TemplateElement struct {
 	ID        string `xml:"id,attr"`
 	Name      string `xml:"name,attr"`
@@ -850,21 +852,25 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 
 	case "group":
 		var groupID, ifVar, ifEquals, condition, dbName, timeout string
-		var transaction bool
+		var transaction, session bool
 		for _, attr := range se.Attr {
 			attrName := strings.ToLower(attr.Name.Local)
 			switch attrName {
-			case "id":
+			case "id", "name":
 				groupID = attr.Value
 			case "if_var", "var":
 				ifVar = attr.Value
-			case "if_val", "if_equals", "equals", "value":
+			case "if_val", "if_equals", "equals", "value", "val":
 				ifEquals = attr.Value
 			case "condition", "cond":
 				condition = attr.Value
 			case "transaction", "tx":
 				if b, err := strconv.ParseBool(attr.Value); err == nil {
 					transaction = b
+				}
+			case "session", "pin_connection", "pin_conn", "sticky":
+				if b, err := strconv.ParseBool(attr.Value); err == nil {
+					session = b
 				}
 			case "db", "database":
 				dbName = attr.Value
@@ -888,6 +894,7 @@ func parseNodeElement(decoder *xml.Decoder, se xml.StartElement, scriptIndex *in
 			IfEquals:    ifEquals,
 			Children:    children,
 			Transaction: transaction,
+			Session:     session,
 			DBName:      dbName,
 			Timeout:     timeout,
 		}, nil

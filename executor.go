@@ -53,15 +53,17 @@ type Executor struct {
 	goPath      string
 	optionsPath string
 	txMu        sync.Mutex
-	activeTxs   map[string][]*sql.Tx // Stack of active transactions per database
+	activeTxs   map[string][]*sql.Tx   // Stack of active transactions per database
+	activeConns map[string][]*sql.Conn // Stack of pinned session connections per database
 	interpHook  func(*interp.Options)
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
 	return &Executor{
-		registry:  r,
-		activeTxs: make(map[string][]*sql.Tx),
+		registry:    r,
+		activeTxs:   make(map[string][]*sql.Tx),
+		activeConns: make(map[string][]*sql.Conn),
 	}
 }
 func (e *Executor) SetGoPath(goPath string) {
@@ -106,6 +108,18 @@ func (e *Executor) getGoInterpreter(ctx context.Context, script ScriptItem, opts
 	dbExports := map[string]reflect.Value{
 		"Get": reflect.ValueOf(e.registry.GetDB),
 		"StreamETL": reflect.ValueOf(func(srcDB, query, dstDB, targetTable string, opts ETLOptions) (int64, error) {
+			if opts.SrcTx == nil {
+				opts.SrcTx = e.getActiveTx(srcDB)
+			}
+			if opts.DstTx == nil {
+				opts.DstTx = e.getActiveTx(dstDB)
+			}
+			if opts.SrcConn == nil {
+				opts.SrcConn = e.getActiveConn(srcDB)
+			}
+			if opts.DstConn == nil {
+				opts.DstConn = e.getActiveConn(dstDB)
+			}
 			return StreamETL(ctx, e.registry, srcDB, query, dstDB, targetTable, opts) // Uses closure ctx
 		}),
 	}
@@ -345,6 +359,71 @@ func (e *Executor) getActiveTx(dbName string) *sql.Tx {
 	return stack[len(stack)-1]
 }
 
+func (e *Executor) pushConn(dbName string, conn *sql.Conn) {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
+	if e.activeConns == nil {
+		e.activeConns = make(map[string][]*sql.Conn)
+	}
+	e.activeConns[dbName] = append(e.activeConns[dbName], conn)
+}
+
+func (e *Executor) popConn(dbName string) *sql.Conn {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
+	stack := e.activeConns[dbName]
+	if len(stack) == 0 {
+		return nil
+	}
+	top := stack[len(stack)-1]
+	e.activeConns[dbName] = stack[:len(stack)-1]
+	if len(e.activeConns[dbName]) == 0 {
+		delete(e.activeConns, dbName)
+	}
+	return top
+}
+
+// getActiveConn returns the active pinned session connection for the specified database if one exists.
+func (e *Executor) getActiveConn(dbName string) *sql.Conn {
+	e.txMu.Lock()
+	defer e.txMu.Unlock()
+	stack := e.activeConns[dbName]
+	if len(stack) == 0 {
+		return nil
+	}
+	return stack[len(stack)-1]
+}
+
+// querySQLContext executes a SQL query using the active transaction, pinned session connection, or database pool.
+func (e *Executor) querySQLContext(ctx context.Context, dbName string, queryStr string, args ...any) (*sql.Rows, error) {
+	if tx := e.getActiveTx(dbName); tx != nil {
+		return tx.QueryContext(ctx, queryStr, args...)
+	}
+	if conn := e.getActiveConn(dbName); conn != nil {
+		return conn.QueryContext(ctx, queryStr, args...)
+	}
+	dbConn, err := e.registry.GetDB(dbName)
+	if err != nil {
+		return nil, err
+	}
+	return dbConn.QueryContext(ctx, queryStr, args...)
+}
+
+// execSQLContext executes a SQL statement using the active transaction, pinned session connection, or database pool.
+func (e *Executor) execSQLContext(ctx context.Context, dbName string, queryStr string, args ...any) (sql.Result, error) {
+	if tx := e.getActiveTx(dbName); tx != nil {
+		return tx.ExecContext(ctx, queryStr, args...)
+	}
+	if conn := e.getActiveConn(dbName); conn != nil {
+		return conn.ExecContext(ctx, queryStr, args...)
+	}
+	dbConn, err := e.registry.GetDB(dbName)
+	if err != nil {
+		return nil, err
+	}
+	return dbConn.ExecContext(ctx, queryStr, args...)
+}
+
 // Execute triggers sequential or parallel tree evaluation for a slice of PipelineNodes.
 func (e *Executor) Execute(ctx context.Context, nodes []PipelineNode) ([]ScriptResult, error) {
 	_, results, err := e.executeRun(ctx, nodes)
@@ -550,18 +629,7 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 	isDML := isDMLQuery(queryStr)
 	// --- Execute DML statements with ExecContext ---
 	if isDML {
-		var res sql.Result
-		var execErr error
-
-		if tx := e.getActiveTx(dbName); tx != nil {
-			res, execErr = tx.ExecContext(ctx, queryStr)
-		} else {
-			dbConn, err := e.registry.GetDB(dbName)
-			if err != nil {
-				return "", "", err
-			}
-			res, execErr = dbConn.ExecContext(ctx, queryStr)
-		}
+		res, execErr := e.execSQLContext(ctx, dbName, queryStr)
 		if execErr != nil {
 			return "", "", execErr
 		}
@@ -575,17 +643,7 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 		rawOutput = fmt.Sprintf("%d", rowsAffected)
 		return logOutput, rawOutput, nil
 	}
-	var rows *sql.Rows
-	var queryErr error
-	if tx := e.getActiveTx(dbName); tx != nil {
-		rows, queryErr = tx.QueryContext(ctx, queryStr)
-	} else {
-		dbConn, err := e.registry.GetDB(dbName)
-		if err != nil {
-			return "", "", err
-		}
-		rows, queryErr = dbConn.QueryContext(ctx, queryStr)
-	}
+	rows, queryErr := e.querySQLContext(ctx, dbName, queryStr)
 	if queryErr != nil {
 		return "", "", queryErr
 	}
@@ -782,6 +840,10 @@ func (e *Executor) executeSQLBulkNode(ctx context.Context, elem SQLBulkElement, 
 		CheckConstraints: elem.CheckConstraints,
 		FireTriggers:     elem.FireTriggers,
 		KeepNulls:        elem.KeepNulls,
+		SrcConn:          e.getActiveConn(elem.DBName),
+		DstConn:          e.getActiveConn(targetDB),
+		SrcTx:            e.getActiveTx(elem.DBName),
+		DstTx:            e.getActiveTx(targetDB),
 	}
 
 	copied, err := StreamETL(ctx, e.registry, elem.DBName, codeToEval, targetDB, targetTable, opts)
@@ -1041,20 +1103,7 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			codeToEval = strings.ReplaceAll(codeToEval, placeholder, fmt.Sprintf("%v", val))
 		}
 
-		var rows *sql.Rows
-		var queryErr error
-		if tx := e.getActiveTx(script.DBName); tx != nil {
-			rows, queryErr = tx.QueryContext(ctx, codeToEval)
-		} else {
-			dbConn, err := e.registry.GetDB(script.DBName)
-			if err != nil {
-				res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
-				appendWithDuration(res)
-				return true
-			}
-			rows, queryErr = dbConn.QueryContext(ctx, codeToEval)
-		}
-
+		rows, queryErr := e.querySQLContext(ctx, script.DBName, codeToEval)
 		if queryErr != nil {
 			res := ScriptResult{ScriptID: script.ID, ReturnCode: queryErr.Error()}
 			appendWithDuration(res)
@@ -1069,7 +1118,9 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			return true
 		}
 
-		if node.Buffer {
+		// Buffer rows when explicitly requested or when executing on a single pinned connection/transaction
+		// so the driver cursor is closed before child steps execute queries on the same connection.
+		if node.Buffer || e.getActiveTx(script.DBName) != nil || e.getActiveConn(script.DBName) != nil {
 			// Opt-in buffer mode: loads small datasets into memory to release DB cursor early
 			const maxBufferCap = 100000
 			var bufferedRows [][]string
@@ -1137,11 +1188,16 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 					return true
 				}
 			}
+			var msg string
+			if node.Buffer {
+				msg = fmt.Sprintf("foreach '%s' buffered loop driver executed %d iteration(s).", node.GroupID, len(bufferedRows))
+			} else {
+				msg = fmt.Sprintf("foreach '%s' loop driver returned %d row(s) and executed %d iteration(s).", node.GroupID, len(bufferedRows), len(bufferedRows))
+			}
 			summary := ScriptResult{
-				ScriptID:   script.ID,
-				ReturnCode: 0,
-				ResultsString: fmt.Sprintf(
-					"foreach '%s' buffered loop driver executed %d iteration(s).", node.GroupID, len(bufferedRows)),
+				ScriptID:      script.ID,
+				ReturnCode:    0,
+				ResultsString: msg,
 			}
 			appendWithDuration(summary)
 			return false
@@ -1293,10 +1349,11 @@ Loop:
 		workerReg.SetVar("_THREAD_ID", i)
 
 		workerExec := &Executor{
-			registry:   workerReg,
-			goPath:     e.goPath,
-			interpHook: e.interpHook,
-			activeTxs:  make(map[string][]*sql.Tx),
+			registry:    workerReg,
+			goPath:      e.goPath,
+			interpHook:  e.interpHook,
+			activeTxs:   make(map[string][]*sql.Tx),
+			activeConns: make(map[string][]*sql.Conn),
 		}
 		workerExec.verbose.Store(e.verbose.Load())
 		e.sinksMu.RLock()
@@ -1434,126 +1491,186 @@ func (e *Executor) executeNodes(ctx context.Context, nodes []PipelineNode, resul
 					break
 				}
 			}
-			if node.Transaction {
+			groupCtx := nodeCtx
+			if node.Timeout != "" && (node.Transaction || node.Session) {
+				if d, dErr := time.ParseDuration(node.Timeout); dErr == nil && d > 0 {
+					var groupCancel context.CancelFunc
+					groupCtx, groupCancel = context.WithTimeout(nodeCtx, d)
+					defer groupCancel()
+				}
+			}
+
+			var sessionConn *sql.Conn
+			var ownsSessionConn bool
+			if node.Session {
 				if node.DBName == "" {
 					res := ScriptResult{
 						ScriptID:   node.GroupID,
-						ReturnCode: "transaction group is missing 'db' or 'database' attribute",
+						ReturnCode: "session group is missing 'db' or 'database' attribute",
 					}
 					e.appendResult(&nodeResults, res)
 					hasErr = true
 					break
 				}
-				dbHandle, err := e.registry.GetDBHandle(node.DBName)
-				if err != nil {
-					res := ScriptResult{
-						ScriptID:   node.GroupID,
-						ReturnCode: fmt.Sprintf("failed to get db connection for transaction: %v", err),
-					}
-					e.appendResult(&nodeResults, res)
-					hasErr = true
-					break
-				}
-				dbConn := dbHandle.Conn
-				driver := dbHandle.Driver
-				txCtx := nodeCtx
-				if node.Timeout != "" {
-					if d, dErr := time.ParseDuration(node.Timeout); dErr == nil && d > 0 {
-						var txCancel context.CancelFunc
-						txCtx, txCancel = context.WithTimeout(nodeCtx, d)
-						defer txCancel()
-					}
-				}
-
-				existingTx := e.getActiveTx(node.DBName)
-				var isNestedOnSameDB bool
-				var savepointName string
-				var tx *sql.Tx
-
-				if existingTx != nil {
-					isNestedOnSameDB = true
-					savepointName = fmt.Sprintf("sp_%d", time.Now().UnixNano())
-					createSQL := savepointSQL(driver, savepointName)
-					if _, spErr := existingTx.ExecContext(txCtx, createSQL); spErr != nil {
-						savepointName = ""
-					}
-					e.pushTx(node.DBName, existingTx)
+				if existingConn := e.getActiveConn(node.DBName); existingConn != nil {
+					sessionConn = existingConn
+					ownsSessionConn = false
+					e.pushConn(node.DBName, sessionConn)
 				} else {
-					var err error
-					tx, err = dbConn.BeginTx(txCtx, nil)
+					dbHandle, err := e.registry.GetDBHandle(node.DBName)
 					if err != nil {
 						res := ScriptResult{
 							ScriptID:   node.GroupID,
-							ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
+							ReturnCode: fmt.Sprintf("failed to get db connection for session: %v", err),
 						}
 						e.appendResult(&nodeResults, res)
 						hasErr = true
 						break
 					}
-					e.pushTx(node.DBName, tx)
-				}
-
-				func() {
-					committed := false
-					defer func() {
-						if r := recover(); r != nil {
-							if isNestedOnSameDB {
-								if savepointName != "" {
-									rollbackSQL := rollbackSavepointSQL(driver, savepointName)
-									_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
-								}
-							} else if tx != nil && !committed {
-								_ = tx.Rollback()
-							}
-							e.popTx(node.DBName)
-							panic(r)
+					conn, err := dbHandle.Conn.Conn(groupCtx)
+					if err != nil {
+						res := ScriptResult{
+							ScriptID:   node.GroupID,
+							ReturnCode: fmt.Sprintf("failed to pin database session connection: %v", err),
 						}
-						if !committed {
-							if isNestedOnSameDB {
-								if savepointName != "" {
-									rollbackSQL := rollbackSavepointSQL(driver, savepointName)
-									_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
-								}
-							} else if tx != nil {
-								_ = tx.Rollback()
-							}
-							e.popTx(node.DBName)
+						e.appendResult(&nodeResults, res)
+						hasErr = true
+						break
+					}
+					sessionConn = conn
+					ownsSessionConn = true
+					e.pushConn(node.DBName, sessionConn)
+				}
+			}
+
+			func() {
+				if node.Session {
+					defer func() {
+						e.popConn(node.DBName)
+						if ownsSessionConn && sessionConn != nil {
+							_ = sessionConn.Close()
 						}
 					}()
+				}
 
-					hasErr = e.executeNodes(txCtx, node.Children, &nodeResults)
-					if hasErr {
+				if node.Transaction {
+					if node.DBName == "" {
+						res := ScriptResult{
+							ScriptID:   node.GroupID,
+							ReturnCode: "transaction group is missing 'db' or 'database' attribute",
+						}
+						e.appendResult(&nodeResults, res)
+						hasErr = true
 						return
 					}
-
-					if isNestedOnSameDB {
-						if savepointName != "" {
-							if relSQL := releaseSavepointSQL(driver, savepointName); relSQL != "" {
-								_, _ = existingTx.ExecContext(txCtx, relSQL)
-							}
+					dbHandle, err := e.registry.GetDBHandle(node.DBName)
+					if err != nil {
+						res := ScriptResult{
+							ScriptID:   node.GroupID,
+							ReturnCode: fmt.Sprintf("failed to get db connection for transaction: %v", err),
 						}
-						committed = true
-						e.popTx(node.DBName)
+						e.appendResult(&nodeResults, res)
+						hasErr = true
+						return
+					}
+					dbConn := dbHandle.Conn
+					driver := dbHandle.Driver
+					txCtx := groupCtx
+
+					existingTx := e.getActiveTx(node.DBName)
+					var isNestedOnSameDB bool
+					var savepointName string
+					var tx *sql.Tx
+
+					if existingTx != nil {
+						isNestedOnSameDB = true
+						savepointName = fmt.Sprintf("sp_%d", time.Now().UnixNano())
+						createSQL := savepointSQL(driver, savepointName)
+						if _, spErr := existingTx.ExecContext(txCtx, createSQL); spErr != nil {
+							savepointName = ""
+						}
+						e.pushTx(node.DBName, existingTx)
 					} else {
-						if err := tx.Commit(); err != nil {
+						var err error
+						if activeConn := e.getActiveConn(node.DBName); activeConn != nil {
+							tx, err = activeConn.BeginTx(txCtx, nil)
+						} else {
+							tx, err = dbConn.BeginTx(txCtx, nil)
+						}
+						if err != nil {
 							res := ScriptResult{
 								ScriptID:   node.GroupID,
-								ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
+								ReturnCode: fmt.Sprintf("failed to begin transaction: %v", err),
 							}
 							e.appendResult(&nodeResults, res)
 							hasErr = true
 							return
 						}
-						committed = true
-						e.popTx(node.DBName)
+						e.pushTx(node.DBName, tx)
 					}
-				}()
 
-				if hasErr {
-					break
+					func() {
+						committed := false
+						defer func() {
+							if r := recover(); r != nil {
+								if isNestedOnSameDB {
+									if savepointName != "" {
+										rollbackSQL := rollbackSavepointSQL(driver, savepointName)
+										_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
+									}
+								} else if tx != nil && !committed {
+									_ = tx.Rollback()
+								}
+								e.popTx(node.DBName)
+								panic(r)
+							}
+							if !committed {
+								if isNestedOnSameDB {
+									if savepointName != "" {
+										rollbackSQL := rollbackSavepointSQL(driver, savepointName)
+										_, _ = existingTx.ExecContext(context.Background(), rollbackSQL)
+									}
+								} else if tx != nil {
+									_ = tx.Rollback()
+								}
+								e.popTx(node.DBName)
+							}
+						}()
+
+						hasErr = e.executeNodes(txCtx, node.Children, &nodeResults)
+						if hasErr {
+							return
+						}
+
+						if isNestedOnSameDB {
+							if savepointName != "" {
+								if relSQL := releaseSavepointSQL(driver, savepointName); relSQL != "" {
+									_, _ = existingTx.ExecContext(txCtx, relSQL)
+								}
+							}
+							committed = true
+							e.popTx(node.DBName)
+						} else {
+							if err := tx.Commit(); err != nil {
+								res := ScriptResult{
+									ScriptID:   node.GroupID,
+									ReturnCode: fmt.Sprintf("failed to commit transaction: %v", err),
+								}
+								e.appendResult(&nodeResults, res)
+								hasErr = true
+								return
+							}
+							committed = true
+							e.popTx(node.DBName)
+						}
+					}()
+				} else {
+					hasErr = e.executeNodes(groupCtx, node.Children, &nodeResults)
 				}
-			} else {
-				hasErr = e.executeNodes(nodeCtx, node.Children, &nodeResults)
+			}()
+
+			if hasErr {
+				break
 			}
 
 		case NodeParallel:
@@ -2039,23 +2156,8 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 	var rowCount int
 
 	if elem.DBName != "" && elem.Query != "" {
-		var rows *sql.Rows
-		var queryErr error
-
 		queryStr := interpolateVars(strings.TrimSpace(elem.Query), variables)
-		if tx := e.getActiveTx(elem.DBName); tx != nil {
-			rows, queryErr = tx.QueryContext(ctx, queryStr)
-		} else {
-			dbConn, err := e.registry.GetDB(elem.DBName)
-			if err != nil {
-				res.ReturnCode = fmt.Sprintf("db connection error: %v", err)
-				res.Duration = time.Since(startTime).String()
-				e.appendResult(results, res)
-				return true
-			}
-			rows, queryErr = dbConn.QueryContext(ctx, queryStr)
-		}
-
+		rows, queryErr := e.querySQLContext(ctx, elem.DBName, queryStr)
 		if queryErr != nil {
 			res.ReturnCode = fmt.Sprintf("query error: %v", queryErr)
 			res.Duration = time.Since(startTime).String()
@@ -2640,12 +2742,11 @@ func badgerKey(bucket, key string) []byte {
 
 // executeBadgerBulk streams SQL query rows directly into BadgerDB using an optimized WriteBatch.
 func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	sqlHandle, err := e.registry.GetDBHandle(srcDB)
-	if err != nil {
+	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
 		return 0, fmt.Errorf("source database error: %w", err)
 	}
 
-	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}
@@ -2731,12 +2832,11 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 
 // executeBoltBulk streams SQL query rows directly into a bbolt bucket using batch transactions.
 func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	sqlHandle, err := e.registry.GetDBHandle(srcDB)
-	if err != nil {
+	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
 		return 0, fmt.Errorf("source database error: %w", err)
 	}
 
-	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}
@@ -3217,12 +3317,11 @@ func (e *Executor) executeEtcdKVNode(ctx context.Context, elem KVElement, result
 
 // executeEtcdBulk streams SQL query rows directly into etcd key namespaces.
 func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	sqlHandle, err := e.registry.GetDBHandle(srcDB)
-	if err != nil {
+	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
 		return 0, fmt.Errorf("source database error: %w", err)
 	}
 
-	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}
@@ -3447,12 +3546,11 @@ func (e *Executor) executeRedisKVNode(ctx context.Context, elem KVElement, resul
 
 // executeRedisBulk streams SQL query rows directly into Redis/Valkey using pipelined execution.
 func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	sqlHandle, err := e.registry.GetDBHandle(srcDB)
-	if err != nil {
+	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
 		return 0, fmt.Errorf("source database error: %w", err)
 	}
 
-	rows, err := sqlHandle.Conn.QueryContext(ctx, queryStr)
+	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}

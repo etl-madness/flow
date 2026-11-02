@@ -12,11 +12,15 @@ import (
 
 // ETLOptions encapsulates batching and engine-specific performance tuning flags.
 type ETLOptions struct {
-	BatchSize        int  // Number of rows per batch flush
-	Tablock          bool // Acquire table lock for minimal logging on SQL Server
-	CheckConstraints bool // Enforce target constraints during MSSQL bulk insert
-	FireTriggers     bool // Execute target table triggers during MSSQL bulk insert
-	KeepNulls        bool // Preserve explicit NULL values during MSSQL bulk insert
+	BatchSize        int       // Number of rows per batch flush
+	Tablock          bool      // Acquire table lock for minimal logging on SQL Server
+	CheckConstraints bool      // Enforce target constraints during MSSQL bulk insert
+	FireTriggers     bool      // Execute target table triggers during MSSQL bulk insert
+	KeepNulls        bool      // Preserve explicit NULL values during MSSQL bulk insert
+	SrcConn          *sql.Conn // Optional pinned source connection (session scope)
+	DstConn          *sql.Conn // Optional pinned destination connection (session scope)
+	SrcTx            *sql.Tx   // Optional active source transaction
+	DstTx            *sql.Tx   // Optional active destination transaction
 }
 
 // formatPlaceholder formats query placeholders based on the destination database driver syntax.
@@ -41,11 +45,25 @@ func flushMSSQLBatch(ctx context.Context, dstDB *sql.DB, targetTable string, col
 		return nil
 	}
 
-	tx, err := dstDB.BeginTx(ctx, nil)
+	var tx *sql.Tx
+	var err error
+	ownsTx := false
+
+	if opts.DstTx != nil {
+		tx = opts.DstTx
+	} else if opts.DstConn != nil {
+		tx, err = opts.DstConn.BeginTx(ctx, nil)
+		ownsTx = true
+	} else {
+		tx, err = dstDB.BeginTx(ctx, nil)
+		ownsTx = true
+	}
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	if ownsTx {
+		defer tx.Rollback()
+	}
 
 	bulkOpts := mssql.BulkOptions{
 		Tablock:          opts.Tablock,
@@ -73,7 +91,10 @@ func flushMSSQLBatch(ctx context.Context, dstDB *sql.DB, targetTable string, col
 		return fmt.Errorf("failed to finalize bulk insert: %w", err)
 	}
 
-	return tx.Commit()
+	if ownsTx {
+		return tx.Commit()
+	}
+	return nil
 }
 
 // StreamETL streams query results line-by-line from a source database into a target database table.
@@ -102,7 +123,14 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 	dstDB := dstHandle.Conn
 	dstDriver := dstHandle.Driver
 
-	rows, err := srcDB.QueryContext(ctx, queryStr)
+	var rows *sql.Rows
+	if opts.SrcTx != nil {
+		rows, err = opts.SrcTx.QueryContext(ctx, queryStr)
+	} else if opts.SrcConn != nil {
+		rows, err = opts.SrcConn.QueryContext(ctx, queryStr)
+	} else {
+		rows, err = srcDB.QueryContext(ctx, queryStr)
+	}
 	if err != nil {
 		return 0, fmt.Errorf("source query error: %w", err)
 	}
@@ -159,9 +187,16 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 			}
 
 			insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", targetTable, colList, strings.Join(valuePlaceholders, ", "))
-			_, err := dstDB.ExecContext(ctx, insertSQL, valueArgs...)
-			if err != nil {
-				return fmt.Errorf("batch insert error on table '%s': %w", targetTable, err)
+			var execErr error
+			if opts.DstTx != nil {
+				_, execErr = opts.DstTx.ExecContext(ctx, insertSQL, valueArgs...)
+			} else if opts.DstConn != nil {
+				_, execErr = opts.DstConn.ExecContext(ctx, insertSQL, valueArgs...)
+			} else {
+				_, execErr = dstDB.ExecContext(ctx, insertSQL, valueArgs...)
+			}
+			if execErr != nil {
+				return fmt.Errorf("batch insert error on table '%s': %w", targetTable, execErr)
 			}
 		}
 
@@ -169,6 +204,11 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		batchRows = batchRows[:0]
 		return nil
 	}
+
+	// When source and destination share the same single pinned connection or transaction,
+	// rows must be fully read and closed before executing destination inserts on that same connection.
+	sameSingleConn := srcDBName == dstDBName && (opts.SrcTx != nil || opts.DstTx != nil || opts.SrcConn != nil || opts.DstConn != nil)
+	var bufferedRows [][]interface{}
 
 	for rows.Next() {
 		select {
@@ -199,16 +239,32 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 				rowCopy[i] = v
 			}
 		}
-		batchRows = append(batchRows, rowCopy)
-		if len(batchRows) >= batchSize {
-			if err := flushBatch(); err != nil {
-				return totalInserted, err
+		if sameSingleConn {
+			bufferedRows = append(bufferedRows, rowCopy)
+		} else {
+			batchRows = append(batchRows, rowCopy)
+			if len(batchRows) >= batchSize {
+				if err := flushBatch(); err != nil {
+					return totalInserted, err
+				}
 			}
 		}
 	}
 
 	if err := rows.Err(); err != nil {
 		return totalInserted, fmt.Errorf("rows iteration error: %w", err)
+	}
+	_ = rows.Close()
+
+	if sameSingleConn {
+		for _, r := range bufferedRows {
+			batchRows = append(batchRows, r)
+			if len(batchRows) >= batchSize {
+				if err := flushBatch(); err != nil {
+					return totalInserted, err
+				}
+			}
+		}
 	}
 	if err := flushBatch(); err != nil {
 		return totalInserted, err

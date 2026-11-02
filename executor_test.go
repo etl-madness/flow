@@ -889,6 +889,29 @@ func TestASTValidationOmittedNodes(t *testing.T) {
 	if err := ValidateAST(nil, nodeGroupInvalid, nil); err == nil {
 		t.Error("expected validation error for NodeGroup transaction referencing missing DB")
 	}
+
+	// 5. NodeGroup with session referencing non-existent DB or missing DB
+	nodeSessionInvalid := []PipelineNode{
+		{
+			Kind:    NodeGroup,
+			GroupID: "session_group1",
+			Session: true,
+			DBName:  "missing_db",
+		},
+	}
+	if err := ValidateAST(nil, nodeSessionInvalid, nil); err == nil {
+		t.Error("expected validation error for NodeGroup session referencing missing DB")
+	}
+	nodeSessionMissingDB := []PipelineNode{
+		{
+			Kind:    NodeGroup,
+			GroupID: "session_group2",
+			Session: true,
+		},
+	}
+	if err := ValidateAST(nil, nodeSessionMissingDB, nil); err == nil {
+		t.Error("expected validation error for NodeGroup session missing DB")
+	}
 }
 
 func TestParallelFailFastCancellation(t *testing.T) {
@@ -1186,5 +1209,103 @@ print(label .. ":" .. tostring(doubled))
 	}
 }
 
+func TestSessionGroupTempTablePersistence(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "session_test.db")
+	xmlConfig := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+	<databases>
+		<database name="session_db" driver="sqlite" connection_string="%s" max_open_conns="10" />
+	</databases>
+	<flow>
+		<sql id="setup_perm" db="session_db">
+			CREATE TABLE source_orders (id INT, amount INT);
+			INSERT INTO source_orders VALUES (1, 100), (2, 250), (3, 400);
+			CREATE TABLE final_orders (id INT, amount INT);
+		</sql>
 
+		<group id="pinned_session" session="true" db="session_db" timeout="30s">
+			<!-- Step 1: Create a session-scoped TEMP table -->
+			<sql id="create_temp" db="session_db">
+				CREATE TEMP TABLE temp_staging (id INT, amount INT);
+			</sql>
+
+			<!-- Step 2: Bulk load from permanent table into TEMP table on same pinned connection -->
+			<sql_bulk id="bulk_to_temp" db="session_db" target_table="temp_staging" batch_size="2">
+				SELECT id, amount FROM source_orders WHERE amount >= 100
+			</sql_bulk>
+
+			<!-- Step 3: Separate SQL node modifies TEMP table inside a nested transaction -->
+			<group id="nested_tx_in_session" transaction="true" db="session_db">
+				<sql id="update_temp" db="session_db">
+					UPDATE temp_staging SET amount = amount + 50 WHERE id = 2;
+				</sql>
+				<sql id="insert_temp" db="session_db">
+					INSERT INTO temp_staging VALUES (4, 500);
+				</sql>
+			</group>
+
+			<!-- Step 4: Foreach iterates over TEMP table while child SQL updates TEMP table -->
+			<foreach id="loop_temp" db="session_db">
+				SELECT id FROM temp_staging WHERE id = 1
+				<sql id="bonus_temp" db="session_db">
+					UPDATE temp_staging SET amount = amount + 10 WHERE id = {{id}};
+				</sql>
+			</foreach>
+
+			<!-- Step 5: Separate SQL node queries TEMP table count -->
+			<sql id="count_temp" db="session_db" output_var="TEMP_COUNT">
+				SELECT COUNT(*) FROM temp_staging;
+			</sql>
+
+			<!-- Step 6: Bulk copy from TEMP table into final permanent table -->
+			<sql_bulk id="bulk_from_temp" db="session_db" target_table="final_orders" batch_size="2">
+				SELECT id, amount FROM temp_staging ORDER BY id
+			</sql_bulk>
+		</group>
+
+		<sql id="verify_final" db="session_db" output_var="FINAL_SUM">
+			SELECT SUM(amount) FROM final_orders;
+		</sql>
+	</flow>
+</pipeline>`, filepath.ToSlash(dbPath)))
+
+	cfg, err := ParseXMLConfig(xmlConfig)
+	if err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	if err := ValidateAST(cfg.PreflightNodes, cfg.FlowNodes, cfg.Databases); err != nil {
+		t.Fatalf("ValidateAST failed: %v", err)
+	}
+
+	registry := NewRegistry()
+	if err := registry.InitDatabases(cfg.Databases); err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer registry.CloseDatabases()
+
+	// Open a separate background connection in the pool to ensure multiple connections exist
+	dbConn, err := registry.GetDB("session_db")
+	if err != nil {
+		t.Fatalf("failed to get db: %v", err)
+	}
+	extraConn, err := dbConn.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("failed to open extra conn: %v", err)
+	}
+	defer extraConn.Close()
+
+	executor := NewExecutor(registry)
+	if _, err := executor.Execute(context.Background(), cfg.FlowNodes); err != nil {
+		t.Fatalf("pipeline execution failed: %v", err)
+	}
+
+	if got := registry.GetVarString("TEMP_COUNT"); got != "4" {
+		t.Errorf("expected TEMP_COUNT = '4', got %q", got)
+	}
+	// Expected amounts: (1: 100+10=110) + (2: 250+50=300) + (3: 400) + (4: 500) = 1310
+	if got := registry.GetVarString("FINAL_SUM"); got != "1310" {
+		t.Errorf("expected FINAL_SUM = '1310', got %q", got)
+	}
+}
 

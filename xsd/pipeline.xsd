@@ -934,6 +934,11 @@
                         <xs:documentation>Unique group identifier.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="name" type="xs:string" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for id.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="var" type="xs:string" use="optional">
                     <xs:annotation>
                         <xs:documentation>Variable evaluated before executing child steps.</xs:documentation>
@@ -984,6 +989,26 @@
                         <xs:documentation>Wraps child steps in an atomic database transaction.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
+                <xs:attribute name="session" type="xs:boolean" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Pins a single database connection (*sql.Conn) across child steps so session-scoped temporary tables and session state persist.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="pin_connection" type="xs:boolean" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for session.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="pin_conn" type="xs:boolean" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for session.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="sticky" type="xs:boolean" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Alias for session.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
                 <xs:attribute name="tx" type="xs:boolean" use="optional">
                     <xs:annotation>
                         <xs:documentation>Alias for transaction.</xs:documentation>
@@ -991,7 +1016,7 @@
                 </xs:attribute>
                 <xs:attribute name="db" type="xs:string" use="optional">
                     <xs:annotation>
-                        <xs:documentation>Database connection name for the transaction group.</xs:documentation>
+                        <xs:documentation>Database connection name for the transaction or session group.</xs:documentation>
                     </xs:annotation>
                 </xs:attribute>
                 <xs:attribute name="database" type="xs:string" use="optional">
