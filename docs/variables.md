@@ -19,12 +19,20 @@ Variables are kept in a single unified registry, but their behavior and scope ch
 
 ### SQL Queries (Variable Interpolation)
 For SQL nodes, variables are dynamically interpolated before execution using double curly brace placeholders: `{{VarName}}`.
+Flow uses a single-pass $O(N)$ placeholder scanner (`Registry.InterpolateVars` / `interpolateVars`) with a fast-path check when no `{{` token is present, so query strings without variables incur zero allocations and strings with variables are interpolated in a single scan regardless of how many variables exist in the registry. Unknown tokens (such as Go template placeholders `{{.Field}}`) and outer braces (such as `{{{VarName}}}`) are preserved verbatim.
 
 ```xml
 <sql id="QueryWithLimit" db="app_db">
     SELECT * FROM orders WHERE status = 'PENDING' LIMIT {{MaxLimit}};
 </sql>
 ```
+
+### Programmatic Batch Mutation (`SetVars` & `SetRowVars`)
+When embedding Flow in Go applications or iterating over high-throughput datasets, `*flow.Registry` provides batch mutation helpers that acquire the registry write lock only once per call:
+
+*   `r.SetVars(vars map[string]interface{})`: Sets multiple variables atomically under a single mutex lock and marks all provided keys as dirty for `<parallel>` branch merging.
+*   `r.SetRowVars(cols, lowerCols, upperCols []string, vals []interface{}, loopIndex int)`: Binds an entire SQL row (`LOOP_INDEX` plus exact, lowercase, and uppercase column names) under a single mutex lock without allocating an intermediate map.
+*   `r.InterpolateVars(input string) string`: Performs single-pass `{{VarName}}` replacement under a read lock (`RLock`) without cloning the variable map.
 
 ### Go Scripts (Yaegi `vars` Exports)
 Inside dynamic Go scripts, variables are retrieved using the built-in host package `"host/vars"`. The package exposes typed getters and a snapshot helper:

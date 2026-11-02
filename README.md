@@ -107,6 +107,9 @@ func (r *Registry) CloseDatabases()
 
 // Variables getters & setters
 func (r *Registry) SetVar(name string, value interface{})
+func (r *Registry) SetVars(vars map[string]interface{})
+func (r *Registry) SetRowVars(cols, lowerCols, upperCols []string, vals []interface{}, loopIndex int)
+func (r *Registry) InterpolateVars(input string) string
 func (r *Registry) GetVar(name string) interface{}
 func (r *Registry) GetVarString(name string) string
 func (r *Registry) GetVarInt(name string) int
@@ -431,8 +434,8 @@ On any `<sql_bulk>` node (where `target_table` is defined), you can configure th
 </pipeline>
 ```
 
-### Fallback Driver Support
-For non-MSSQL destination databases (e.g. PostgreSQL, MySQL, SQLite), `flow` automatically falls back to standard multi-row parameter-bound batch inserts. The batch sizes for fallback drivers are automatically throttled to ensure they never exceed the maximum 2,100 parameter limit (calculated dynamically as `2100 / column_count`).
+### Multi-Row Batch Driver Support
+For non-MSSQL destination databases (e.g. PostgreSQL, MySQL, SQLite, Oracle), `flow` uses high-speed multi-row parameter-bound batch inserts with prepared statement reuse across full batches and dialect-aware parameter limits (`65,535` for PostgreSQL/MySQL, `32,767` for Oracle, `32,766` for SQLite, and `2,100` fallback, calculated dynamically as `max_params / column_count`).
 
 ---
 

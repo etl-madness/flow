@@ -33,7 +33,8 @@ type DatabaseConfig struct {
 	MaxOpenConns     int           // Maximum concurrent open connections in the pool
 	MaxIdleConns     int           // Maximum idle connections to retain in the pool
 	ConnMaxLifetime  time.Duration // Maximum lifetime of a connection before it is recycled
-	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics)
+	ConnMaxIdleTime  time.Duration // Maximum amount of time a connection may be idle before being closed
+	Workload         string        // Optional workload profile for tuning defaults (e.g. oltp, bulk, analytics, batch)
 }
 
 // ScriptItem represents an executable script payload (such as Go, Lua, Shell, or .NET script) with metadata.
@@ -454,6 +455,12 @@ func ParseXMLConfig(xmlData []byte) (PipelineConfig, error) {
 							dbCfg.ConnMaxLifetime = dur
 						} else if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
 							dbCfg.ConnMaxLifetime = time.Duration(val) * time.Second
+						}
+					case "conn_max_idle_time_seconds", "conn_max_idle_time":
+						if dur, err := time.ParseDuration(attr.Value); err == nil && dur > 0 {
+							dbCfg.ConnMaxIdleTime = dur
+						} else if val, err := strconv.Atoi(attr.Value); err == nil && val > 0 {
+							dbCfg.ConnMaxIdleTime = time.Duration(val) * time.Second
 						}
 					case "workload":
 						dbCfg.Workload = attr.Value

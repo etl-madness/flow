@@ -78,6 +78,13 @@ The `<sql_bulk>` node is an optimized streaming pipeline primitive that pipes ro
 | `keep_nulls` | No | `false` | *(SQL Server)* Preserves incoming `NULL` values instead of replacing with column defaults. |
 | `output_var` | No | — | Stores total number of rows streamed to destination. |
 
+#### Dialect-Aware Parameter Limits & Prepared Batch Reuse
+For SQL Server (`sqlserver` / `mssql`), `<sql_bulk>` streams batches via native TDS `CopyIn`. For all other SQL engines, `<sql_bulk>` constructs multi-row parameterized `INSERT` statements using a pre-allocated buffer arena, automatically reuses a prepared statement across full-sized batches, and caps `batch_size` to respect each driver's maximum bind parameter limit (`max_params / column_count`):
+- **PostgreSQL (`postgres`, `postgresql`, `pgx`, `pq`) & MySQL (`mysql`)**: `65,535` parameters per batch.
+- **Oracle (`oracle`, `godror`, `go-ora`)**: `32,767` parameters per batch.
+- **SQLite (`sqlite`, `sqlite3`)**: `32,766` parameters per batch.
+- **Other fallback drivers**: `2,100` parameters per batch.
+
 ---
 
 ## 💡 Practical Examples

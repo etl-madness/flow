@@ -345,7 +345,26 @@ func newExecutionID() string {
 	return hex.EncodeToString(bytes)
 }
 
+var (
+	identityOnce   sync.Once
+	cachedUserName string
+	cachedHostname string
+)
+
+func resetRuntimeIdentityForTest() {
+	identityOnce = sync.Once{}
+	cachedUserName = ""
+	cachedHostname = ""
+}
+
 func runtimeIdentity() (string, string) {
+	identityOnce.Do(func() {
+		cachedUserName, cachedHostname = computeRuntimeIdentity()
+	})
+	return cachedUserName, cachedHostname
+}
+
+func computeRuntimeIdentity() (string, string) {
 	userName := ""
 	if currentUser, err := user.Current(); err == nil && currentUser != nil {
 		userName = currentUser.Username
@@ -377,16 +396,23 @@ func fqdnHostname() string {
 		return hostname
 	}
 
-	if canonical, err := net.LookupCNAME(hostname); err == nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	resolver := net.DefaultResolver
+
+	if canonical, err := resolver.LookupCNAME(ctx, hostname); err == nil {
 		canonical = strings.TrimSuffix(canonical, ".")
 		if strings.Contains(canonical, ".") {
 			return canonical
 		}
 	}
 
-	if addresses, err := net.LookupIP(hostname); err == nil {
+	if addresses, err := resolver.LookupIPAddr(ctx, hostname); err == nil {
 		for _, addr := range addresses {
-			if names, err := net.LookupAddr(addr.String()); err == nil {
+			if ctx.Err() != nil {
+				return hostname
+			}
+			if names, err := resolver.LookupAddr(ctx, addr.IP.String()); err == nil {
 				for _, name := range names {
 					name = strings.TrimSuffix(name, ".")
 					if strings.Contains(name, ".") {
@@ -399,11 +425,17 @@ func fqdnHostname() string {
 
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
+			if ctx.Err() != nil {
+				return hostname
+			}
 			addresses, err := iface.Addrs()
 			if err != nil {
 				continue
 			}
 			for _, address := range addresses {
+				if ctx.Err() != nil {
+					return hostname
+				}
 				var ip net.IP
 				switch v := address.(type) {
 				case *net.IPNet:
@@ -414,7 +446,7 @@ func fqdnHostname() string {
 				if ip == nil || ip.IsLoopback() || ip.To4() == nil {
 					continue
 				}
-				if names, err := net.LookupAddr(ip.String()); err == nil {
+				if names, err := resolver.LookupAddr(ctx, ip.String()); err == nil {
 					for _, name := range names {
 						name = strings.TrimSuffix(name, ".")
 						if strings.Contains(name, ".") {

@@ -30,7 +30,8 @@ Connection parameters live on the `<database>` definition itself, not on each SQ
 - **`max_open_conns`**: max number of simultaneous open connections in the pool (SQL engines).
 - **`max_idle_conns`**: number of idle connections retained ready for reuse (SQL engines).
 - **`conn_max_lifetime_seconds`**: maximum age of a pooled connection before it is recycled (SQL engines).
-- **`workload`**: optional tuning profile label such as `oltp`, `bulk`, or `analytics` (SQL engines).
+- **`conn_max_idle_time_seconds`**: maximum time a connection may remain idle in the pool before being closed (SQL engines).
+- **`workload`**: optional tuning profile label such as `oltp`, `bulk`, `analytics`, or `batch` (SQL engines).
 
 A workload is the operational pattern of a database connection. It describes how a connection is expected to be used at runtime so the pool can be tuned for the right trade-off between concurrency, latency, and throughput. In practice, Flow uses the workload label as a hint to choose sane defaults for connection count, idle retention, and lifetime without hardcoding one-size-fits-all values.
 
@@ -40,7 +41,15 @@ Common workload types:
 - **`analytics`**: read-heavy reporting workloads; balance concurrency and reuse to support many query workers without oversubscribing the server.
 - **`batch`**: scheduled, non-interactive jobs that may run bursts; a tuned pool can temporarily scale higher but still recycle stale connections.
 
-These labels are metadata, not required switches: they are optional and can be omitted. When omitted, the runtime falls back to the safe defaults already used by the registry.
+When any pool attribute (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime_seconds`, or `conn_max_idle_time_seconds`) is omitted or set to `0`, Flow automatically applies the defaults for the selected `workload` profile (explicit XML attributes always take precedence):
+
+| Workload Profile | Default `max_open_conns` | Default `max_idle_conns` | Default `conn_max_lifetime_seconds` | Default `conn_max_idle_time_seconds` |
+| :--- | :---: | :---: | :---: | :---: |
+| *(default / omitted)* | `25` | `10` | `300` (5m) | `120` (2m) |
+| **`oltp`** | `25` | `10` | `300` (5m) | `120` (2m) |
+| **`bulk`** | `50` | `25` | `1800` (30m) | `600` (10m) |
+| **`analytics`** | `15` | `8` | `1800` (30m) | `600` (10m) |
+| **`batch`** | `20` | `10` | `900` (15m) | `300` (5m) |
 
 Supported database engines and typical workload fit:
 - **SQLite**: best for local dev, embedded apps, testing, and lightweight single-user workflows; commonly used with `oltp` or `batch`.

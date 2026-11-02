@@ -11,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -67,8 +68,117 @@ type HTTPClientElement struct {
 	ForceAttemptHTTP2      *bool  `xml:"force_attempt_http2,attr"`
 }
 
-// BuildClientAndRequest constructs fully configured http.Client and http.Request instances.
-func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request, error) {
+const maxCachedHTTPTransports = 64
+
+type httpTransportKey struct {
+	Proxy                     string
+	HasTLSInsecureSkipVerify  bool
+	TLSInsecureSkipVerify     bool
+	TLSHandshakeTimeout       string
+	TLSServerName             string
+	TLSMinVersion             string
+	TLSMaxVersion             string
+	HasDisableKeepAlives      bool
+	DisableKeepAlives         bool
+	HasDisableCompression     bool
+	DisableCompression        bool
+	HasMaxIdleConns           bool
+	MaxIdleConns              int
+	HasMaxIdleConnsPerHost    bool
+	MaxIdleConnsPerHost       int
+	HasMaxConnsPerHost        bool
+	MaxConnsPerHost           int
+	IdleConnTimeout           string
+	ResponseHeaderTimeout     string
+	ExpectContinueTimeout     string
+	HasMaxResponseHeaderBytes bool
+	MaxResponseHeaderBytes    int64
+	HasWriteBufferSize        bool
+	WriteBufferSize           int
+	HasReadBufferSize         bool
+	ReadBufferSize            int
+	HasForceAttemptHTTP2      bool
+	ForceAttemptHTTP2         bool
+}
+
+var (
+	transportCacheMu sync.RWMutex
+	transportCache   = make(map[httpTransportKey]*http.Transport)
+)
+
+func buildTransportKey(elem HTTPClientElement) httpTransportKey {
+	var k httpTransportKey
+	k.Proxy = elem.Proxy
+	if elem.TLSInsecureSkipVerify != nil {
+		k.HasTLSInsecureSkipVerify = true
+		k.TLSInsecureSkipVerify = *elem.TLSInsecureSkipVerify
+	}
+	k.TLSHandshakeTimeout = elem.TLSHandshakeTimeout
+	k.TLSServerName = elem.TLSServerName
+	k.TLSMinVersion = strings.ToLower(elem.TLSMinVersion)
+	k.TLSMaxVersion = strings.ToLower(elem.TLSMaxVersion)
+	if elem.DisableKeepAlives != nil {
+		k.HasDisableKeepAlives = true
+		k.DisableKeepAlives = *elem.DisableKeepAlives
+	}
+	if elem.DisableCompression != nil {
+		k.HasDisableCompression = true
+		k.DisableCompression = *elem.DisableCompression
+	}
+	if elem.MaxIdleConns != nil {
+		k.HasMaxIdleConns = true
+		k.MaxIdleConns = *elem.MaxIdleConns
+	}
+	if elem.MaxIdleConnsPerHost != nil {
+		k.HasMaxIdleConnsPerHost = true
+		k.MaxIdleConnsPerHost = *elem.MaxIdleConnsPerHost
+	}
+	if elem.MaxConnsPerHost != nil {
+		k.HasMaxConnsPerHost = true
+		k.MaxConnsPerHost = *elem.MaxConnsPerHost
+	}
+	k.IdleConnTimeout = elem.IdleConnTimeout
+	k.ResponseHeaderTimeout = elem.ResponseHeaderTimeout
+	k.ExpectContinueTimeout = elem.ExpectContinueTimeout
+	if elem.MaxResponseHeaderBytes != nil {
+		k.HasMaxResponseHeaderBytes = true
+		k.MaxResponseHeaderBytes = *elem.MaxResponseHeaderBytes
+	}
+	if elem.WriteBufferSize != nil {
+		k.HasWriteBufferSize = true
+		k.WriteBufferSize = *elem.WriteBufferSize
+	}
+	if elem.ReadBufferSize != nil {
+		k.HasReadBufferSize = true
+		k.ReadBufferSize = *elem.ReadBufferSize
+	}
+	if elem.ForceAttemptHTTP2 != nil {
+		k.HasForceAttemptHTTP2 = true
+		k.ForceAttemptHTTP2 = *elem.ForceAttemptHTTP2
+	}
+	return k
+}
+
+// getOrCreateTransport returns a pooled *http.Transport matching elem's transport settings.
+func getOrCreateTransport(elem HTTPClientElement) (*http.Transport, error) {
+	var proxyURL *url.URL
+	if elem.Proxy != "" {
+		parsed, err := url.Parse(elem.Proxy)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy URL: %w", err)
+		}
+		proxyURL = parsed
+	}
+
+	key := buildTransportKey(elem)
+
+	transportCacheMu.RLock()
+	if tr, ok := transportCache[key]; ok {
+		transportCacheMu.RUnlock()
+		return tr, nil
+	}
+	transportCacheMu.RUnlock()
+
 	// 1. Configure Transport: start with cloned DefaultTransport to inherit environment proxy, dialer timeouts, and HTTP/2
 	var transport *http.Transport
 	if defTr, ok := http.DefaultTransport.(*http.Transport); ok {
@@ -77,11 +187,12 @@ func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request,
 		transport = &http.Transport{}
 	}
 
-	if elem.Proxy != "" {
-		proxyURL, err := url.Parse(elem.Proxy)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid proxy URL: %w", err)
-		}
+	// Default MaxIdleConnsPerHost to 10 (up from Go's default of 2) for better keep-alive reuse in parallel/loop workloads
+	if transport.MaxIdleConnsPerHost < 10 {
+		transport.MaxIdleConnsPerHost = 10
+	}
+
+	if proxyURL != nil {
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}
 
@@ -158,6 +269,38 @@ func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request,
 	}
 	if elem.ForceAttemptHTTP2 != nil {
 		transport.ForceAttemptHTTP2 = *elem.ForceAttemptHTTP2
+	}
+
+	transportCacheMu.Lock()
+	defer transportCacheMu.Unlock()
+	if existing, ok := transportCache[key]; ok {
+		return existing, nil
+	}
+	if len(transportCache) >= maxCachedHTTPTransports {
+		for k, tr := range transportCache {
+			tr.CloseIdleConnections()
+			delete(transportCache, k)
+		}
+	}
+	transportCache[key] = transport
+	return transport, nil
+}
+
+// CloseIdleHTTPConnections closes any idle keep-alive connections across all pooled HTTP transports.
+func CloseIdleHTTPConnections() {
+	transportCacheMu.RLock()
+	defer transportCacheMu.RUnlock()
+	for _, tr := range transportCache {
+		tr.CloseIdleConnections()
+	}
+}
+
+// BuildClientAndRequest constructs fully configured http.Client and http.Request instances.
+func BuildClientAndRequest(elem HTTPClientElement) (*http.Client, *http.Request, error) {
+	// 1. Retrieve or construct pooled Transport matching elem's transport settings
+	transport, err := getOrCreateTransport(elem)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// 2. Configure Client

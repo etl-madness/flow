@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-"context"
+
 	redis "github.com/redis/go-redis/v9"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -35,7 +36,7 @@ type Registry struct {
 	boltRegistry   map[string]*goBolt.DB       // Track active BBolt instances
 	badgerRegistry map[string]*badger.DB       // Track active BadgerDB instances
 	etcdRegistry   map[string]*clientv3.Client // Track active etcd client connections
-	redisRegistry  map[string]*redis.Client // Track active Redis/Valkey clients
+	redisRegistry  map[string]*redis.Client    // Track active Redis/Valkey clients
 	dbMu           sync.RWMutex
 	varRegistry    map[string]interface{}
 	varMu          sync.RWMutex
@@ -63,6 +64,62 @@ func (r *Registry) SetVar(name string, value interface{}) {
 	if r.dirtyVars != nil {
 		r.dirtyVars[name] = struct{}{}
 	}
+}
+
+// SetVars sets multiple environment variables in a single lock acquisition.
+func (r *Registry) SetVars(vars map[string]interface{}) {
+	if len(vars) == 0 {
+		return
+	}
+	r.varMu.Lock()
+	defer r.varMu.Unlock()
+	for k, v := range vars {
+		r.varRegistry[k] = v
+		if r.dirtyVars != nil {
+			r.dirtyVars[k] = struct{}{}
+		}
+	}
+}
+
+// SetRowVars binds a SQL result row's columns (exact, lowercase, uppercase) and LOOP_INDEX in a single lock acquisition.
+func (r *Registry) SetRowVars(cols, lowerCols, upperCols []string, vals []interface{}, loopIndex int) {
+	r.varMu.Lock()
+	defer r.varMu.Unlock()
+	for i, col := range cols {
+		var strVal string
+		if vals[i] == nil {
+			strVal = "NULL"
+		} else if b, ok := vals[i].([]byte); ok {
+			strVal = string(b)
+		} else if s, ok := vals[i].(string); ok {
+			strVal = s
+		} else {
+			strVal = fmt.Sprintf("%v", vals[i])
+		}
+		r.varRegistry[col] = strVal
+		r.varRegistry[lowerCols[i]] = strVal
+		r.varRegistry[upperCols[i]] = strVal
+		if r.dirtyVars != nil {
+			r.dirtyVars[col] = struct{}{}
+			r.dirtyVars[lowerCols[i]] = struct{}{}
+			r.dirtyVars[upperCols[i]] = struct{}{}
+		}
+	}
+	r.varRegistry["LOOP_INDEX"] = loopIndex
+	if r.dirtyVars != nil {
+		r.dirtyVars["LOOP_INDEX"] = struct{}{}
+	}
+}
+
+// InterpolateVars replaces {{VarName}} placeholders using a single-pass scan under a read lock
+// without cloning the variable map. Returns input immediately if no "{{" is present.
+func (r *Registry) InterpolateVars(input string) string {
+	if !strings.Contains(input, "{{") {
+		return input
+	}
+	r.varMu.RLock()
+	defer r.varMu.RUnlock()
+	return interpolateVars(input, r.varRegistry)
 }
 
 // GetVar retrieves an environment variable's raw interface value in a thread-safe manner.
@@ -207,30 +264,63 @@ const (
 	defaultDBMaxOpenConns = 25
 	defaultDBMaxIdleConns = 10
 	defaultDBConnMaxLife  = 5 * time.Minute
+	defaultDBConnMaxIdle  = 2 * time.Minute
 )
 
-func applyDatabasePoolSettings(dbConn *sql.DB, cfg DatabaseConfig) {
-	maxOpenConns := cfg.MaxOpenConns
-	if maxOpenConns <= 0 {
-		maxOpenConns = defaultDBMaxOpenConns
+func resolveDatabasePoolSettings(cfg DatabaseConfig) (maxOpenConns, maxIdleConns int, connMaxLifetime, connMaxIdleTime time.Duration) {
+	maxOpenConns = defaultDBMaxOpenConns
+	maxIdleConns = defaultDBMaxIdleConns
+	connMaxLifetime = defaultDBConnMaxLife
+	connMaxIdleTime = defaultDBConnMaxIdle
+
+	switch strings.ToLower(strings.TrimSpace(cfg.Workload)) {
+	case "bulk":
+		maxOpenConns = 50
+		maxIdleConns = 25
+		connMaxLifetime = 30 * time.Minute
+		connMaxIdleTime = 10 * time.Minute
+	case "analytics":
+		maxOpenConns = 15
+		maxIdleConns = 8
+		connMaxLifetime = 30 * time.Minute
+		connMaxIdleTime = 10 * time.Minute
+	case "batch":
+		maxOpenConns = 20
+		maxIdleConns = 10
+		connMaxLifetime = 15 * time.Minute
+		connMaxIdleTime = 5 * time.Minute
+	case "oltp", "":
+		// Uses defaultDB* constants
 	}
 
-	maxIdleConns := cfg.MaxIdleConns
-	if maxIdleConns <= 0 {
-		maxIdleConns = defaultDBMaxIdleConns
+	if cfg.MaxOpenConns > 0 {
+		maxOpenConns = cfg.MaxOpenConns
+	}
+	if cfg.MaxIdleConns > 0 {
+		maxIdleConns = cfg.MaxIdleConns
 	}
 	if maxIdleConns > maxOpenConns {
 		maxIdleConns = maxOpenConns
 	}
-
-	connMaxLifetime := cfg.ConnMaxLifetime
-	if connMaxLifetime <= 0 {
-		connMaxLifetime = defaultDBConnMaxLife
+	if cfg.ConnMaxLifetime > 0 {
+		connMaxLifetime = cfg.ConnMaxLifetime
 	}
+	if cfg.ConnMaxIdleTime > 0 {
+		connMaxIdleTime = cfg.ConnMaxIdleTime
+	}
+	if connMaxIdleTime > connMaxLifetime {
+		connMaxIdleTime = connMaxLifetime
+	}
+	return maxOpenConns, maxIdleConns, connMaxLifetime, connMaxIdleTime
+}
+
+func applyDatabasePoolSettings(dbConn *sql.DB, cfg DatabaseConfig) {
+	maxOpenConns, maxIdleConns, connMaxLifetime, connMaxIdleTime := resolveDatabasePoolSettings(cfg)
 
 	dbConn.SetMaxOpenConns(maxOpenConns)
 	dbConn.SetMaxIdleConns(maxIdleConns)
 	dbConn.SetConnMaxLifetime(connMaxLifetime)
+	dbConn.SetConnMaxIdleTime(connMaxIdleTime)
 }
 
 // InitDatabases opens connection pools for all supplied DatabaseConfigs with variable interpolation in connection strings.
@@ -292,12 +382,7 @@ func (r *Registry) InitDatabasesWithContext(ctx context.Context, configs []Datab
 			return err
 		}
 
-		connStr := cfg.ConnectionString
-
-		for name, val := range r.varRegistry {
-			placeholder := fmt.Sprintf("{{%s}}", name)
-			connStr = strings.ReplaceAll(connStr, placeholder, fmt.Sprintf("%v", val))
-		}
+		connStr := interpolateVars(cfg.ConnectionString, r.varRegistry)
 
 		driverName := strings.ToLower(cfg.Driver)
 
@@ -436,6 +521,7 @@ func (r *Registry) CloseDatabases() {
 		delete(r.dbRegistry, name)
 	}
 }
+
 func (r *Registry) GetBadgerDB(name string) (*badger.DB, error) {
 	r.dbMu.RLock()
 	defer r.dbMu.RUnlock()
@@ -460,7 +546,7 @@ func (r *Registry) GetBoltDB(name string) (*goBolt.DB, error) {
 func (r *Registry) CopyVariables() map[string]interface{} {
 	r.varMu.RLock()
 	defer r.varMu.RUnlock()
-	copyMap := make(map[string]interface{})
+	copyMap := make(map[string]interface{}, len(r.varRegistry))
 	for k, v := range r.varRegistry {
 		copyMap[k] = v
 	}
@@ -554,6 +640,7 @@ func (r *Registry) Snapshot() *Registry {
 		dirtyVars:      make(map[string]struct{}),
 	}
 }
+
 func (r *Registry) GetEtcdDB(name string) (*clientv3.Client, error) {
 	r.dbMu.RLock()
 	defer r.dbMu.RUnlock()
@@ -563,6 +650,7 @@ func (r *Registry) GetEtcdDB(name string) (*clientv3.Client, error) {
 	}
 	return cli, nil
 }
+
 func (r *Registry) GetRedisDB(name string) (*redis.Client, error) {
 	r.dbMu.RLock()
 	defer r.dbMu.RUnlock()

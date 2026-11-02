@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -27,16 +28,75 @@ type ETLOptions struct {
 func formatPlaceholder(driver string, paramIdx int) string {
 	switch strings.ToLower(driver) {
 	case "postgres", "postgresql", "pgx", "pq":
-		return fmt.Sprintf("$%d", paramIdx)
+		return "$" + strconv.Itoa(paramIdx)
 	case "mysql", "sqlite", "sqlite3":
 		return "?"
 	case "oracle", "godror", "go-ora":
-		return fmt.Sprintf(":%d", paramIdx)
+		return ":" + strconv.Itoa(paramIdx)
 	case "sqlserver", "mssql":
 		fallthrough
 	default:
-		return fmt.Sprintf("@p%d", paramIdx)
+		return "@p" + strconv.Itoa(paramIdx)
 	}
+}
+
+// maxParametersForDriver returns the maximum number of bind parameters supported per statement
+// by the target database driver.
+func maxParametersForDriver(driver string) int {
+	switch strings.ToLower(driver) {
+	case "postgres", "postgresql", "pgx", "pq", "mysql":
+		return 65535
+	case "sqlite", "sqlite3":
+		return 32766
+	case "oracle", "godror", "go-ora":
+		return 32767
+	case "sqlserver", "mssql":
+		fallthrough
+	default:
+		return 2100
+	}
+}
+
+// buildMultiRowInsertSQL constructs a parameterized multi-row INSERT statement using a
+// pre-sized strings.Builder without intermediate slice allocations.
+func buildMultiRowInsertSQL(driver, targetTable, colList string, numCols, numRows int) string {
+	lowerDriver := strings.ToLower(driver)
+	var b strings.Builder
+	b.Grow(len(targetTable) + len(colList) + 25 + numRows*(numCols*5+3))
+	b.WriteString("INSERT INTO ")
+	b.WriteString(targetTable)
+	b.WriteString(" (")
+	b.WriteString(colList)
+	b.WriteString(") VALUES ")
+
+	paramIdx := 1
+	for r := 0; r < numRows; r++ {
+		if r > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteByte('(')
+		for c := 0; c < numCols; c++ {
+			if c > 0 {
+				b.WriteString(", ")
+			}
+			switch lowerDriver {
+			case "postgres", "postgresql", "pgx", "pq":
+				b.WriteByte('$')
+				b.WriteString(strconv.Itoa(paramIdx))
+			case "mysql", "sqlite", "sqlite3":
+				b.WriteByte('?')
+			case "oracle", "godror", "go-ora":
+				b.WriteByte(':')
+				b.WriteString(strconv.Itoa(paramIdx))
+			default:
+				b.WriteString("@p")
+				b.WriteString(strconv.Itoa(paramIdx))
+			}
+			paramIdx++
+		}
+		b.WriteByte(')')
+	}
+	return b.String()
 }
 
 // flushMSSQLBatch performs a native TDS bulk stream copy into MSSQL with configured BulkOptions.
@@ -104,11 +164,7 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		batchSize = 10000
 	}
 
-	variables := r.CopyVariables()
-	for name, val := range variables {
-		placeholder := fmt.Sprintf("{{%s}}", name)
-		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
-	}
+	queryStr = r.InterpolateVars(queryStr)
 
 	srcHandle, err := r.GetDBHandle(srcDBName)
 	if err != nil {
@@ -141,16 +197,19 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
 	}
 
-	if len(cols) == 0 {
+	numCols := len(cols)
+	if numCols == 0 {
 		return 0, fmt.Errorf("query returned 0 columns")
 	}
 
 	colList := strings.Join(cols, ", ")
-	isMSSQL := strings.ToLower(dstDriver) == "sqlserver" || strings.ToLower(dstDriver) == "mssql"
+	lowerDstDriver := strings.ToLower(dstDriver)
+	isMSSQL := lowerDstDriver == "sqlserver" || lowerDstDriver == "mssql"
 
-	// Enforce parameter limit for non-MSSQL fallback drivers (2,100 total params max)
+	// Enforce dialect-aware parameter limit for non-MSSQL multi-row INSERT statements
 	if !isMSSQL {
-		maxBatchRows := 2100 / len(cols)
+		maxParams := maxParametersForDriver(dstDriver)
+		maxBatchRows := maxParams / numCols
 		if maxBatchRows <= 0 {
 			maxBatchRows = 1
 		}
@@ -160,10 +219,25 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 	}
 
 	var totalInserted int64 = 0
-	var batchRows [][]interface{}
+	batchRows := make([][]interface{}, 0, batchSize)
+	rowArena := make([]interface{}, batchSize*numCols)
+	scans := make([]interface{}, numCols)
+	var valueArgs []interface{}
+	var fullBatchSQL string
+	var fullBatchStmt *sql.Stmt
+	defer func() {
+		if fullBatchStmt != nil {
+			_ = fullBatchStmt.Close()
+		}
+	}()
+
+	if !isMSSQL {
+		valueArgs = make([]interface{}, 0, batchSize*numCols)
+	}
 
 	flushBatch := func() error {
-		if len(batchRows) == 0 {
+		nRows := len(batchRows)
+		if nRows == 0 {
 			return nil
 		}
 
@@ -172,35 +246,57 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 				return fmt.Errorf("batch bulk copy error on table '%s': %w", targetTable, err)
 			}
 		} else {
-			var valuePlaceholders []string
-			var valueArgs []interface{}
-			paramIdx := 1
-
+			valueArgs = valueArgs[:0]
 			for _, row := range batchRows {
-				var placeholders []string
-				for _, val := range row {
-					placeholders = append(placeholders, formatPlaceholder(dstDriver, paramIdx))
-					valueArgs = append(valueArgs, val)
-					paramIdx++
-				}
-				valuePlaceholders = append(valuePlaceholders, "("+strings.Join(placeholders, ", ")+")")
+				valueArgs = append(valueArgs, row...)
 			}
 
-			insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", targetTable, colList, strings.Join(valuePlaceholders, ", "))
 			var execErr error
-			if opts.DstTx != nil {
-				_, execErr = opts.DstTx.ExecContext(ctx, insertSQL, valueArgs...)
-			} else if opts.DstConn != nil {
-				_, execErr = opts.DstConn.ExecContext(ctx, insertSQL, valueArgs...)
+			if nRows == batchSize {
+				if fullBatchSQL == "" {
+					fullBatchSQL = buildMultiRowInsertSQL(dstDriver, targetTable, colList, numCols, batchSize)
+				}
+				if fullBatchStmt == nil {
+					if opts.DstTx != nil {
+						fullBatchStmt, execErr = opts.DstTx.PrepareContext(ctx, fullBatchSQL)
+					} else if opts.DstConn != nil {
+						fullBatchStmt, execErr = opts.DstConn.PrepareContext(ctx, fullBatchSQL)
+					} else {
+						fullBatchStmt, execErr = dstDB.PrepareContext(ctx, fullBatchSQL)
+					}
+				}
+				if execErr == nil && fullBatchStmt != nil {
+					_, execErr = fullBatchStmt.ExecContext(ctx, valueArgs...)
+				} else {
+					// Fallback to direct execution if driver does not support PrepareContext
+					execErr = nil
+					if opts.DstTx != nil {
+						_, execErr = opts.DstTx.ExecContext(ctx, fullBatchSQL, valueArgs...)
+					} else if opts.DstConn != nil {
+						_, execErr = opts.DstConn.ExecContext(ctx, fullBatchSQL, valueArgs...)
+					} else {
+						_, execErr = dstDB.ExecContext(ctx, fullBatchSQL, valueArgs...)
+					}
+				}
 			} else {
-				_, execErr = dstDB.ExecContext(ctx, insertSQL, valueArgs...)
+				insertSQL := buildMultiRowInsertSQL(dstDriver, targetTable, colList, numCols, nRows)
+				if opts.DstTx != nil {
+					_, execErr = opts.DstTx.ExecContext(ctx, insertSQL, valueArgs...)
+				} else if opts.DstConn != nil {
+					_, execErr = opts.DstConn.ExecContext(ctx, insertSQL, valueArgs...)
+				} else {
+					_, execErr = dstDB.ExecContext(ctx, insertSQL, valueArgs...)
+				}
 			}
 			if execErr != nil {
 				return fmt.Errorf("batch insert error on table '%s': %w", targetTable, execErr)
 			}
 		}
 
-		totalInserted += int64(len(batchRows))
+		totalInserted += int64(nRows)
+		for i := 0; i < nRows*numCols; i++ {
+			rowArena[i] = nil
+		}
 		batchRows = batchRows[:0]
 		return nil
 	}
@@ -209,6 +305,13 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 	// rows must be fully read and closed before executing destination inserts on that same connection.
 	sameSingleConn := srcDBName == dstDBName && (opts.SrcTx != nil || opts.DstTx != nil || opts.SrcConn != nil || opts.DstConn != nil)
 	var bufferedRows [][]interface{}
+	var bufferedVals []interface{}
+	if sameSingleConn {
+		bufferedVals = make([]interface{}, numCols)
+		for i := range scans {
+			scans[i] = &bufferedVals[i]
+		}
+	}
 
 	for rows.Next() {
 		select {
@@ -217,32 +320,47 @@ func StreamETL(ctx context.Context, r *Registry, srcDBName, queryStr, dstDBName,
 		default:
 		}
 
-		vals := make([]interface{}, len(cols))
-		scans := make([]interface{}, len(cols))
-		for i := range scans {
-			scans[i] = &vals[i]
-		}
-
-		if err := rows.Scan(scans...); err != nil {
-			return totalInserted, fmt.Errorf("row scan error: %w", err)
-		}
-
-		rowCopy := make([]interface{}, len(cols))
-		for i, v := range vals {
-			if b, ok := v.([]byte); ok {
-				if utf8.Valid(b) {
-					rowCopy[i] = string(b)
-				} else {
-					rowCopy[i] = b
-				}
-			} else {
-				rowCopy[i] = v
-			}
-		}
 		if sameSingleConn {
+			if err := rows.Scan(scans...); err != nil {
+				return totalInserted, fmt.Errorf("row scan error: %w", err)
+			}
+			rowCopy := make([]interface{}, numCols)
+			for i, v := range bufferedVals {
+				if b, ok := v.([]byte); ok {
+					if utf8.Valid(b) {
+						rowCopy[i] = string(b)
+					} else {
+						cloned := make([]byte, len(b))
+						copy(cloned, b)
+						rowCopy[i] = cloned
+					}
+				} else {
+					rowCopy[i] = v
+				}
+				bufferedVals[i] = nil
+			}
 			bufferedRows = append(bufferedRows, rowCopy)
 		} else {
-			batchRows = append(batchRows, rowCopy)
+			rowIdx := len(batchRows)
+			rowSlice := rowArena[rowIdx*numCols : (rowIdx+1)*numCols]
+			for i := 0; i < numCols; i++ {
+				scans[i] = &rowSlice[i]
+			}
+			if err := rows.Scan(scans...); err != nil {
+				return totalInserted, fmt.Errorf("row scan error: %w", err)
+			}
+			for i, v := range rowSlice {
+				if b, ok := v.([]byte); ok {
+					if utf8.Valid(b) {
+						rowSlice[i] = string(b)
+					} else {
+						cloned := make([]byte, len(b))
+						copy(cloned, b)
+						rowSlice[i] = cloned
+					}
+				}
+			}
+			batchRows = append(batchRows, rowSlice)
 			if len(batchRows) >= batchSize {
 				if err := flushBatch(); err != nil {
 					return totalInserted, err

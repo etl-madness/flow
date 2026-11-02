@@ -43,28 +43,87 @@ type ScriptResult struct {
 	Duration      string `json:"duration,omitempty"` // Cumulative execution time
 }
 
+// templateCacheKey uniquely identifies a parsed template by name and source content.
+type templateCacheKey struct {
+	name    string
+	content string
+}
+
+const maxCachedTemplates = 256
+
 // Executor orchestrates recursive pipeline AST node executions.
 type Executor struct {
-	registry    *Registry
-	resultsMu   sync.Mutex
-	sinksMu     sync.RWMutex
-	eventSinks  []EventSink
-	verbose     atomic.Bool
-	goPath      string
-	optionsPath string
-	txMu        sync.Mutex
-	activeTxs   map[string][]*sql.Tx   // Stack of active transactions per database
-	activeConns map[string][]*sql.Conn // Stack of pinned session connections per database
-	interpHook  func(*interp.Options)
+	registry      *Registry
+	resultsMu     sync.Mutex
+	sinksMu       sync.RWMutex
+	eventSinks    []EventSink
+	verbose       atomic.Bool
+	goPath        string
+	optionsPath   string
+	txMu          sync.RWMutex
+	activeTxs     map[string][]*sql.Tx   // Stack of active transactions per database
+	activeConns   map[string][]*sql.Conn // Stack of pinned session connections per database
+	interpHook    func(*interp.Options)
+	tmplMu        sync.RWMutex
+	textTmplCache map[templateCacheKey]*template.Template
+	htmlTmplCache map[templateCacheKey]*htmltemplate.Template
 }
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
 	return &Executor{
-		registry:    r,
-		activeTxs:   make(map[string][]*sql.Tx),
-		activeConns: make(map[string][]*sql.Conn),
+		registry:      r,
+		activeTxs:     make(map[string][]*sql.Tx),
+		activeConns:   make(map[string][]*sql.Conn),
+		textTmplCache: make(map[templateCacheKey]*template.Template),
+		htmlTmplCache: make(map[templateCacheKey]*htmltemplate.Template),
 	}
+}
+
+func (e *Executor) getOrParseTextTemplate(name, content string) (*template.Template, error) {
+	key := templateCacheKey{name: name, content: content}
+	e.tmplMu.RLock()
+	if tmpl, ok := e.textTmplCache[key]; ok {
+		e.tmplMu.RUnlock()
+		return tmpl, nil
+	}
+	e.tmplMu.RUnlock()
+
+	tmpl, err := template.New(name).Option("missingkey=zero").Parse(content)
+	if err != nil {
+		return nil, err
+	}
+
+	e.tmplMu.Lock()
+	if e.textTmplCache == nil || len(e.textTmplCache) >= maxCachedTemplates {
+		e.textTmplCache = make(map[templateCacheKey]*template.Template)
+	}
+	e.textTmplCache[key] = tmpl
+	e.tmplMu.Unlock()
+	return tmpl, nil
+}
+
+func (e *Executor) getOrParseHTMLTemplate(name, content string) (*htmltemplate.Template, error) {
+	key := templateCacheKey{name: name, content: content}
+	e.tmplMu.RLock()
+	if tmpl, ok := e.htmlTmplCache[key]; ok {
+		e.tmplMu.RUnlock()
+		return tmpl, nil
+	}
+	e.tmplMu.RUnlock()
+
+	tmpl, err := htmltemplate.New(name).Option("missingkey=zero").Parse(content)
+	if err != nil {
+		return nil, err
+	}
+
+	e.tmplMu.Lock()
+	if e.htmlTmplCache == nil || len(e.htmlTmplCache) >= maxCachedTemplates {
+		e.htmlTmplCache = make(map[templateCacheKey]*htmltemplate.Template)
+	}
+	e.htmlTmplCache[key] = tmpl
+	e.tmplMu.Unlock()
+	return tmpl, nil
 }
 func (e *Executor) SetGoPath(goPath string) {
 	e.goPath = goPath
@@ -350,8 +409,8 @@ func (e *Executor) popTx(dbName string) *sql.Tx {
 
 // getActiveTx returns the active transaction for the specified database if one exists.
 func (e *Executor) getActiveTx(dbName string) *sql.Tx {
-	e.txMu.Lock()
-	defer e.txMu.Unlock()
+	e.txMu.RLock()
+	defer e.txMu.RUnlock()
 	stack := e.activeTxs[dbName]
 	if len(stack) == 0 {
 		return nil
@@ -385,8 +444,8 @@ func (e *Executor) popConn(dbName string) *sql.Conn {
 
 // getActiveConn returns the active pinned session connection for the specified database if one exists.
 func (e *Executor) getActiveConn(dbName string) *sql.Conn {
-	e.txMu.Lock()
-	defer e.txMu.Unlock()
+	e.txMu.RLock()
+	defer e.txMu.RUnlock()
 	stack := e.activeConns[dbName]
 	if len(stack) == 0 {
 		return nil
@@ -394,12 +453,29 @@ func (e *Executor) getActiveConn(dbName string) *sql.Conn {
 	return stack[len(stack)-1]
 }
 
+// getActiveTarget returns both the active transaction and pinned session connection for a database
+// under a single RLock acquisition.
+func (e *Executor) getActiveTarget(dbName string) (*sql.Tx, *sql.Conn) {
+	e.txMu.RLock()
+	var tx *sql.Tx
+	if stack := e.activeTxs[dbName]; len(stack) > 0 {
+		tx = stack[len(stack)-1]
+	}
+	var conn *sql.Conn
+	if stack := e.activeConns[dbName]; len(stack) > 0 {
+		conn = stack[len(stack)-1]
+	}
+	e.txMu.RUnlock()
+	return tx, conn
+}
+
 // querySQLContext executes a SQL query using the active transaction, pinned session connection, or database pool.
 func (e *Executor) querySQLContext(ctx context.Context, dbName string, queryStr string, args ...any) (*sql.Rows, error) {
-	if tx := e.getActiveTx(dbName); tx != nil {
+	tx, conn := e.getActiveTarget(dbName)
+	if tx != nil {
 		return tx.QueryContext(ctx, queryStr, args...)
 	}
-	if conn := e.getActiveConn(dbName); conn != nil {
+	if conn != nil {
 		return conn.QueryContext(ctx, queryStr, args...)
 	}
 	dbConn, err := e.registry.GetDB(dbName)
@@ -411,10 +487,11 @@ func (e *Executor) querySQLContext(ctx context.Context, dbName string, queryStr 
 
 // execSQLContext executes a SQL statement using the active transaction, pinned session connection, or database pool.
 func (e *Executor) execSQLContext(ctx context.Context, dbName string, queryStr string, args ...any) (sql.Result, error) {
-	if tx := e.getActiveTx(dbName); tx != nil {
+	tx, conn := e.getActiveTarget(dbName)
+	if tx != nil {
 		return tx.ExecContext(ctx, queryStr, args...)
 	}
-	if conn := e.getActiveConn(dbName); conn != nil {
+	if conn != nil {
 		return conn.ExecContext(ctx, queryStr, args...)
 	}
 	dbConn, err := e.registry.GetDB(dbName)
@@ -611,11 +688,7 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 		return "", "", fmt.Errorf("missing 'db' attribute on <sql> tag")
 	}
 
-	variables := e.registry.CopyVariables()
-	for name, val := range variables {
-		placeholder := fmt.Sprintf("{{%s}}", name)
-		queryStr = strings.ReplaceAll(queryStr, placeholder, fmt.Sprintf("%v", val))
-	}
+	queryStr = e.registry.InterpolateVars(queryStr)
 	trimmedQuery := strings.TrimSpace(queryStr)
 	if strings.HasPrefix(trimmedQuery, "<![CDATA[") {
 		trimmedQuery = strings.TrimPrefix(trimmedQuery, "<![CDATA[")
@@ -664,14 +737,14 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 			lastRowStrs = nil
 		}
 
+		vals := make([]interface{}, len(cols))
+		valPtrs := make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
+
 		for rows.Next() {
 			rowCount++
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
-
 			if err := rows.Scan(valPtrs...); err != nil {
 				return dataBuf.String(), "", fmt.Errorf("row scan error: %w", err)
 			}
@@ -685,6 +758,7 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 				} else {
 					rowStrs[i] = fmt.Sprintf("%v", v)
 				}
+				vals[i] = nil
 			}
 			lastRowStrs = rowStrs
 			dataBuf.WriteString(strings.Join(rowStrs, "\t") + "\n")
@@ -826,24 +900,21 @@ func (e *Executor) executeSQLBulkNode(ctx context.Context, elem SQLBulkElement, 
 		targetDB = elem.DBName
 	}
 
-	targetTable := elem.TargetTable
-	variables := e.registry.CopyVariables()
-	for name, val := range variables {
-		placeholder := fmt.Sprintf("{{%s}}", name)
-		targetTable = strings.ReplaceAll(targetTable, placeholder, fmt.Sprintf("%v", val))
-		targetDB = strings.ReplaceAll(targetDB, placeholder, fmt.Sprintf("%v", val))
-	}
+	targetTable := e.registry.InterpolateVars(elem.TargetTable)
+	targetDB = e.registry.InterpolateVars(targetDB)
 
+	srcTx, srcConn := e.getActiveTarget(elem.DBName)
+	dstTx, dstConn := e.getActiveTarget(targetDB)
 	opts := ETLOptions{
 		BatchSize:        elem.BatchSize,
 		Tablock:          elem.Tablock,
 		CheckConstraints: elem.CheckConstraints,
 		FireTriggers:     elem.FireTriggers,
 		KeepNulls:        elem.KeepNulls,
-		SrcConn:          e.getActiveConn(elem.DBName),
-		DstConn:          e.getActiveConn(targetDB),
-		SrcTx:            e.getActiveTx(elem.DBName),
-		DstTx:            e.getActiveTx(targetDB),
+		SrcConn:          srcConn,
+		DstConn:          dstConn,
+		SrcTx:            srcTx,
+		DstTx:            dstTx,
 	}
 
 	copied, err := StreamETL(ctx, e.registry, elem.DBName, codeToEval, targetDB, targetTable, opts)
@@ -1097,11 +1168,7 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 	}
 
 	if script.Language == "sql" {
-		variables := e.registry.CopyVariables()
-		for name, val := range variables {
-			placeholder := fmt.Sprintf("{{%s}}", name)
-			codeToEval = strings.ReplaceAll(codeToEval, placeholder, fmt.Sprintf("%v", val))
-		}
+		codeToEval = e.registry.InterpolateVars(codeToEval)
 
 		rows, queryErr := e.querySQLContext(ctx, script.DBName, codeToEval)
 		if queryErr != nil {
@@ -1118,12 +1185,25 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			return true
 		}
 
+		lowerCols := make([]string, len(cols))
+		upperCols := make([]string, len(cols))
+		for i, col := range cols {
+			lowerCols[i] = strings.ToLower(col)
+			upperCols[i] = strings.ToUpper(col)
+		}
+
+		activeTx, activeConn := e.getActiveTarget(script.DBName)
 		// Buffer rows when explicitly requested or when executing on a single pinned connection/transaction
 		// so the driver cursor is closed before child steps execute queries on the same connection.
-		if node.Buffer || e.getActiveTx(script.DBName) != nil || e.getActiveConn(script.DBName) != nil {
+		if node.Buffer || activeTx != nil || activeConn != nil {
 			// Opt-in buffer mode: loads small datasets into memory to release DB cursor early
 			const maxBufferCap = 100000
-			var bufferedRows [][]string
+			var bufferedRows [][]interface{}
+			vals := make([]interface{}, len(cols))
+			valPtrs := make([]interface{}, len(cols))
+			for i := range vals {
+				valPtrs[i] = &vals[i]
+			}
 			for rows.Next() {
 				if ctx.Err() != nil {
 					_ = rows.Close()
@@ -1131,28 +1211,24 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 					appendWithDuration(res)
 					return true
 				}
-				vals := make([]interface{}, len(cols))
-				valPtrs := make([]interface{}, len(cols))
-				for i := range vals {
-					valPtrs[i] = &vals[i]
-				}
 				if err := rows.Scan(valPtrs...); err != nil {
 					_ = rows.Close()
 					res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
 					appendWithDuration(res)
 					return true
 				}
-				rowStrs := make([]string, len(cols))
+				rowVals := make([]interface{}, len(cols))
 				for i, v := range vals {
 					if v == nil {
-						rowStrs[i] = "NULL"
+						rowVals[i] = "NULL"
 					} else if b, ok := v.([]byte); ok {
-						rowStrs[i] = string(b)
+						rowVals[i] = string(b)
 					} else {
-						rowStrs[i] = fmt.Sprintf("%v", v)
+						rowVals[i] = fmt.Sprintf("%v", v)
 					}
+					vals[i] = nil
 				}
-				bufferedRows = append(bufferedRows, rowStrs)
+				bufferedRows = append(bufferedRows, rowVals)
 				if len(bufferedRows) > maxBufferCap {
 					_ = rows.Close()
 					res := ScriptResult{
@@ -1171,19 +1247,13 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			}
 			_ = rows.Close()
 
-			for loopIdx, rowStrs := range bufferedRows {
+			for loopIdx, rowVals := range bufferedRows {
 				if ctx.Err() != nil {
 					res := ScriptResult{ScriptID: script.ID, ReturnCode: ctx.Err().Error()}
 					appendWithDuration(res)
 					return true
 				}
-				e.registry.SetVar("LOOP_INDEX", loopIdx)
-				for i, col := range cols {
-					strVal := rowStrs[i]
-					e.registry.SetVar(col, strVal)
-					e.registry.SetVar(strings.ToLower(col), strVal)
-					e.registry.SetVar(strings.ToUpper(col), strVal)
-				}
+				e.registry.SetRowVars(cols, lowerCols, upperCols, rowVals, loopIdx)
 				if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
 					return true
 				}
@@ -1205,6 +1275,11 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 
 		// Streaming mode (default): constant O(1) memory, supports 60M+ rows
 		loopIdx := 0
+		vals := make([]interface{}, len(cols))
+		valPtrs := make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
 		for rows.Next() {
 			select {
 			case <-ctx.Done():
@@ -1215,12 +1290,6 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 			default:
 			}
 
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
-
 			if err := rows.Scan(valPtrs...); err != nil {
 				_ = rows.Close()
 				res := ScriptResult{ScriptID: script.ID, ReturnCode: err.Error()}
@@ -1228,19 +1297,9 @@ func (e *Executor) executeForEachNode(ctx context.Context, node PipelineNode, re
 				return true
 			}
 
-			e.registry.SetVar("LOOP_INDEX", loopIdx)
-			for i, col := range cols {
-				var strVal string
-				if vals[i] == nil {
-					strVal = "NULL"
-				} else if b, ok := vals[i].([]byte); ok {
-					strVal = string(b)
-				} else {
-					strVal = fmt.Sprintf("%v", vals[i])
-				}
-				e.registry.SetVar(col, strVal)
-				e.registry.SetVar(strings.ToLower(col), strVal)
-				e.registry.SetVar(strings.ToUpper(col), strVal)
+			e.registry.SetRowVars(cols, lowerCols, upperCols, vals, loopIdx)
+			for i := range vals {
+				vals[i] = nil
 			}
 
 			if hasErr := e.executeNodes(ctx, node.Children, results); hasErr {
@@ -1745,7 +1804,7 @@ func (e *Executor) executeHTTPClientNode(ctx context.Context, elem HTTPClientEle
 		// Convert {{VarName}} to standard Go template {{.VarName}}
 		templateText := placeholderRegex.ReplaceAllString(rawBody, "{{.$1}}")
 
-		tmpl, err := template.New("http_body").Option("missingkey=zero").Parse(templateText)
+		tmpl, err := e.getOrParseTextTemplate("http_body", templateText)
 		if err == nil {
 			var buf bytes.Buffer
 			if err := tmpl.Execute(&buf, variables); err == nil {
@@ -1803,16 +1862,61 @@ func (e *Executor) executeHTTPClientNode(ctx context.Context, elem HTTPClientEle
 	return false
 }
 
-// Helper to replace {{VarName}} placeholders directly
+// interpolateVars performs single-pass O(N) replacement of {{VarName}} placeholders.
+// Unknown {{...}} tokens (such as Go template tokens {{.Field}}) and surrounding braces
+// (such as {{{VarName}}}) are preserved verbatim.
 func interpolateVars(input string, variables map[string]interface{}) string {
-	if input == "" {
-		return ""
+	if input == "" || len(variables) == 0 {
+		return input
 	}
-	for name, val := range variables {
-		placeholder := fmt.Sprintf("{{%s}}", name)
-		input = strings.ReplaceAll(input, placeholder, fmt.Sprintf("%v", val))
+	firstOpen := strings.Index(input, "{{")
+	if firstOpen == -1 {
+		return input
 	}
-	return input
+
+	var b strings.Builder
+	b.Grow(len(input) + 32)
+	cursor := 0
+	openIdx := firstOpen
+
+	for openIdx != -1 {
+		closeRel := strings.Index(input[openIdx+2:], "}}")
+		if closeRel == -1 {
+			break
+		}
+		closeIdx := openIdx + 2 + closeRel
+
+		// Advance past any extra leading '{' so '{{{' resolves the innermost '{{VarName}}'
+		for openIdx+2 < closeIdx && input[openIdx+2] == '{' {
+			openIdx++
+		}
+
+		varName := input[openIdx+2 : closeIdx]
+		if val, ok := variables[varName]; ok {
+			b.WriteString(input[cursor:openIdx])
+			if s, isStr := val.(string); isStr {
+				b.WriteString(s)
+			} else {
+				b.WriteString(fmt.Sprintf("%v", val))
+			}
+			cursor = closeIdx + 2
+		} else {
+			b.WriteString(input[cursor : closeIdx+2])
+			cursor = closeIdx + 2
+		}
+
+		nextRel := strings.Index(input[cursor:], "{{")
+		if nextRel == -1 {
+			break
+		}
+		openIdx = cursor + nextRel
+	}
+
+	if cursor == 0 {
+		return input
+	}
+	b.WriteString(input[cursor:])
+	return b.String()
 }
 func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement, results *[]ScriptResult) bool {
 	startTime := time.Now()
@@ -1839,7 +1943,7 @@ func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement
 		tmplName = elem.ID
 	}
 
-	tmpl, err := template.New(tmplName).Option("missingkey=zero").Parse(templateText)
+	tmpl, err := e.getOrParseTextTemplate(tmplName, templateText)
 	if err != nil {
 		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
 		res.Duration = time.Since(startTime).String()
@@ -1893,7 +1997,7 @@ func (e *Executor) executeHtmlTemplateNode(ctx context.Context, elem HtmlTemplat
 		tmplName = elem.ID
 	}
 
-	tmpl, err := htmltemplate.New(tmplName).Option("missingkey=zero").Parse(templateText)
+	tmpl, err := e.getOrParseHTMLTemplate(tmplName, templateText)
 	if err != nil {
 		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
 		res.Duration = time.Since(startTime).String()
@@ -2180,12 +2284,12 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 		}
 
 		rowIdx := 2
+		vals := make([]interface{}, len(cols))
+		valPtrs := make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
 		for rows.Next() {
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
 			if err := rows.Scan(valPtrs...); err != nil {
 				res.ReturnCode = fmt.Sprintf("scan error: %v", err)
 				res.Duration = time.Since(startTime).String()
@@ -2200,6 +2304,7 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 				} else {
 					f.SetCellValue(sheet, cell, val)
 				}
+				vals[i] = nil
 			}
 			rowIdx++
 		}
@@ -2768,6 +2873,16 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 	wb := badgerDB.NewWriteBatch()
 	defer wb.Cancel()
 
+	var vals []interface{}
+	var valPtrs []interface{}
+	if len(cols) != 2 {
+		vals = make([]interface{}, len(cols))
+		valPtrs = make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
+	}
+
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
@@ -2783,17 +2898,15 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
 				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
 			vStr = fmt.Sprintf("%v", vals[1])
+			for i := range vals {
+				vals[i] = nil
+			}
 		}
 
 		key := badgerKey(targetBucket, kStr)
@@ -2877,6 +2990,16 @@ func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB
 		return nil
 	}
 
+	var vals []interface{}
+	var valPtrs []interface{}
+	if len(cols) != 2 {
+		vals = make([]interface{}, len(cols))
+		valPtrs = make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
+	}
+
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
@@ -2890,16 +3013,14 @@ func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
 			vStr = fmt.Sprintf("%v", vals[1])
+			for i := range vals {
+				vals[i] = nil
+			}
 		}
 
 		batchRows = append(batchRows, [2]string{kStr, vStr})
@@ -3363,6 +3484,16 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 		return nil
 	}
 
+	var vals []interface{}
+	var valPtrs []interface{}
+	if len(cols) != 2 {
+		vals = make([]interface{}, len(cols))
+		valPtrs = make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
+	}
+
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
@@ -3378,17 +3509,15 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
 				_ = rows.Close()
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
 			vStr = fmt.Sprintf("%v", vals[1])
+			for i := range vals {
+				vals[i] = nil
+			}
 		}
 
 		key := etcdKey(targetBucket, kStr)
@@ -3585,6 +3714,16 @@ func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Clie
 		return nil
 	}
 
+	var vals []interface{}
+	var valPtrs []interface{}
+	if len(cols) != 2 {
+		vals = make([]interface{}, len(cols))
+		valPtrs = make([]interface{}, len(cols))
+		for i := range vals {
+			valPtrs[i] = &vals[i]
+		}
+	}
+
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
@@ -3598,16 +3737,14 @@ func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Clie
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 		} else {
-			vals := make([]interface{}, len(cols))
-			valPtrs := make([]interface{}, len(cols))
-			for i := range vals {
-				valPtrs[i] = &vals[i]
-			}
 			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
 				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
 			}
 			kStr = fmt.Sprintf("%v", vals[0])
 			vStr = fmt.Sprintf("%v", vals[1])
+			for i := range vals {
+				vals[i] = nil
+			}
 		}
 
 		key := redisKey(targetBucket, kStr)

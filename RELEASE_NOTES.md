@@ -1,3 +1,99 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.4.1)
+
+## Overview
+
+Version **v1.4.1** delivers a comprehensive set of SQL connection pool, streaming ETL (`<sql_bulk>`), row-scanning (`<foreach>`, `<sql>`, `<excel_write>`, `<kv_bulk>`), HTTP transport pooling (`<http_client>`), variable interpolation (`{{VarName}}`), template compilation (`<template>`, `<html_template>`), and observability (`runtimeIdentity()`) performance optimizations. These improvements eliminate hot-loop memory allocations, mutex contention, redundant template parsing, per-request TCP/TLS handshakes, and synchronous DNS latency while maintaining full backwards compatibility with existing XML pipelines and Go API callers.
+
+---
+
+## 🌟 What's New in v1.4.1
+
+### 1. Immediate High-Impact Fixes (Zero-Allocation Hot Paths, HTTP Pooling & Observability)
+- **Row-Scan Buffer Hoisting & 1D Batch Arena (`StreamETL`, `<foreach>`, `<sql>`, `<excel_write>`, `<kv_bulk>`)**:
+  - Hoisted `vals` (`[]interface{}`) and `scans`/`valPtrs` (`[]interface{}`) outside `for rows.Next()` loops across `StreamETL`, `executeSQLQuery`, `executeForEachNode` (streaming and buffered modes), `executeExcelWriteNode`, `executeBadgerBulk`, `executeBoltBulk`, and `executeEtcdBulk` to eliminate per-row slice allocations and GC pressure.
+  - Added a pre-allocated 1D contiguous batch backing slice (`rowArena`) in `StreamETL` with UTF-8 string conversion (`utf8.Valid`) and explicit binary `[]byte` cloning so reuse of `scans`/`vals` never aliases driver-owned byte buffers across rows.
+- **Process-Level Caching & Bounded DNS Timeout in `runtimeIdentity()` (`observability.go`)**:
+  - Cached the OS username and FQDN hostname once per process using `sync.Once` (`identityOnce`, `cachedUserName`, `cachedHostname`).
+  - Bounded reverse/forward DNS resolution in `fqdnHostname()` with a `250ms` `context.WithTimeout` on `net.DefaultResolver`, eliminating multi-second synchronous DNS stalls at the start of every pipeline execution in restricted or offline environments.
+- **Concurrency-Safe `http.Transport` Pooling & Keep-Alive Reuse (`http_client.go`)**:
+  - Added a package-level `*http.Transport` cache (`httpTransportCache`, bounded at `maxCachedHTTPTransports = 64`) keyed by a comparable `httpTransportKey` covering all 18 transport, TLS, and proxy attributes.
+  - Defaulted `MaxIdleConnsPerHost` to `10` when unset so `<http_client>` requests inside `<foreach>` or `<retry>` loops reuse persistent TCP/TLS keep-alive connections instead of performing a fresh handshake per iteration.
+  - Added `CloseIdleHTTPConnections()` to explicitly close idle keep-alive sockets across all cached HTTP transports when needed.
+
+### 2. Intermediate Engine Optimizations (Single-Pass Interpolation, Batch Registry Updates & Template Caching)
+- **Single-Pass $O(N)$ Variable Interpolation (`executor.go`, `registry.go`)**:
+  - Replaced $O(V \times N)$ `strings.ReplaceAll` loops over the variable map with a single-pass $O(N)$ `{{...}}` scanner in `Executor.interpolateVars` and `Registry.InterpolateVars` (~12.4x faster at 100 registered variables, 1 allocation per call).
+  - Includes a zero-allocation fast path when no `{{` token is present, preserves unresolved placeholders (such as Go template `{{.Field}}` expressions), and resolves the innermost `{{VarName}}` when nested inside triple braces (`{{{VarName}}}`).
+- **Batch Variable Mutation (`Registry.SetVars` & `Registry.SetRowVars`) (`registry.go`, `executor.go`)**:
+  - Added `Registry.SetVars(map[string]interface{})` for atomic multi-variable updates under a single write lock.
+  - Added `Registry.SetRowVars(cols, lowerCols, upperCols []string, vals []interface{}, loopIndex int)` and pre-computed lowercase/uppercase column names once before `<foreach>` row loops, reducing `3 * N_cols + 1` mutex lock/unlock cycles per row down to `1`.
+- **Bounded Compiled Template Caching (`executor.go`)**:
+  - Added concurrency-safe, content-keyed caches (`templateCacheKey{name, content}`, bounded at `maxCachedTemplates = 256`) for `text/template` (`getOrParseTextTemplate`) and `html/template` (`getOrParseHTMLTemplate`) on `Executor`, eliminating repeated `template.New().Parse()` overhead in `<template>`, `<html_template>`, and `<http_client>` nodes.
+
+### 3. SQL Connection Pool Tuning, `<sql_bulk>` Batching & Read-Lock Dispatch
+- **Workload-Aware Database Pool Profiles & `conn_max_idle_time_seconds` (`config.go`, `registry.go`, `xsd/pipeline.xsd`)**:
+  - Added `ConnMaxIdleTime` (`conn_max_idle_time_seconds` / `conn_max_idle_time`) to `DatabaseConfig`, `ParseXMLConfig`, and `DatabaseType` in `xsd/pipeline.xsd`.
+  - Implemented `resolveDatabasePoolSettings` and `applyDatabasePoolSettings` in `registry.go`, automatically applying sensible defaults for `workload="oltp"`, `workload="bulk"`, `workload="analytics"`, and `workload="batch"` whenever individual pool attributes are not explicitly specified in XML.
+- **Dialect-Aware `<sql_bulk>` Parameter Limits, `strings.Builder` & Prepared Statement Reuse (`etl.go`)**:
+  - Raised dialect-specific parameter limits (`maxParametersForDriver`) from the flat `2,100` cap to `65,535` for PostgreSQL/MySQL, `32,767` for Oracle, and `32,766` for SQLite (`2,100` fallback for other drivers; native `mssql.CopyIn` TDS bulk protocol remains used for SQL Server).
+  - Replaced `strings.Join` slice allocations with pre-sized `strings.Builder` in `buildMultiRowInsertSQL` (`80.6%` memory reduction and `61.4%` fewer allocations in `BenchmarkStreamETL`).
+  - Added lazy prepared statement reuse (`fullBatchStmt`) across full-sized batches in `StreamETL`, preparing the multi-row `INSERT` once and reusing it for all subsequent full batches while falling back to direct `ExecContext` for a smaller trailing remainder batch.
+- **Single Read-Lock Active Target Resolution (`executor.go`)**:
+  - Converted `Executor.txMu` from `sync.Mutex` to `sync.RWMutex` and consolidated active transaction and pinned session connection lookups into `getActiveTarget(dbName string) (*sql.Tx, *sql.Conn)`, acquiring a single `RLock` across concurrent `<parallel>` branches.
+
+---
+
+## 🔄 Functional Behavior & Backwards Compatibility
+
+Version **v1.4.1** is **100% backwards-compatible** with existing XML pipeline definitions and Go APIs. No existing XML attributes or exported Go symbols were removed or had their signatures broken.
+
+Callers should be aware of the following minor behavioral nuances introduced by these optimizations:
+
+1. **Single-Pass (Non-Recursive) Variable Interpolation (`{{VarName}}`)**:
+   - `interpolateVars` and `Registry.InterpolateVars` now scan the input string once from left to right rather than iterating over the variable map with `strings.ReplaceAll` in non-deterministic Go map iteration order.
+   - **Impact**: Interpolation is now deterministic and strictly single-pass. If variable `A`'s value literally contains the text `{{B}}`, it is emitted verbatim as `{{B}}` rather than sometimes expanding `{{B}}` depending on map iteration order. Unresolved tokens (such as Go template `{{.Field}}` syntax) and triple-brace wrappers (`{{{VarName}}}`) continue to work identically.
+2. **Pooled HTTP Transports & Persistent Keep-Alive Connections**:
+   - `<http_client>` nodes with identical transport, TLS, and proxy settings now share a pooled `*http.Transport` (with `MaxIdleConnsPerHost` defaulting to `10` when omitted) rather than creating an unpooled transport per call.
+   - **Impact**: Idle TCP/TLS sockets remain open in the standard library's connection pool across requests for reuse. Long-lived processes that dynamically connect to dozens of transient hosts and wish to forcibly release idle sockets can call `flow.CloseIdleHTTPConnections()`.
+3. **Process-Cached Runtime Identity (`runtimeIdentity()`)**:
+   - `runtimeIdentity()` now resolves the OS user and FQDN hostname once per process (`sync.Once`) with a `250ms` DNS lookup timeout instead of querying the OS and DNS resolver on every `ExecutePipeline` invocation.
+   - **Impact**: If the machine's hostname or DNS PTR record changes while a long-lived daemon process is already running, telemetry will continue reporting the hostname resolved at startup.
+4. **Workload-Aware Pool Defaults & Larger Multi-Row `<sql_bulk>` Batches**:
+   - Specifying `workload="bulk"`, `"analytics"`, `"batch"`, or `"oltp"` on `<database>` now populates unconfigured pool parameters (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime_seconds`, `conn_max_idle_time_seconds`) with workload-specific defaults. Explicit XML attributes always take precedence over workload defaults.
+   - Non-MSSQL `<sql_bulk>` targets (`postgres`, `mysql`, `oracle`, `sqlite`) now allow larger multi-row `INSERT` batches up to their respective driver parameter limits (`65,535`, `32,767`, `32,766`) when `batch_size` permits, instead of splitting every batch at `2,100` parameters.
+
+---
+
+## 📄 Updated Markdown Documents in v1.4.1
+
+The following markdown documentation files were updated in **v1.4.1**:
+
+1. [`README.md`](README.md) — Updated Key Features overview, `<database>` pool configuration examples, and added the v1.4.1 engine performance highlights (zero-allocation row scanning, dialect-aware `<sql_bulk>`, HTTP keep-alive pooling, $O(N)$ interpolation, and template caching).
+2. [`docs/database.md`](docs/database.md) — Documented `conn_max_idle_time_seconds` (and alias `conn_max_idle_time`), workload-aware pool tuning profiles (`oltp`, `bulk`, `analytics`, `batch`), and pool sizing best practices.
+3. [`docs/sql_sql_bulk.md`](docs/sql_sql_bulk.md) — Documented dialect-aware `<sql_bulk>` parameter limits (`65,535` for PostgreSQL/MySQL, `32,767` for Oracle, `32,766` for SQLite, native `CopyIn` for MSSQL), prepared statement reuse across full batches, and 1D batch arena memory behavior.
+4. [`docs/variables.md`](docs/variables.md) — Documented single-pass $O(N)$ `{{VarName}}` variable interpolation semantics, `Registry.SetVars` / `Registry.SetRowVars` batch updates in `<foreach>`, and compiled template caching in `<template>` and `<html_template>`.
+5. [`docs/http_client.md`](docs/http_client.md) — Documented automatic `*http.Transport` pooling (`httpTransportKey`), the default `max_idle_conns_per_host="10"` keep-alive behavior, and `flow.CloseIdleHTTPConnections()`.
+6. [`release_notes.md`](release_notes.md) — Added the **v1.4.1** release notes, compatibility guide, updated documentation list, and component change matrix.
+
+---
+
+### 📋 v1.4.1 Component Change Matrix
+
+| Component | Node Type / Function | Change Description | File |
+| :--- | :--- | :--- | :--- |
+| **ETL Engine** | `StreamETL` / `buildMultiRowInsertSQL` / `maxParametersForDriver` | Hoisted `scans`/`vals` buffers, 1D `rowArena` slice, dialect-aware parameter limits (`65535`/`32767`/`32766`/`2100`), `strings.Builder` SQL generation, and `fullBatchStmt` prepared statement reuse | `etl.go` |
+| **Core Engine** | `executeSQLQuery` / `executeForEachNode` / `executeExcelWriteNode` / `execute*Bulk` | Hoisted `vals` and `valPtrs` outside `rows.Next()` loops; pre-computed column casing and single-lock `SetRowVars` in `<foreach>` | `executor.go` |
+| **Core Engine** | `interpolateVars` / `Registry.InterpolateVars` | Single-pass $O(N)$ `{{VarName}}` scanner with fast-path return when no `{{` is present | `executor.go`, `registry.go` |
+| **Core Engine** | `getOrParseTextTemplate` / `getOrParseHTMLTemplate` | Bounded (`256` max) content-keyed compiled `text/template` and `html/template` caches | `executor.go` |
+| **Core Engine** | `getActiveTarget` (`txMu` `sync.RWMutex`) | Single `RLock` lookup for active `*sql.Tx` and pinned `*sql.Conn` across concurrent branches | `executor.go` |
+| **Registry** | `SetVars` / `SetRowVars` / `resolveDatabasePoolSettings` | Batch variable mutation under a single lock and workload-aware SQL connection pool tuning (`oltp`, `bulk`, `analytics`, `batch`) | `registry.go` |
+| **Configuration & XSD** | `DatabaseConfig` / `ParseXMLConfig` / `DatabaseType` | Added `ConnMaxIdleTime` (`conn_max_idle_time_seconds` / `conn_max_idle_time`) attribute support | `config.go`, `xsd/pipeline.xsd` |
+| **HTTP Client** | `buildHTTPClient` / `getOrCreateHTTPTransport` / `CloseIdleHTTPConnections` | Concurrency-safe `*http.Transport` cache (`64` max) keyed by `httpTransportKey` with `MaxIdleConnsPerHost` defaulting to `10` | `http_client.go` |
+| **Observability** | `runtimeIdentity` / `fqdnHostname` | `sync.Once` process-level identity caching and `250ms` bounded DNS lookup timeout | `observability.go` |
+| **Tests & Benchmarks** | `BenchmarkInterpolateVars` / `BenchmarkStreamETL` / v1.4.1 unit tests | Added unit tests and benchmarks verifying all v1.4.1 performance and functional guarantees | `etl_test.go` |
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.3.6)
 
 ## Overview

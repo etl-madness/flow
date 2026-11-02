@@ -187,6 +187,11 @@
                 <xs:documentation>Maximum duration a connection is recycled (e.g., 5m or 300).</xs:documentation>
             </xs:annotation>
         </xs:attribute>
+        <xs:attribute name="conn_max_idle_time_seconds" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:documentation>Maximum duration a connection may remain idle before closing (e.g., 2m or 120).</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
         <xs:attribute name="workload" type="xs:string" use="optional">
             <xs:annotation>
                 <xs:documentation>Workload profile metadata for driver tuning (e.g., oltp, bulk,
