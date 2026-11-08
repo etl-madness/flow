@@ -2,6 +2,8 @@ package flowcrypto
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/pem"
 	"strings"
 	"testing"
 
@@ -23,6 +25,22 @@ func TestGenerateSecureKey(t *testing.T) {
 	}
 	if key1 == key2 {
 		t.Fatal("expected different random keys, got identical values")
+	}
+	if defaultKey, err := GenerateSecureKey(0); err != nil || len(defaultKey) == 0 {
+		t.Fatalf("GenerateSecureKey(0) = %q, %v", defaultKey, err)
+	}
+}
+
+func TestKeyPairGenerationOptions(t *testing.T) {
+	privPEM, pubPEM, err := GenerateRSAKeyPair(1024)
+	if err != nil || len(privPEM) == 0 || len(pubPEM) == 0 {
+		t.Fatalf("GenerateRSAKeyPair(1024) returned empty keys or error: %v", err)
+	}
+	for _, curve := range []string{"P-384", "P521"} {
+		priv, pub, err := GenerateECDSAKeyPair(curve)
+		if err != nil || len(priv) == 0 || len(pub) == 0 {
+			t.Errorf("GenerateECDSAKeyPair(%q) returned empty keys or error: %v", curve, err)
+		}
 	}
 }
 
@@ -158,6 +176,175 @@ func TestDecryptAuto(t *testing.T) {
 	}
 	if !bytes.Equal(resEnc, plainXML) {
 		t.Fatalf("expected %q, got %q", string(plainXML), string(resEnc))
+	}
+}
+
+func TestDecryptAutoRawBinaryAndMissingKey(t *testing.T) {
+	plaintext := []byte("raw encrypted content")
+	key := "raw-test-key"
+	packed, err := EncryptBytes(plaintext, key)
+	if err != nil {
+		t.Fatalf("EncryptBytes() error = %v", err)
+	}
+	got, err := DecryptAuto(packed, key, true)
+	if err != nil || !bytes.Equal(got, plaintext) {
+		t.Fatalf("DecryptAuto(raw) = %q, %v", got, err)
+	}
+	if _, err := DecryptAuto(plaintext, "", true); err == nil {
+		t.Fatal("DecryptAuto() accepted unencrypted data when encryption is required")
+	}
+	if _, err := DecryptAuto([]byte("short"), key, true); err != ErrNotEncrypted {
+		t.Fatalf("DecryptAuto(short) error = %v, want ErrNotEncrypted", err)
+	}
+	if _, err := DecryptAuto([]byte(ArmoredPrefixV1+"YQ=="), "", false); err == nil {
+		t.Fatal("DecryptAuto() accepted an armored payload without a key")
+	}
+	if _, err := DecryptArmored(ArmoredPrefixV1+"%", key); err == nil {
+		t.Fatal("DecryptArmored() accepted invalid base64")
+	}
+	if _, err := DecryptArmored("not encrypted", key); err != ErrNotEncrypted {
+		t.Fatalf("DecryptArmored() error = %v, want ErrNotEncrypted", err)
+	}
+}
+
+func TestSignatureHelpersAndSignedEnvelopeErrors(t *testing.T) {
+	if !IsSignaturePayload([]byte(" \n" + SignaturePrefixV1 + "OPENSSL:AA==")) {
+		t.Fatal("IsSignaturePayload() rejected a wrapped signature")
+	}
+	if IsSignaturePayload([]byte("not a signature")) {
+		t.Fatal("IsSignaturePayload() accepted plain text")
+	}
+	for _, malformed := range [][]byte{
+		[]byte("not signed"),
+		[]byte(SignedPrefixV1 + "OPENSSL"),
+		[]byte(SignedPrefixV1 + "OPENSSL:%:YQ=="),
+		[]byte(SignedPrefixV1 + "OPENSSL:YQ==:%"),
+	} {
+		if _, _, _, err := ParseSignedPayload(malformed); err == nil {
+			t.Errorf("ParseSignedPayload(%q) unexpectedly succeeded", malformed)
+		}
+	}
+	for _, invalidKey := range [][]byte{
+		[]byte("not PEM"),
+		pem.EncodeToMemory(&pem.Block{Type: "UNKNOWN", Bytes: []byte("invalid")}),
+	} {
+		if _, err := ParsePrivateKeyPEM(invalidKey); err == nil {
+			t.Errorf("ParsePrivateKeyPEM(%q) unexpectedly succeeded", invalidKey)
+		}
+	}
+	if _, _, err := ParsePublicKeyOrCertPEM([]byte("not PEM")); err == nil {
+		t.Fatal("ParsePublicKeyOrCertPEM() accepted invalid data")
+	}
+}
+
+func TestSignDataAndVerifyAutoFormats(t *testing.T) {
+	data := []byte("high-level signing and verification")
+	privPEM, pubPEM, err := GenerateRSAKeyPair(2048)
+	if err != nil {
+		t.Fatalf("GenerateRSAKeyPair() error = %v", err)
+	}
+
+	opensslSig, format, err := SignData(data, " OpenSSL ", privPEM, nil, "")
+	if err != nil || format != "OPENSSL-RSA-SHA256" {
+		t.Fatalf("SignData(openssl) = %q, %v", format, err)
+	}
+	if result, err := VerifyAuto(data, opensslSig, pubPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(raw OpenSSL) = %#v, %v", result, err)
+	}
+	if result, err := VerifyAuto(data, []byte(base64.StdEncoding.EncodeToString(opensslSig)), pubPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(base64 OpenSSL) = %#v, %v", result, err)
+	}
+	if result, err := VerifyAuto(data, []byte(WrapSignatureOnly(format, opensslSig)), pubPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(FLOWSIG OpenSSL) = %#v, %v", result, err)
+	}
+	if _, _, err := SignData(data, "unknown", privPEM, nil, ""); err == nil {
+		t.Fatal("SignData() accepted an unknown format")
+	}
+	if _, _, err := SignData(data, "openssl", []byte("invalid key"), nil, ""); err == nil {
+		t.Fatal("SignData() accepted an invalid OpenSSL key")
+	}
+	if _, _, err := SignData(data, "pkcs7", privPEM, nil, ""); err == nil {
+		t.Fatal("SignData() accepted PKCS#7 signing without a certificate")
+	}
+
+	pgpPriv, pgpPub, err := GenerateOpenPGPKeyPair("Flow Test", "Coverage", "coverage@flow.local")
+	if err != nil {
+		t.Fatalf("GenerateOpenPGPKeyPair() error = %v", err)
+	}
+	pgpSig, pgpFormat, err := SignData(data, "openpgp", pgpPriv, nil, "")
+	if err != nil || pgpFormat != "PGP" {
+		t.Fatalf("SignData(pgp) = %q, %v", pgpFormat, err)
+	}
+	if result, err := VerifyAuto(data, []byte(WrapSignatureOnly(pgpFormat, pgpSig)), pgpPub); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(FLOWSIG PGP) = %#v, %v", result, err)
+	}
+	if result, err := VerifyAuto(data, pgpSig, pgpPub); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(armored PGP) = %#v, %v", result, err)
+	}
+	if content, result, err := VerifyPayloadAuto([]byte(WrapSignedPayload(pgpFormat, pgpSig, data)), pgpPub); err != nil ||
+		!bytes.Equal(content, data) || !result.Valid {
+		t.Fatalf("VerifyPayloadAuto(PGP) = %q, %#v, %v", content, result, err)
+	}
+
+	privKey, err := ParsePrivateKeyPEM(privPEM)
+	if err != nil {
+		t.Fatalf("ParsePrivateKeyPEM() error = %v", err)
+	}
+	pubKey, _, err := ParsePublicKeyOrCertPEM(pubPEM)
+	if err != nil {
+		t.Fatalf("ParsePublicKeyOrCertPEM() error = %v", err)
+	}
+	certPEM, err := GenerateSelfSignedCertificate(privKey, pubKey, "Flow PKCS7 Test", 30)
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCertificate() error = %v", err)
+	}
+	pkcs7Sig, pkcs7Format, err := SignData(data, "windows", privPEM, certPEM, "")
+	if err != nil || pkcs7Format != "PKCS7" {
+		t.Fatalf("SignData(pkcs7) = %q, %v", pkcs7Format, err)
+	}
+	cert, err := ParseCertificatePEM(certPEM)
+	if err != nil {
+		t.Fatalf("ParseCertificatePEM() error = %v", err)
+	}
+	if verified, err := VerifyPKCS7(data, pkcs7Sig, cert); err != nil || !verified.Equal(cert) {
+		t.Fatalf("VerifyPKCS7() = %v, %v", verified, err)
+	}
+	if result, err := VerifyAuto(data, []byte(WrapSignatureOnly(pkcs7Format, pkcs7Sig)), certPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(FLOWSIG PKCS7) = %#v, %v", result, err)
+	}
+	if result, err := VerifyAuto(data, pkcs7Sig, certPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(PKCS7 DER) = %#v, %v", result, err)
+	}
+	pkcs7PEM := pem.EncodeToMemory(&pem.Block{Type: "PKCS7", Bytes: pkcs7Sig})
+	if result, err := VerifyAuto(data, pkcs7PEM, certPEM); err != nil || !result.Valid {
+		t.Fatalf("VerifyAuto(PKCS7 PEM) = %#v, %v", result, err)
+	}
+	if content, result, err := VerifyPayloadAuto([]byte(WrapSignedPayload(pkcs7Format, pkcs7Sig, data)), certPEM); err != nil ||
+		!bytes.Equal(content, data) || !result.Valid {
+		t.Fatalf("VerifyPayloadAuto(PKCS7) = %q, %#v, %v", content, result, err)
+	}
+	if content, result, err := VerifyPayloadAuto([]byte(WrapSignedPayload("CUSTOM", opensslSig, data)), pubPEM); err != nil ||
+		!bytes.Equal(content, data) || !result.Valid {
+		t.Fatalf("VerifyPayloadAuto(default) = %q, %#v, %v", content, result, err)
+	}
+
+	for _, sig := range [][]byte{
+		[]byte("FLOWSIG:v1:OPENSSL:%"),
+		[]byte("FLOWSIG:v1:UNKNOWN:AA=="),
+		[]byte("invalid signature"),
+	} {
+		if _, err := VerifyAuto(data, sig, pubPEM); err == nil {
+			t.Errorf("VerifyAuto(%q) unexpectedly succeeded", sig)
+		}
+	}
+	for _, payload := range [][]byte{
+		[]byte("not signed"),
+		[]byte(SignedPrefixV1 + "OPENSSL"),
+		[]byte(WrapSignedPayload("OPENSSL", []byte("bad signature"), data)),
+	} {
+		if _, _, err := VerifyPayloadAuto(payload, pubPEM); err == nil {
+			t.Errorf("VerifyPayloadAuto(%q) unexpectedly succeeded", payload)
+		}
 	}
 }
 
@@ -505,4 +692,3 @@ func TestPKCS7RequiresTrustAnchor(t *testing.T) {
 		t.Fatal("expected failure when verifying PKCS#7 detached without certs, got nil")
 	}
 }
-

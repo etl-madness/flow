@@ -794,6 +794,30 @@ func (e *Executor) executeSQLQuery(ctx context.Context, dbName string, queryStr 
 	return logBuf.String(), rawOutput, nil
 }
 
+func (e *Executor) scriptCode(code, varName string) string {
+	if varName != "" {
+		if val := e.registry.GetVar(varName); val != nil {
+			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
+			if strVal != "" && strVal != "<nil>" {
+				return strVal
+			}
+		}
+	}
+	return code
+}
+
+func (e *Executor) appendSQLResult(results *[]ScriptResult, result ScriptResult, startTime time.Time, kind string) {
+	result.Duration = time.Since(startTime).String()
+	if e.verbose.Load() {
+		if result.ReturnCode != nil && result.ReturnCode != 0 && result.ReturnCode != "0" {
+			fmt.Printf("Finished execution of %s %q with error: %v (duration: %s)", kind, result.ScriptID, result.ReturnCode, result.Duration)
+		} else {
+			fmt.Printf("Finished execution of %s %q (duration: %s)", kind, result.ScriptID, result.Duration)
+		}
+	}
+	e.appendResult(results, result)
+}
+
 func (e *Executor) executeSQLNode(ctx context.Context, elem SQLElement, results *[]ScriptResult) bool {
 	if elem.Timeout != "" {
 		if d, err := time.ParseDuration(elem.Timeout); err == nil && d > 0 {
@@ -810,31 +834,12 @@ func (e *Executor) executeSQLNode(ctx context.Context, elem SQLElement, results 
 			fmt.Printf("Starting execution of sql %q", elem.ID)
 		}
 	}
-	codeToEval := elem.Code
-
-	if elem.VarName != "" {
-		val := e.registry.GetVar(elem.VarName)
-		if val != nil {
-			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
-			if strVal != "" && strVal != "<nil>" {
-				codeToEval = strVal
-			}
-		}
-	}
+	codeToEval := e.scriptCode(elem.Code, elem.VarName)
 
 	res := ScriptResult{ScriptID: elem.ID}
 
 	appendWithDuration := func(r ScriptResult) {
-		duration := time.Since(startTime)
-		r.Duration = duration.String()
-		if e.verbose.Load() {
-			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
-				fmt.Printf("Finished execution of sql %q with error: %v (duration: %s)", elem.ID, r.ReturnCode, r.Duration)
-			} else {
-				fmt.Printf("Finished execution of sql %q (duration: %s)", elem.ID, r.Duration)
-			}
-		}
-		e.appendResult(results, r)
+		e.appendSQLResult(results, r, startTime, "sql")
 	}
 
 	logOutput, rawOutput, err := e.executeSQLQuery(ctx, elem.DBName, codeToEval)
@@ -868,31 +873,12 @@ func (e *Executor) executeSQLBulkNode(ctx context.Context, elem SQLBulkElement, 
 			fmt.Printf("Starting execution of sql_bulk %q", elem.ID)
 		}
 	}
-	codeToEval := elem.Code
-
-	if elem.VarName != "" {
-		val := e.registry.GetVar(elem.VarName)
-		if val != nil {
-			strVal := strings.TrimSpace(fmt.Sprintf("%v", val))
-			if strVal != "" && strVal != "<nil>" {
-				codeToEval = strVal
-			}
-		}
-	}
+	codeToEval := e.scriptCode(elem.Code, elem.VarName)
 
 	res := ScriptResult{ScriptID: elem.ID}
 
 	appendWithDuration := func(r ScriptResult) {
-		duration := time.Since(startTime)
-		r.Duration = duration.String()
-		if e.verbose.Load() {
-			if r.ReturnCode != nil && r.ReturnCode != 0 && r.ReturnCode != "0" {
-				fmt.Printf("Finished execution of sql_bulk %q with error: %v (duration: %s)", elem.ID, r.ReturnCode, r.Duration)
-			} else {
-				fmt.Printf("Finished execution of sql_bulk %q (duration: %s)", elem.ID, r.Duration)
-			}
-		}
-		e.appendResult(results, r)
+		e.appendSQLResult(results, r, startTime, "sql_bulk")
 	}
 
 	targetDB := elem.TargetDB
@@ -1919,60 +1905,14 @@ func interpolateVars(input string, variables map[string]interface{}) string {
 	return b.String()
 }
 func (e *Executor) executeTemplateNode(ctx context.Context, elem TemplateElement, results *[]ScriptResult) bool {
-	startTime := time.Now()
-	res := ScriptResult{ScriptID: elem.ID}
-
-	variables := e.registry.CopyVariables()
-	var templateText string
-	if elem.File != "" {
-		filePath := interpolateVars(elem.File, variables)
-		fileBytes, err := os.ReadFile(filePath)
-		if err != nil {
-			res.ReturnCode = fmt.Sprintf("failed to read template file %s: %v", filePath, err)
-			res.Duration = time.Since(startTime).String()
-			e.appendResult(results, res)
-			return true
-		}
-		templateText = string(fileBytes)
-	} else {
-		templateText = strings.TrimSpace(elem.Content)
-	}
-
-	tmplName := elem.Name
-	if tmplName == "" {
-		tmplName = elem.ID
-	}
-
-	tmpl, err := e.getOrParseTextTemplate(tmplName, templateText)
-	if err != nil {
-		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
-		res.Duration = time.Since(startTime).String()
-		e.appendResult(results, res)
-		return true
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, variables); err != nil {
-		res.ReturnCode = fmt.Sprintf("failed to execute template: %v", err)
-		res.Duration = time.Since(startTime).String()
-		e.appendResult(results, res)
-		return true
-	}
-
-	outputStr := buf.String()
-	res.ReturnCode = 0
-	if elem.Mode == "summary" {
-		res.ResultsString = fmt.Sprintf("Successfully rendered template %q (%d bytes)", tmplName, len(outputStr))
-	} else {
-		res.ResultsString = fmt.Sprintf("%s", outputStr)
-	}
-	res.Duration = time.Since(startTime).String()
-
-	e.storeScriptOutput(elem.GetOutputVar(), outputStr)
-	e.appendResult(results, res)
-	return false
+	return e.executeRenderTemplateNode(elem, false, results)
 }
+
 func (e *Executor) executeHtmlTemplateNode(ctx context.Context, elem HtmlTemplateElement, results *[]ScriptResult) bool {
+	return e.executeRenderTemplateNode(TemplateElement(elem), true, results)
+}
+
+func (e *Executor) executeRenderTemplateNode(elem TemplateElement, html bool, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	res := ScriptResult{ScriptID: elem.ID}
 
@@ -1997,7 +1937,15 @@ func (e *Executor) executeHtmlTemplateNode(ctx context.Context, elem HtmlTemplat
 		tmplName = elem.ID
 	}
 
-	tmpl, err := e.getOrParseHTMLTemplate(tmplName, templateText)
+	var tmpl interface {
+		Execute(io.Writer, interface{}) error
+	}
+	var err error
+	if html {
+		tmpl, err = e.getOrParseHTMLTemplate(tmplName, templateText)
+	} else {
+		tmpl, err = e.getOrParseTextTemplate(tmplName, templateText)
+	}
 	if err != nil {
 		res.ReturnCode = fmt.Sprintf("failed to parse template: %v", err)
 		res.Duration = time.Since(startTime).String()
@@ -2415,6 +2363,44 @@ func (e *Executor) executeXMLXPathNode(ctx context.Context, elem XmlXPathElement
 	e.appendResult(results, res)
 	return false
 }
+func formatPathNodes(nodes []*ajson.Node, mode string) string {
+	mode = strings.ToLower(mode)
+	if mode == "json_array" || mode == "json" || mode == "yaml" {
+		var values []interface{}
+		for _, node := range nodes {
+			nodeBytes, err := ajson.Marshal(node)
+			var val interface{}
+			if err == nil {
+				_ = json.Unmarshal(nodeBytes, &val)
+			} else {
+				val, _ = node.Value()
+			}
+			values = append(values, val)
+		}
+		if mode == "yaml" {
+			data, _ := yaml.Marshal(values)
+			return string(data)
+		}
+		if mode == "json" && len(values) == 1 {
+			data, _ := json.Marshal(values[0])
+			return string(data)
+		}
+		data, _ := json.Marshal(values)
+		return string(data)
+	}
+
+	var resultsArray []string
+	for _, node := range nodes {
+		if node.IsString() {
+			s, _ := node.GetString()
+			resultsArray = append(resultsArray, s)
+		} else {
+			resultsArray = append(resultsArray, node.String())
+		}
+	}
+	return strings.Join(resultsArray, "\n")
+}
+
 func (e *Executor) executeJSONPathNode(ctx context.Context, elem JsonPathElement, results *[]ScriptResult) bool {
 	startTime := time.Now()
 	res := ScriptResult{ScriptID: elem.ID}
@@ -2470,43 +2456,11 @@ func (e *Executor) executeJSONPathNode(ctx context.Context, elem JsonPathElement
 		return true
 	}
 
-	// 4. Format outputs based on mode
-	var finalOutput string
 	mode := strings.ToLower(elem.Mode)
-
-	if mode == "json_array" || mode == "json" {
-		var values []interface{}
-		for _, node := range nodes {
-			nodeBytes, err := ajson.Marshal(node)
-			var val interface{}
-			if err == nil {
-				_ = json.Unmarshal(nodeBytes, &val)
-			} else {
-				val, _ = node.Value()
-			}
-			values = append(values, val)
-		}
-		if mode == "json" && len(values) == 1 {
-			jsonBytes, _ := json.Marshal(values[0])
-			finalOutput = string(jsonBytes)
-		} else {
-			jsonBytes, _ := json.Marshal(values)
-			finalOutput = string(jsonBytes)
-		}
-	} else { // Default "value" mode: scalar string or multiline text
-		var resultsArray []string
-		for _, node := range nodes {
-			if node.IsString() {
-				s, _ := node.GetString()
-				resultsArray = append(resultsArray, s)
-			} else {
-				resultsArray = append(resultsArray, node.String())
-			}
-		}
-		finalOutput = strings.Join(resultsArray, "\n")
+	if mode == "yaml" {
+		mode = "value"
 	}
-
-	e.storeScriptOutput(outVar, finalOutput)
+	e.storeScriptOutput(outVar, formatPathNodes(nodes, mode))
 
 	res.ReturnCode = 0
 	res.ResultsString = fmt.Sprintf("JSONPath query %q matched %d node(s)", jsonPathQuery, len(nodes))
@@ -2608,57 +2562,7 @@ func (e *Executor) executeYAMLPathNode(ctx context.Context, elem YamlPathElement
 		return true
 	}
 
-	// 5. Format output based on mode
-	var finalOutput string
-	mode := strings.ToLower(elem.Mode)
-
-	if mode == "json_array" || mode == "json" {
-		var values []interface{}
-		for _, node := range nodes {
-			nodeBytes, err := ajson.Marshal(node)
-			var val interface{}
-			if err == nil {
-				_ = json.Unmarshal(nodeBytes, &val)
-			} else {
-				val, _ = node.Value()
-			}
-			values = append(values, val)
-		}
-		if mode == "json" && len(values) == 1 {
-			outB, _ := json.Marshal(values[0])
-			finalOutput = string(outB)
-		} else {
-			outB, _ := json.Marshal(values)
-			finalOutput = string(outB)
-		}
-	} else if mode == "yaml" {
-		var values []interface{}
-		for _, node := range nodes {
-			nodeBytes, err := ajson.Marshal(node)
-			var val interface{}
-			if err == nil {
-				_ = json.Unmarshal(nodeBytes, &val)
-			} else {
-				val, _ = node.Value()
-			}
-			values = append(values, val)
-		}
-		yBytes, _ := yaml.Marshal(values)
-		finalOutput = string(yBytes)
-	} else { // Default "value" mode
-		var resultsArray []string
-		for _, node := range nodes {
-			if node.IsString() {
-				s, _ := node.GetString()
-				resultsArray = append(resultsArray, s)
-			} else {
-				resultsArray = append(resultsArray, node.String())
-			}
-		}
-		finalOutput = strings.Join(resultsArray, "\n")
-	}
-
-	e.storeScriptOutput(outVar, finalOutput)
+	e.storeScriptOutput(outVar, formatPathNodes(nodes, elem.Mode))
 
 	res.ReturnCode = 0
 	res.ResultsString = fmt.Sprintf("YAML path query %q matched %d node(s)", pathQuery, len(nodes))
@@ -2845,25 +2749,111 @@ func badgerKey(bucket, key string) []byte {
 	return []byte(fmt.Sprintf("%s:%s", bucket, key))
 }
 
-// executeBadgerBulk streams SQL query rows directly into BadgerDB using an optimized WriteBatch.
-func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+func (e *Executor) resolveKVOperation(elem KVElement) (bucket, op, key, value string) {
+	variables := e.registry.CopyVariables()
+	bucket = interpolateVars(elem.Bucket, variables)
+	op = strings.ToLower(interpolateVars(elem.Op, variables))
+	key = interpolateVars(elem.Key, variables)
+	value = interpolateVars(elem.Value, variables)
+	if op == "" && elem.Code != "" {
+		parts := strings.Fields(interpolateVars(elem.Code, variables))
+		if len(parts) > 0 {
+			op = strings.ToLower(parts[0])
+		}
+		if len(parts) > 1 && key == "" {
+			key = parts[1]
+		}
+		if len(parts) > 2 && value == "" {
+			value = strings.Join(parts[2:], " ")
+		}
+	}
+	if bucket == "" {
+		bucket = "default"
+	}
+	return
+}
+
+type kvBulkScanner struct {
+	rows    *sql.Rows
+	values  []interface{}
+	targets []interface{}
+}
+
+func (e *Executor) openKVBulkScanner(ctx context.Context, srcDB, query string) (*kvBulkScanner, error) {
 	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
-		return 0, fmt.Errorf("source database error: %w", err)
+		return nil, fmt.Errorf("source database error: %w", err)
 	}
-
-	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
+	rows, err := e.querySQLContext(ctx, srcDB, query)
 	if err != nil {
-		return 0, fmt.Errorf("source query error: %w", err)
+		return nil, fmt.Errorf("source query error: %w", err)
 	}
-	defer rows.Close()
-
 	cols, err := rows.Columns()
 	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
+		_ = rows.Close()
+		return nil, fmt.Errorf("failed to retrieve columns: %w", err)
 	}
 	if len(cols) < 2 {
-		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
+		_ = rows.Close()
+		return nil, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
 	}
+	scanner := &kvBulkScanner{rows: rows}
+	if len(cols) != 2 {
+		scanner.values = make([]interface{}, len(cols))
+		scanner.targets = make([]interface{}, len(cols))
+		for i := range scanner.values {
+			scanner.targets[i] = &scanner.values[i]
+		}
+	}
+	return scanner, nil
+}
+
+func (s *kvBulkScanner) scan() (string, string, error) {
+	if s.values == nil {
+		var key, value string
+		if err := s.rows.Scan(&key, &value); err != nil {
+			return "", "", fmt.Errorf("row scan error: %w", err)
+		}
+		return key, value, nil
+	}
+	if err := s.rows.Scan(s.targets...); err != nil {
+		return "", "", fmt.Errorf("row scan error: %w", err)
+	}
+	key, value := fmt.Sprintf("%v", s.values[0]), fmt.Sprintf("%v", s.values[1])
+	for i := range s.values {
+		s.values[i] = nil
+	}
+	return key, value, nil
+}
+
+func (s *kvBulkScanner) forEach(ctx context.Context, visit func(string, string) error) error {
+	for s.rows.Next() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		key, value, err := s.scan()
+		if err != nil {
+			return err
+		}
+		if err := visit(key, value); err != nil {
+			return err
+		}
+	}
+	if err := s.rows.Err(); err != nil {
+		return fmt.Errorf("rows iteration error: %w", err)
+	}
+	return nil
+}
+
+// executeBadgerBulk streams SQL query rows directly into BadgerDB using an optimized WriteBatch.
+func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
+	scanner, err := e.openKVBulkScanner(ctx, srcDB, queryStr)
+	if err != nil {
+		return 0, err
+	}
+	rows := scanner.rows
+	defer rows.Close()
 
 	var totalCopied int64
 	if batchSize <= 0 {
@@ -2871,66 +2861,28 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 	}
 	batchCount := 0
 	wb := badgerDB.NewWriteBatch()
-	defer wb.Cancel()
+	defer func() { wb.Cancel() }()
 
-	var vals []interface{}
-	var valPtrs []interface{}
-	if len(cols) != 2 {
-		vals = make([]interface{}, len(cols))
-		valPtrs = make([]interface{}, len(cols))
-		for i := range vals {
-			valPtrs[i] = &vals[i]
-		}
-	}
-
-	for rows.Next() {
-		select {
-		case <-ctx.Done():
-			_ = rows.Close()
-			return totalCopied, ctx.Err()
-		default:
-		}
-
-		var kStr, vStr string
-		if len(cols) == 2 {
-			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
-				_ = rows.Close()
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-		} else {
-			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
-				_ = rows.Close()
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-			kStr = fmt.Sprintf("%v", vals[0])
-			vStr = fmt.Sprintf("%v", vals[1])
-			for i := range vals {
-				vals[i] = nil
-			}
-		}
-
+	err = scanner.forEach(ctx, func(kStr, vStr string) error {
 		key := badgerKey(targetBucket, kStr)
 		if err := wb.Set(key, []byte(vStr)); err != nil {
-			_ = rows.Close()
-			return totalCopied, fmt.Errorf("badger write batch set error: %w", err)
+			return fmt.Errorf("badger write batch set error: %w", err)
 		}
 		totalCopied++
 		batchCount++
 
 		if batchCount >= batchSize {
 			if err := wb.Flush(); err != nil {
-				_ = rows.Close()
-				return totalCopied, fmt.Errorf("badger write batch flush error: %w", err)
+				return fmt.Errorf("badger write batch flush error: %w", err)
 			}
 			wb = badgerDB.NewWriteBatch()
-			defer wb.Cancel()
 			batchCount = 0
 		}
-	}
-
-	if err := rows.Err(); err != nil {
+		return nil
+	})
+	if err != nil {
 		_ = rows.Close()
-		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+		return totalCopied, err
 	}
 	_ = rows.Close()
 
@@ -2945,23 +2897,12 @@ func (e *Executor) executeBadgerBulk(ctx context.Context, badgerDB *badger.DB, s
 
 // executeBoltBulk streams SQL query rows directly into a bbolt bucket using batch transactions.
 func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
-		return 0, fmt.Errorf("source database error: %w", err)
-	}
-
-	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
+	scanner, err := e.openKVBulkScanner(ctx, srcDB, queryStr)
 	if err != nil {
-		return 0, fmt.Errorf("source query error: %w", err)
+		return 0, err
 	}
+	rows := scanner.rows
 	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
-	}
-	if len(cols) < 2 {
-		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
-	}
 
 	var totalCopied int64
 	var batchRows [][2]string
@@ -2990,49 +2931,15 @@ func (e *Executor) executeBoltBulk(ctx context.Context, boltDB *goBolt.DB, srcDB
 		return nil
 	}
 
-	var vals []interface{}
-	var valPtrs []interface{}
-	if len(cols) != 2 {
-		vals = make([]interface{}, len(cols))
-		valPtrs = make([]interface{}, len(cols))
-		for i := range vals {
-			valPtrs[i] = &vals[i]
-		}
-	}
-
-	for rows.Next() {
-		select {
-		case <-ctx.Done():
-			return totalCopied, ctx.Err()
-		default:
-		}
-
-		var kStr, vStr string
-		if len(cols) == 2 {
-			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-		} else {
-			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-			kStr = fmt.Sprintf("%v", vals[0])
-			vStr = fmt.Sprintf("%v", vals[1])
-			for i := range vals {
-				vals[i] = nil
-			}
-		}
-
+	err = scanner.forEach(ctx, func(kStr, vStr string) error {
 		batchRows = append(batchRows, [2]string{kStr, vStr})
 		if len(batchRows) >= batchSize {
-			if err := flushBatch(); err != nil {
-				return totalCopied, err
-			}
+			return flushBatch()
 		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+		return nil
+	})
+	if err != nil {
+		return totalCopied, err
 	}
 
 	if err := flushBatch(); err != nil {
@@ -3059,29 +2966,7 @@ func (e *Executor) executeBoltKVNode(ctx context.Context, elem KVElement, result
 		return true
 	}
 
-	variables := e.registry.CopyVariables()
-	bucketName := interpolateVars(elem.Bucket, variables)
-	op := strings.ToLower(interpolateVars(elem.Op, variables))
-	keyStr := interpolateVars(elem.Key, variables)
-	valStr := interpolateVars(elem.Value, variables)
-
-	if op == "" && elem.Code != "" {
-		code := interpolateVars(elem.Code, variables)
-		parts := strings.Fields(code)
-		if len(parts) > 0 {
-			op = strings.ToLower(parts[0])
-		}
-		if len(parts) > 1 && keyStr == "" {
-			keyStr = parts[1]
-		}
-		if len(parts) > 2 && valStr == "" {
-			valStr = strings.Join(parts[2:], " ")
-		}
-	}
-
-	if bucketName == "" {
-		bucketName = "default"
-	}
+	bucketName, op, keyStr, valStr := e.resolveKVOperation(elem)
 
 	var resultsString string
 	var rawOutput string
@@ -3199,29 +3084,7 @@ func (e *Executor) executeBadgerKVNode(ctx context.Context, elem KVElement, resu
 		return true
 	}
 
-	variables := e.registry.CopyVariables()
-	bucketName := interpolateVars(elem.Bucket, variables)
-	op := strings.ToLower(interpolateVars(elem.Op, variables))
-	keyStr := interpolateVars(elem.Key, variables)
-	valStr := interpolateVars(elem.Value, variables)
-
-	if op == "" && elem.Code != "" {
-		code := interpolateVars(elem.Code, variables)
-		parts := strings.Fields(code)
-		if len(parts) > 0 {
-			op = strings.ToLower(parts[0])
-		}
-		if len(parts) > 1 && keyStr == "" {
-			keyStr = parts[1]
-		}
-		if len(parts) > 2 && valStr == "" {
-			valStr = strings.Join(parts[2:], " ")
-		}
-	}
-
-	if bucketName == "" {
-		bucketName = "default"
-	}
+	bucketName, op, keyStr, valStr := e.resolveKVOperation(elem)
 
 	var resultsString string
 	var rawOutput string
@@ -3342,29 +3205,7 @@ func (e *Executor) executeEtcdKVNode(ctx context.Context, elem KVElement, result
 		return true
 	}
 
-	variables := e.registry.CopyVariables()
-	bucketName := interpolateVars(elem.Bucket, variables)
-	op := strings.ToLower(interpolateVars(elem.Op, variables))
-	keyStr := interpolateVars(elem.Key, variables)
-	valStr := interpolateVars(elem.Value, variables)
-
-	if op == "" && elem.Code != "" {
-		code := interpolateVars(elem.Code, variables)
-		parts := strings.Fields(code)
-		if len(parts) > 0 {
-			op = strings.ToLower(parts[0])
-		}
-		if len(parts) > 1 && keyStr == "" {
-			keyStr = parts[1]
-		}
-		if len(parts) > 2 && valStr == "" {
-			valStr = strings.Join(parts[2:], " ")
-		}
-	}
-
-	if bucketName == "" {
-		bucketName = "default"
-	}
+	bucketName, op, keyStr, valStr := e.resolveKVOperation(elem)
 
 	var resultsString string
 	var rawOutput string
@@ -3438,23 +3279,12 @@ func (e *Executor) executeEtcdKVNode(ctx context.Context, elem KVElement, result
 
 // executeEtcdBulk streams SQL query rows directly into etcd key namespaces.
 func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
-		return 0, fmt.Errorf("source database error: %w", err)
-	}
-
-	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
+	scanner, err := e.openKVBulkScanner(ctx, srcDB, queryStr)
 	if err != nil {
-		return 0, fmt.Errorf("source query error: %w", err)
+		return 0, err
 	}
+	rows := scanner.rows
 	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
-	}
-	if len(cols) < 2 {
-		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
-	}
 
 	var totalCopied int64
 	if batchSize <= 0 {
@@ -3484,57 +3314,19 @@ func (e *Executor) executeEtcdBulk(ctx context.Context, etcdClient *clientv3.Cli
 		return nil
 	}
 
-	var vals []interface{}
-	var valPtrs []interface{}
-	if len(cols) != 2 {
-		vals = make([]interface{}, len(cols))
-		valPtrs = make([]interface{}, len(cols))
-		for i := range vals {
-			valPtrs[i] = &vals[i]
-		}
-	}
-
-	for rows.Next() {
-		select {
-		case <-ctx.Done():
-			_ = rows.Close()
-			return totalCopied, ctx.Err()
-		default:
-		}
-
-		var kStr, vStr string
-		if len(cols) == 2 {
-			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
-				_ = rows.Close()
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-		} else {
-			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
-				_ = rows.Close()
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-			kStr = fmt.Sprintf("%v", vals[0])
-			vStr = fmt.Sprintf("%v", vals[1])
-			for i := range vals {
-				vals[i] = nil
-			}
-		}
-
+	err = scanner.forEach(ctx, func(kStr, vStr string) error {
 		key := etcdKey(targetBucket, kStr)
 		batchOps = append(batchOps, clientv3.OpPut(key, vStr))
 		totalCopied++
 
 		if len(batchOps) >= batchSize {
-			if err := flushOps(); err != nil {
-				_ = rows.Close()
-				return totalCopied, err
-			}
+			return flushOps()
 		}
-	}
-
-	if err := rows.Err(); err != nil {
+		return nil
+	})
+	if err != nil {
 		_ = rows.Close()
-		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+		return totalCopied, err
 	}
 	_ = rows.Close()
 
@@ -3570,29 +3362,7 @@ func (e *Executor) executeRedisKVNode(ctx context.Context, elem KVElement, resul
 		return true
 	}
 
-	variables := e.registry.CopyVariables()
-	bucketName := interpolateVars(elem.Bucket, variables)
-	op := strings.ToLower(interpolateVars(elem.Op, variables))
-	keyStr := interpolateVars(elem.Key, variables)
-	valStr := interpolateVars(elem.Value, variables)
-
-	if op == "" && elem.Code != "" {
-		code := interpolateVars(elem.Code, variables)
-		parts := strings.Fields(code)
-		if len(parts) > 0 {
-			op = strings.ToLower(parts[0])
-		}
-		if len(parts) > 1 && keyStr == "" {
-			keyStr = parts[1]
-		}
-		if len(parts) > 2 && valStr == "" {
-			valStr = strings.Join(parts[2:], " ")
-		}
-	}
-
-	if bucketName == "" {
-		bucketName = "default"
-	}
+	bucketName, op, keyStr, valStr := e.resolveKVOperation(elem)
 
 	var resultsString string
 	var rawOutput string
@@ -3675,23 +3445,12 @@ func (e *Executor) executeRedisKVNode(ctx context.Context, elem KVElement, resul
 
 // executeRedisBulk streams SQL query rows directly into Redis/Valkey using pipelined execution.
 func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Client, srcDB, queryStr, targetBucket string, batchSize int) (int64, error) {
-	if _, err := e.registry.GetDBHandle(srcDB); err != nil {
-		return 0, fmt.Errorf("source database error: %w", err)
-	}
-
-	rows, err := e.querySQLContext(ctx, srcDB, queryStr)
+	scanner, err := e.openKVBulkScanner(ctx, srcDB, queryStr)
 	if err != nil {
-		return 0, fmt.Errorf("source query error: %w", err)
+		return 0, err
 	}
+	rows := scanner.rows
 	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve columns: %w", err)
-	}
-	if len(cols) < 2 {
-		return 0, fmt.Errorf("source query for kv_bulk must return at least 2 columns (key, value)")
-	}
 
 	if batchSize <= 0 {
 		batchSize = 10000
@@ -3714,52 +3473,18 @@ func (e *Executor) executeRedisBulk(ctx context.Context, redisClient *redis.Clie
 		return nil
 	}
 
-	var vals []interface{}
-	var valPtrs []interface{}
-	if len(cols) != 2 {
-		vals = make([]interface{}, len(cols))
-		valPtrs = make([]interface{}, len(cols))
-		for i := range vals {
-			valPtrs[i] = &vals[i]
-		}
-	}
-
-	for rows.Next() {
-		select {
-		case <-ctx.Done():
-			return totalCopied, ctx.Err()
-		default:
-		}
-
-		var kStr, vStr string
-		if len(cols) == 2 {
-			if scanErr := rows.Scan(&kStr, &vStr); scanErr != nil {
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-		} else {
-			if scanErr := rows.Scan(valPtrs...); scanErr != nil {
-				return totalCopied, fmt.Errorf("row scan error: %w", scanErr)
-			}
-			kStr = fmt.Sprintf("%v", vals[0])
-			vStr = fmt.Sprintf("%v", vals[1])
-			for i := range vals {
-				vals[i] = nil
-			}
-		}
-
+	err = scanner.forEach(ctx, func(kStr, vStr string) error {
 		key := redisKey(targetBucket, kStr)
 		pipe.Set(ctx, key, vStr, 0)
 		unflushed++
 
 		if unflushed >= batchSize {
-			if err := flushPipe(); err != nil {
-				return totalCopied, err
-			}
+			return flushPipe()
 		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return totalCopied, fmt.Errorf("rows iteration error: %w", err)
+		return nil
+	})
+	if err != nil {
+		return totalCopied, err
 	}
 
 	if err := flushPipe(); err != nil {

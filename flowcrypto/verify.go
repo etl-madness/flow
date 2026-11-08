@@ -297,14 +297,22 @@ func VerifyAutoWithCA(data []byte, sigBytes []byte, keyOrCertBytes []byte, caCer
 		return VerifyPKCS7DetachedWithCA(data, trimmedSig, keyOrCertBytes, caCertBytes)
 	}
 
-	// Try PKCS#7 DER
-	if res, err := VerifyPKCS7DetachedWithCA(data, trimmedSig, keyOrCertBytes, caCertBytes); err == nil {
+	// Preserve raw binary signatures, which can legitimately start or end with whitespace bytes.
+	if res, err := VerifyPKCS7DetachedWithCA(data, sigBytes, keyOrCertBytes, caCertBytes); err == nil {
 		return res, nil
 	}
 
-	// Try OpenSSL with public key or certificate
-	if res, err := VerifyOpenSSLWithCA(data, trimmedSig, keyOrCertBytes, caCertBytes); err == nil {
+	if res, err := VerifyOpenSSLWithCA(data, sigBytes, keyOrCertBytes, caCertBytes); err == nil {
 		return res, nil
+	}
+
+	if len(trimmedSig) != len(sigBytes) {
+		if res, err := VerifyPKCS7DetachedWithCA(data, trimmedSig, keyOrCertBytes, caCertBytes); err == nil {
+			return res, nil
+		}
+		if res, err := VerifyOpenSSLWithCA(data, trimmedSig, keyOrCertBytes, caCertBytes); err == nil {
+			return res, nil
+		}
 	}
 
 	// If raw base64 string, try decoding and verifying

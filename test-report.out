@@ -1,0 +1,808 @@
+{"Time":"2026-11-07T18:28:15.9591137-05:00","Action":"start","Package":"github.com/etl-madness/flow"}
+{"Time":"2026-11-07T18:28:15.9591137-05:00","Action":"start","Package":"github.com/etl-madness/flow/flowcrypto"}
+{"Time":"2026-11-07T18:28:16.8370594-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_Assert"}
+{"Time":"2026-11-07T18:28:16.8370594-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_Assert","Output":"=== RUN   TestParseXMLConfig_Assert\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_Assert","Output":"--- PASS: TestParseXMLConfig_Assert (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_Assert","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert","Output":"=== RUN   TestValidateAST_Assert\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Valid_Assert_Node"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Valid_Assert_Node","Output":"=== RUN   TestValidateAST_Assert/Valid_Assert_Node\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Valid_Assert_Node","Output":"--- PASS: TestValidateAST_Assert/Valid_Assert_Node (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Valid_Assert_Node","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Missing_Var_Attribute"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Missing_Var_Attribute","Output":"=== RUN   TestValidateAST_Assert/Missing_Var_Attribute\n"}
+{"Time":"2026-11-07T18:28:16.8381229-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Missing_Var_Attribute","Output":"--- PASS: TestValidateAST_Assert/Missing_Var_Attribute (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Missing_Var_Attribute","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Duplicate_Assert_ID"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Duplicate_Assert_ID","Output":"=== RUN   TestValidateAST_Assert/Duplicate_Assert_ID\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Duplicate_Assert_ID","Output":"--- PASS: TestValidateAST_Assert/Duplicate_Assert_ID (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Duplicate_Assert_ID","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Recursive_FailureNodes_Validation"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Recursive_FailureNodes_Validation","Output":"=== RUN   TestValidateAST_Assert/Recursive_FailureNodes_Validation\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Recursive_FailureNodes_Validation","Output":"--- PASS: TestValidateAST_Assert/Recursive_FailureNodes_Validation (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert/Recursive_FailureNodes_Validation","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert","Output":"--- PASS: TestValidateAST_Assert (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateAST_Assert","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution","Output":"=== RUN   TestExecutor_Assert_Execution\n"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Successful_Assertion"}
+{"Time":"2026-11-07T18:28:16.8386456-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Successful_Assertion","Output":"=== RUN   TestExecutor_Assert_Execution/Successful_Assertion\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Successful_Assertion","Output":"--- PASS: TestExecutor_Assert_Execution/Successful_Assertion (0.14s)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Successful_Assertion","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default)"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default)","Output":"=== RUN   TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default)","Output":"--- PASS: TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default) (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Halt_Behavior_(Default)","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior","Output":"=== RUN   TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior","Output":"--- PASS: TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Warn/Continue_Behavior","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes","Output":"=== RUN   TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes","Output":"--- PASS: TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution/Failed_Assertion_-_Sets_FailVar_and_Runs_FailureNodes","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution","Output":"--- PASS: TestExecutor_Assert_Execution (0.14s)\n"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_Assert_Execution","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestRegistryTypedValuesAndSnapshot"}
+{"Time":"2026-11-07T18:28:16.9793983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistryTypedValuesAndSnapshot","Output":"=== RUN   TestRegistryTypedValuesAndSnapshot\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistryTypedValuesAndSnapshot","Output":"--- PASS: TestRegistryTypedValuesAndSnapshot (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestRegistryTypedValuesAndSnapshot","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestRegistryInitVariablesConversions"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistryInitVariablesConversions","Output":"=== RUN   TestRegistryInitVariablesConversions\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistryInitVariablesConversions","Output":"--- PASS: TestRegistryInitVariablesConversions (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestRegistryInitVariablesConversions","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestConfigElementAccessors"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestConfigElementAccessors","Output":"=== RUN   TestConfigElementAccessors\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestConfigElementAccessors","Output":"--- PASS: TestConfigElementAccessors (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestConfigElementAccessors","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestClassifyErrorCategories"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestClassifyErrorCategories","Output":"=== RUN   TestClassifyErrorCategories\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestClassifyErrorCategories","Output":"--- PASS: TestClassifyErrorCategories (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestClassifyErrorCategories","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorSettersAndSinkRegistration"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorSettersAndSinkRegistration","Output":"=== RUN   TestExecutorSettersAndSinkRegistration\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorSettersAndSinkRegistration","Output":"--- PASS: TestExecutorSettersAndSinkRegistration (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorSettersAndSinkRegistration","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation","Output":"=== RUN   TestExecutorConditionEvaluation\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/boolean"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/boolean","Output":"=== RUN   TestExecutorConditionEvaluation/boolean\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/boolean","Output":"--- PASS: TestExecutorConditionEvaluation/boolean (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/boolean","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/integer"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/integer","Output":"=== RUN   TestExecutorConditionEvaluation/integer\n"}
+{"Time":"2026-11-07T18:28:16.9804236-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/integer","Output":"--- PASS: TestExecutorConditionEvaluation/integer (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/integer","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/float"}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/float","Output":"=== RUN   TestExecutorConditionEvaluation/float\n"}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/float","Output":"--- PASS: TestExecutorConditionEvaluation/float (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/float","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/string_truth"}
+{"Time":"2026-11-07T18:28:16.9819432-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/string_truth","Output":"=== RUN   TestExecutorConditionEvaluation/string_truth\n"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/string_truth","Output":"--- PASS: TestExecutorConditionEvaluation/string_truth (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/string_truth","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/expected_value"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/expected_value","Output":"=== RUN   TestExecutorConditionEvaluation/expected_value\n"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/expected_value","Output":"--- PASS: TestExecutorConditionEvaluation/expected_value (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/expected_value","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/equals_syntax"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/equals_syntax","Output":"=== RUN   TestExecutorConditionEvaluation/equals_syntax\n"}
+{"Time":"2026-11-07T18:28:16.9827913-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/equals_syntax","Output":"--- PASS: TestExecutorConditionEvaluation/equals_syntax (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9835497-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/equals_syntax","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_syntax"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_syntax","Output":"=== RUN   TestExecutorConditionEvaluation/not_equals_syntax\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_syntax","Output":"--- PASS: TestExecutorConditionEvaluation/not_equals_syntax (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_syntax","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/false"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/false","Output":"=== RUN   TestExecutorConditionEvaluation/false\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/false","Output":"--- PASS: TestExecutorConditionEvaluation/false (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/false","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/missing"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/missing","Output":"=== RUN   TestExecutorConditionEvaluation/missing\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/missing","Output":"--- PASS: TestExecutorConditionEvaluation/missing (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/missing","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unknown_string"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unknown_string","Output":"=== RUN   TestExecutorConditionEvaluation/unknown_string\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unknown_string","Output":"--- PASS: TestExecutorConditionEvaluation/unknown_string (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unknown_string","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_false"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_false","Output":"=== RUN   TestExecutorConditionEvaluation/not_equals_false\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_false","Output":"--- PASS: TestExecutorConditionEvaluation/not_equals_false (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/not_equals_false","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/numeric_zero"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/numeric_zero","Output":"=== RUN   TestExecutorConditionEvaluation/numeric_zero\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/numeric_zero","Output":"--- PASS: TestExecutorConditionEvaluation/numeric_zero (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/numeric_zero","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unsupported_value"}
+{"Time":"2026-11-07T18:28:16.9841039-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unsupported_value","Output":"=== RUN   TestExecutorConditionEvaluation/unsupported_value\n"}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unsupported_value","Output":"--- PASS: TestExecutorConditionEvaluation/unsupported_value (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation/unsupported_value","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation","Output":"--- PASS: TestExecutorConditionEvaluation (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorConditionEvaluation","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigConditionalBranches"}
+{"Time":"2026-11-07T18:28:16.9851269-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigConditionalBranches","Output":"=== RUN   TestParseXMLConfigConditionalBranches\n"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigConditionalBranches","Output":"--- PASS: TestParseXMLConfigConditionalBranches (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigConditionalBranches","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigNodeFamilies"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigNodeFamilies","Output":"=== RUN   TestParseXMLConfigNodeFamilies\n"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigNodeFamilies","Output":"--- PASS: TestParseXMLConfigNodeFamilies (0.00s)\n"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfigNodeFamilies","Elapsed":0}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteTextTemplateNodePaths"}
+{"Time":"2026-11-07T18:28:16.9871292-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteTextTemplateNodePaths","Output":"=== RUN   TestExecuteTextTemplateNodePaths\n"}
+{"Time":"2026-11-07T18:28:17.0078035-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteTextTemplateNodePaths","Output":"--- PASS: TestExecuteTextTemplateNodePaths (0.03s)\n"}
+{"Time":"2026-11-07T18:28:17.008484-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteTextTemplateNodePaths","Elapsed":0.03}
+{"Time":"2026-11-07T18:28:17.008484-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteFileNodesPaths"}
+{"Time":"2026-11-07T18:28:17.008484-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteFileNodesPaths","Output":"=== RUN   TestExecuteFileNodesPaths\n"}
+{"Time":"2026-11-07T18:28:17.042457-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteFileNodesPaths","Output":"--- PASS: TestExecuteFileNodesPaths (0.03s)\n"}
+{"Time":"2026-11-07T18:28:17.042457-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteFileNodesPaths","Elapsed":0.03}
+{"Time":"2026-11-07T18:28:17.042457-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteStructuredDataPathModesAndErrors"}
+{"Time":"2026-11-07T18:28:17.042457-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteStructuredDataPathModesAndErrors","Output":"=== RUN   TestExecuteStructuredDataPathModesAndErrors\n"}
+{"Time":"2026-11-07T18:28:17.0722778-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteStructuredDataPathModesAndErrors","Output":"--- PASS: TestExecuteStructuredDataPathModesAndErrors (0.03s)\n"}
+{"Time":"2026-11-07T18:28:17.0722778-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteStructuredDataPathModesAndErrors","Elapsed":0.03}
+{"Time":"2026-11-07T18:28:17.0722778-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion"}
+{"Time":"2026-11-07T18:28:17.0722778-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion","Output":"=== RUN   TestLuaGoValueConversion\n"}
+{"Time":"2026-11-07T18:28:17.0740375-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/nil"}
+{"Time":"2026-11-07T18:28:17.0750503-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/nil","Output":"=== RUN   TestLuaGoValueConversion/nil\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/nil","Output":"--- PASS: TestLuaGoValueConversion/nil (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/nil","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/bool"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/bool","Output":"=== RUN   TestLuaGoValueConversion/bool\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/bool","Output":"--- PASS: TestLuaGoValueConversion/bool (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/bool","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/false"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/false","Output":"=== RUN   TestLuaGoValueConversion/false\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/false","Output":"--- PASS: TestLuaGoValueConversion/false (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/false","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int","Output":"=== RUN   TestLuaGoValueConversion/int\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int","Output":"--- PASS: TestLuaGoValueConversion/int (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int#01"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int#01","Output":"=== RUN   TestLuaGoValueConversion/int#01\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int#01","Output":"--- PASS: TestLuaGoValueConversion/int#01 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int#01","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int16"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int16","Output":"=== RUN   TestLuaGoValueConversion/int16\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int16","Output":"--- PASS: TestLuaGoValueConversion/int16 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int16","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int32"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int32","Output":"=== RUN   TestLuaGoValueConversion/int32\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int32","Output":"--- PASS: TestLuaGoValueConversion/int32 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int32","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int64"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int64","Output":"=== RUN   TestLuaGoValueConversion/int64\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int64","Output":"--- PASS: TestLuaGoValueConversion/int64 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0759983-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/int64","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint","Output":"=== RUN   TestLuaGoValueConversion/uint\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint","Output":"--- PASS: TestLuaGoValueConversion/uint (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint8"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint8","Output":"=== RUN   TestLuaGoValueConversion/uint8\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint8","Output":"--- PASS: TestLuaGoValueConversion/uint8 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint8","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint16"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint16","Output":"=== RUN   TestLuaGoValueConversion/uint16\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint16","Output":"--- PASS: TestLuaGoValueConversion/uint16 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint16","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint32"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint32","Output":"=== RUN   TestLuaGoValueConversion/uint32\n"}
+{"Time":"2026-11-07T18:28:17.0768522-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint32","Output":"--- PASS: TestLuaGoValueConversion/uint32 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint32","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint#01"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint#01","Output":"=== RUN   TestLuaGoValueConversion/uint#01\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint#01","Output":"--- PASS: TestLuaGoValueConversion/uint#01 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/uint#01","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float","Output":"=== RUN   TestLuaGoValueConversion/float\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float","Output":"--- PASS: TestLuaGoValueConversion/float (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float64"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float64","Output":"=== RUN   TestLuaGoValueConversion/float64\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float64","Output":"--- PASS: TestLuaGoValueConversion/float64 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/float64","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0780203-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/string"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/string","Output":"=== RUN   TestLuaGoValueConversion/string\n"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/string","Output":"--- PASS: TestLuaGoValueConversion/string (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion/string","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion","Output":"--- PASS: TestLuaGoValueConversion (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaGoValueConversion","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteLuaScriptHelpers"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteLuaScriptHelpers","Output":"=== RUN   TestExecuteLuaScriptHelpers\n"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteLuaScriptHelpers","Output":"--- PASS: TestExecuteLuaScriptHelpers (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteLuaScriptHelpers","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTMLTemplateNodePaths"}
+{"Time":"2026-11-07T18:28:17.0862373-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTMLTemplateNodePaths","Output":"=== RUN   TestExecuteHTMLTemplateNodePaths\n"}
+{"Time":"2026-11-07T18:28:17.1082924-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTMLTemplateNodePaths","Output":"--- PASS: TestExecuteHTMLTemplateNodePaths (0.03s)\n"}
+{"Time":"2026-11-07T18:28:17.1088124-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTMLTemplateNodePaths","Elapsed":0.03}
+{"Time":"2026-11-07T18:28:17.1088124-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTTPClientNode"}
+{"Time":"2026-11-07T18:28:17.1088124-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTTPClientNode","Output":"=== RUN   TestExecuteHTTPClientNode\n"}
+{"Time":"2026-11-07T18:28:17.1153111-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTTPClientNode","Output":"--- PASS: TestExecuteHTTPClientNode (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteHTTPClientNode","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateASTNodeKinds"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateASTNodeKinds","Output":"=== RUN   TestValidateASTNodeKinds\n"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateASTNodeKinds","Output":"--- PASS: TestValidateASTNodeKinds (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateASTNodeKinds","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder","Output":"=== RUN   TestFormatPlaceholder\n"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgres"}
+{"Time":"2026-11-07T18:28:17.1158648-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgres","Output":"=== RUN   TestFormatPlaceholder/postgres\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgres","Output":"--- PASS: TestFormatPlaceholder/postgres (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgres","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgresql"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgresql","Output":"=== RUN   TestFormatPlaceholder/postgresql\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgresql","Output":"--- PASS: TestFormatPlaceholder/postgresql (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/postgresql","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mysql"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mysql","Output":"=== RUN   TestFormatPlaceholder/mysql\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mysql","Output":"--- PASS: TestFormatPlaceholder/mysql (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mysql","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlite3"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlite3","Output":"=== RUN   TestFormatPlaceholder/sqlite3\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlite3","Output":"--- PASS: TestFormatPlaceholder/sqlite3 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlite3","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/oracle"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/oracle","Output":"=== RUN   TestFormatPlaceholder/oracle\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/oracle","Output":"--- PASS: TestFormatPlaceholder/oracle (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/oracle","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mssql"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mssql","Output":"=== RUN   TestFormatPlaceholder/mssql\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mssql","Output":"--- PASS: TestFormatPlaceholder/mssql (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/mssql","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlserver"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlserver","Output":"=== RUN   TestFormatPlaceholder/sqlserver\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlserver","Output":"--- PASS: TestFormatPlaceholder/sqlserver (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/sqlserver","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/unknown"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/unknown","Output":"=== RUN   TestFormatPlaceholder/unknown\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/unknown","Output":"--- PASS: TestFormatPlaceholder/unknown (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder/unknown","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder","Output":"--- PASS: TestFormatPlaceholder (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFormatPlaceholder","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1164561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestMaxParametersForDriver"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestMaxParametersForDriver","Output":"=== RUN   TestMaxParametersForDriver\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestMaxParametersForDriver","Output":"--- PASS: TestMaxParametersForDriver (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestMaxParametersForDriver","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildMultiRowInsertSQL"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildMultiRowInsertSQL","Output":"=== RUN   TestBuildMultiRowInsertSQL\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildMultiRowInsertSQL","Output":"--- PASS: TestBuildMultiRowInsertSQL (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildMultiRowInsertSQL","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestInterpolateVarsSinglePass"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestInterpolateVarsSinglePass","Output":"=== RUN   TestInterpolateVarsSinglePass\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestInterpolateVarsSinglePass","Output":"--- PASS: TestInterpolateVarsSinglePass (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestInterpolateVarsSinglePass","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestRegistrySetVarsAndSetRowVars"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistrySetVarsAndSetRowVars","Output":"=== RUN   TestRegistrySetVarsAndSetRowVars\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRegistrySetVarsAndSetRowVars","Output":"--- PASS: TestRegistrySetVarsAndSetRowVars (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestRegistrySetVarsAndSetRowVars","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestResolveDatabasePoolSettings"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestResolveDatabasePoolSettings","Output":"=== RUN   TestResolveDatabasePoolSettings\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestResolveDatabasePoolSettings","Output":"--- PASS: TestResolveDatabasePoolSettings (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestResolveDatabasePoolSettings","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestHTTPTransportPoolingAndIsolation"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestHTTPTransportPoolingAndIsolation","Output":"=== RUN   TestHTTPTransportPoolingAndIsolation\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestHTTPTransportPoolingAndIsolation","Output":"--- PASS: TestHTTPTransportPoolingAndIsolation (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestHTTPTransportPoolingAndIsolation","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestRuntimeIdentityCached"}
+{"Time":"2026-11-07T18:28:17.1170328-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRuntimeIdentityCached","Output":"=== RUN   TestRuntimeIdentityCached\n"}
+{"Time":"2026-11-07T18:28:17.1193571-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRuntimeIdentityCached","Output":"--- PASS: TestRuntimeIdentityCached (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1193571-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestRuntimeIdentityCached","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestTemplateCaching"}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestTemplateCaching","Output":"=== RUN   TestTemplateCaching\n"}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestTemplateCaching","Output":"--- PASS: TestTemplateCaching (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestTemplateCaching","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestStreamETLRowIntegrityAndPreparedReuse"}
+{"Time":"2026-11-07T18:28:17.1199362-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestStreamETLRowIntegrityAndPreparedReuse","Output":"=== RUN   TestStreamETLRowIntegrityAndPreparedReuse\n"}
+{"Time":"2026-11-07T18:28:17.2606689-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestStreamETLRowIntegrityAndPreparedReuse","Output":"--- PASS: TestStreamETLRowIntegrityAndPreparedReuse (0.14s)\n"}
+{"Time":"2026-11-07T18:28:17.2606689-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestStreamETLRowIntegrityAndPreparedReuse","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:17.2606689-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestShellVariablePassing"}
+{"Time":"2026-11-07T18:28:17.2606689-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestShellVariablePassing","Output":"=== RUN   TestShellVariablePassing\n"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestShellVariablePassing","Output":"--- PASS: TestShellVariablePassing (0.17s)\n"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestShellVariablePassing","Elapsed":0.17}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestIsShellLanguage"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestIsShellLanguage","Output":"=== RUN   TestIsShellLanguage\n"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestIsShellLanguage","Output":"--- PASS: TestIsShellLanguage (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestIsShellLanguage","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGroupTransactions"}
+{"Time":"2026-11-07T18:28:17.4326953-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGroupTransactions","Output":"=== RUN   TestGroupTransactions\n"}
+{"Time":"2026-11-07T18:28:17.4375656-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGroupTransactions","Output":"--- PASS: TestGroupTransactions (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.4375656-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGroupTransactions","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.4375656-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorContextCancellation"}
+{"Time":"2026-11-07T18:28:17.4375656-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorContextCancellation","Output":"=== RUN   TestExecutorContextCancellation\n"}
+{"Time":"2026-11-07T18:28:17.5068087-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorContextCancellation","Output":"--- PASS: TestExecutorContextCancellation (0.07s)\n"}
+{"Time":"2026-11-07T18:28:17.5068087-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorContextCancellation","Elapsed":0.07}
+{"Time":"2026-11-07T18:28:17.5068087-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParallelVariableIsolationAndNamespacing"}
+{"Time":"2026-11-07T18:28:17.5068087-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParallelVariableIsolationAndNamespacing","Output":"=== RUN   TestParallelVariableIsolationAndNamespacing\n"}
+{"Time":"2026-11-07T18:28:17.5073877-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParallelVariableIsolationAndNamespacing","Output":"--- PASS: TestParallelVariableIsolationAndNamespacing (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5073877-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParallelVariableIsolationAndNamespacing","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5073877-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSQLAndSQLBulk"}
+{"Time":"2026-11-07T18:28:17.5073877-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLAndSQLBulk","Output":"=== RUN   TestSQLAndSQLBulk\n"}
+{"Time":"2026-11-07T18:28:17.5103462-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLAndSQLBulk","Output":"--- PASS: TestSQLAndSQLBulk (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5103462-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSQLAndSQLBulk","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5103462-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSQLDMLWithReturning"}
+{"Time":"2026-11-07T18:28:17.5103462-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLDMLWithReturning","Output":"=== RUN   TestSQLDMLWithReturning\n"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLDMLWithReturning","Output":"--- PASS: TestSQLDMLWithReturning (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSQLDMLWithReturning","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDMLClassification"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDMLClassification","Output":"=== RUN   TestDMLClassification\n"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDMLClassification","Output":"--- PASS: TestDMLClassification (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDMLClassification","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSQLExecutionDoesNotDropDeletedAtColumns"}
+{"Time":"2026-11-07T18:28:17.5128824-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLExecutionDoesNotDropDeletedAtColumns","Output":"=== RUN   TestSQLExecutionDoesNotDropDeletedAtColumns\n"}
+{"Time":"2026-11-07T18:28:17.5148584-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSQLExecutionDoesNotDropDeletedAtColumns","Output":"--- PASS: TestSQLExecutionDoesNotDropDeletedAtColumns (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5148584-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSQLExecutionDoesNotDropDeletedAtColumns","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5148584-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestForEachHybridStreamingAndBuffering"}
+{"Time":"2026-11-07T18:28:17.5148584-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestForEachHybridStreamingAndBuffering","Output":"=== RUN   TestForEachHybridStreamingAndBuffering\n"}
+{"Time":"2026-11-07T18:28:17.5174864-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestForEachHybridStreamingAndBuffering","Output":"--- PASS: TestForEachHybridStreamingAndBuffering (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5174864-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestForEachHybridStreamingAndBuffering","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5174864-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNestedTransactions"}
+{"Time":"2026-11-07T18:28:17.5174864-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNestedTransactions","Output":"=== RUN   TestNestedTransactions\n"}
+{"Time":"2026-11-07T18:28:17.5192766-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNestedTransactions","Output":"--- PASS: TestNestedTransactions (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5192766-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNestedTransactions","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5199047-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExcelReadWithoutHeader"}
+{"Time":"2026-11-07T18:28:17.5199047-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelReadWithoutHeader","Output":"=== RUN   TestExcelReadWithoutHeader\n"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelReadWithoutHeader","Output":"--- PASS: TestExcelReadWithoutHeader (0.03s)\n"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExcelReadWithoutHeader","Elapsed":0.03}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestASTValidationOmittedNodes"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestASTValidationOmittedNodes","Output":"=== RUN   TestASTValidationOmittedNodes\n"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestASTValidationOmittedNodes","Output":"--- PASS: TestASTValidationOmittedNodes (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestASTValidationOmittedNodes","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParallelFailFastCancellation"}
+{"Time":"2026-11-07T18:28:17.5515389-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParallelFailFastCancellation","Output":"=== RUN   TestParallelFailFastCancellation\n"}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParallelFailFastCancellation","Output":"--- PASS: TestParallelFailFastCancellation (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParallelFailFastCancellation","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDatabaseInitWithContextRollback"}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDatabaseInitWithContextRollback","Output":"=== RUN   TestDatabaseInitWithContextRollback\n"}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDatabaseInitWithContextRollback","Output":"--- PASS: TestDatabaseInitWithContextRollback (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDatabaseInitWithContextRollback","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5530527-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestXSDAlignedNodeAttributes"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestXSDAlignedNodeAttributes","Output":"=== RUN   TestXSDAlignedNodeAttributes\n"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestXSDAlignedNodeAttributes","Output":"--- PASS: TestXSDAlignedNodeAttributes (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestXSDAlignedNodeAttributes","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL","Output":"=== RUN   TestSavepointDialectSQL\n"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlserver"}
+{"Time":"2026-11-07T18:28:17.5536219-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlserver","Output":"=== RUN   TestSavepointDialectSQL/sqlserver\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlserver","Output":"--- PASS: TestSavepointDialectSQL/sqlserver (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlserver","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mssql"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mssql","Output":"=== RUN   TestSavepointDialectSQL/mssql\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mssql","Output":"--- PASS: TestSavepointDialectSQL/mssql (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mssql","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/postgres"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/postgres","Output":"=== RUN   TestSavepointDialectSQL/postgres\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/postgres","Output":"--- PASS: TestSavepointDialectSQL/postgres (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/postgres","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlite"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlite","Output":"=== RUN   TestSavepointDialectSQL/sqlite\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlite","Output":"--- PASS: TestSavepointDialectSQL/sqlite (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/sqlite","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mysql"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mysql","Output":"=== RUN   TestSavepointDialectSQL/mysql\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mysql","Output":"--- PASS: TestSavepointDialectSQL/mysql (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/mysql","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/oracle"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/oracle","Output":"=== RUN   TestSavepointDialectSQL/oracle\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/oracle","Output":"--- PASS: TestSavepointDialectSQL/oracle (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL/oracle","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL","Output":"--- PASS: TestSavepointDialectSQL (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSavepointDialectSQL","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestLuaScriptInlineCDATAAndFilePath"}
+{"Time":"2026-11-07T18:28:17.5541996-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaScriptInlineCDATAAndFilePath","Output":"=== RUN   TestLuaScriptInlineCDATAAndFilePath\n"}
+{"Time":"2026-11-07T18:28:17.5664001-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestLuaScriptInlineCDATAAndFilePath","Output":"--- PASS: TestLuaScriptInlineCDATAAndFilePath (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.5664001-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestLuaScriptInlineCDATAAndFilePath","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.5664001-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestSessionGroupTempTablePersistence"}
+{"Time":"2026-11-07T18:28:17.5664001-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSessionGroupTempTablePersistence","Output":"=== RUN   TestSessionGroupTempTablePersistence\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestSessionGroupTempTablePersistence","Output":"--- PASS: TestSessionGroupTempTablePersistence (0.06s)\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestSessionGroupTempTablePersistence","Elapsed":0.06}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable","Output":"=== RUN   TestGetOutputVariable\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_only"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_only","Output":"=== RUN   TestGetOutputVariable/Var_only\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_only","Output":"--- PASS: TestGetOutputVariable/Var_only (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_only","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_priority_over_Variable"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_priority_over_Variable","Output":"=== RUN   TestGetOutputVariable/Var_priority_over_Variable\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_priority_over_Variable","Output":"--- PASS: TestGetOutputVariable/Var_priority_over_Variable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Var_priority_over_Variable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Variable_priority_over_OutputVar"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Variable_priority_over_OutputVar","Output":"=== RUN   TestGetOutputVariable/Variable_priority_over_OutputVar\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Variable_priority_over_OutputVar","Output":"--- PASS: TestGetOutputVariable/Variable_priority_over_OutputVar (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Variable_priority_over_OutputVar","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVar_priority_over_OutputVariable"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVar_priority_over_OutputVariable","Output":"=== RUN   TestGetOutputVariable/OutputVar_priority_over_OutputVariable\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVar_priority_over_OutputVariable","Output":"--- PASS: TestGetOutputVariable/OutputVar_priority_over_OutputVariable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVar_priority_over_OutputVariable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVariable_priority_over_OutVar"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVariable_priority_over_OutVar","Output":"=== RUN   TestGetOutputVariable/OutputVariable_priority_over_OutVar\n"}
+{"Time":"2026-11-07T18:28:17.6226977-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVariable_priority_over_OutVar","Output":"--- PASS: TestGetOutputVariable/OutputVariable_priority_over_OutVar (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutputVariable_priority_over_OutVar","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutVar_only"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutVar_only","Output":"=== RUN   TestGetOutputVariable/OutVar_only\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutVar_only","Output":"--- PASS: TestGetOutputVariable/OutVar_only (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/OutVar_only","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Empty"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Empty","Output":"=== RUN   TestGetOutputVariable/Empty\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Empty","Output":"--- PASS: TestGetOutputVariable/Empty (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable/Empty","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable","Output":"--- PASS: TestGetOutputVariable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetOutputVariable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable","Output":"=== RUN   TestGetStatusCodeVariable\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_only"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_only","Output":"=== RUN   TestGetStatusCodeVariable/StatusCodeVar_only\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_only","Output":"--- PASS: TestGetStatusCodeVariable/StatusCodeVar_only (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_only","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable","Output":"=== RUN   TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable","Output":"--- PASS: TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVar_priority_over_StatusCodeVariable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar","Output":"=== RUN   TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar","Output":"--- PASS: TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusCodeVariable_priority_over_StatusVar","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable","Output":"=== RUN   TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable","Output":"--- PASS: TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVar_priority_over_StatusVariable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVariable_only"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVariable_only","Output":"=== RUN   TestGetStatusCodeVariable/StatusVariable_only\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVariable_only","Output":"--- PASS: TestGetStatusCodeVariable/StatusVariable_only (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/StatusVariable_only","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/Empty"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/Empty","Output":"=== RUN   TestGetStatusCodeVariable/Empty\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/Empty","Output":"--- PASS: TestGetStatusCodeVariable/Empty (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable/Empty","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable","Output":"--- PASS: TestGetStatusCodeVariable (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetStatusCodeVariable","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Basic"}
+{"Time":"2026-11-07T18:28:17.6233811-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Basic","Output":"=== RUN   TestBuildClientAndRequest_Basic\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Basic","Output":"--- PASS: TestBuildClientAndRequest_Basic (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Basic","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_MethodAndBody"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_MethodAndBody","Output":"=== RUN   TestBuildClientAndRequest_MethodAndBody\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_MethodAndBody","Output":"--- PASS: TestBuildClientAndRequest_MethodAndBody (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_MethodAndBody","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Headers"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Headers","Output":"=== RUN   TestBuildClientAndRequest_Headers\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Headers","Output":"--- PASS: TestBuildClientAndRequest_Headers (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_Headers","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_ClientOptions"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_ClientOptions","Output":"=== RUN   TestBuildClientAndRequest_ClientOptions\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_ClientOptions","Output":"--- PASS: TestBuildClientAndRequest_ClientOptions (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_ClientOptions","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_TransportOptions"}
+{"Time":"2026-11-07T18:28:17.624089-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_TransportOptions","Output":"=== RUN   TestBuildClientAndRequest_TransportOptions\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_TransportOptions","Output":"--- PASS: TestBuildClientAndRequest_TransportOptions (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBuildClientAndRequest_TransportOptions","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion","Output":"=== RUN   TestParseTLSVersion\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.0"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.0","Output":"=== RUN   TestParseTLSVersion/1.0\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.0","Output":"--- PASS: TestParseTLSVersion/1.0 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.0","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.0"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.0","Output":"=== RUN   TestParseTLSVersion/tls1.0\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.0","Output":"--- PASS: TestParseTLSVersion/tls1.0 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.0","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls10"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls10","Output":"=== RUN   TestParseTLSVersion/tls10\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls10","Output":"--- PASS: TestParseTLSVersion/tls10 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls10","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.1"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.1","Output":"=== RUN   TestParseTLSVersion/1.1\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.1","Output":"--- PASS: TestParseTLSVersion/1.1 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.1","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6251149-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.1"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.1","Output":"=== RUN   TestParseTLSVersion/tls1.1\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.1","Output":"--- PASS: TestParseTLSVersion/tls1.1 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.1","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls11"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls11","Output":"=== RUN   TestParseTLSVersion/tls11\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls11","Output":"--- PASS: TestParseTLSVersion/tls11 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls11","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.2"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.2","Output":"=== RUN   TestParseTLSVersion/1.2\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.2","Output":"--- PASS: TestParseTLSVersion/1.2 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.2","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.2"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.2","Output":"=== RUN   TestParseTLSVersion/tls1.2\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.2","Output":"--- PASS: TestParseTLSVersion/tls1.2 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.2","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls12"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls12","Output":"=== RUN   TestParseTLSVersion/tls12\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls12","Output":"--- PASS: TestParseTLSVersion/tls12 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls12","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.3"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.3","Output":"=== RUN   TestParseTLSVersion/1.3\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.3","Output":"--- PASS: TestParseTLSVersion/1.3 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/1.3","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.3"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.3","Output":"=== RUN   TestParseTLSVersion/tls1.3\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.3","Output":"--- PASS: TestParseTLSVersion/tls1.3 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls1.3","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls13"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls13","Output":"=== RUN   TestParseTLSVersion/tls13\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls13","Output":"--- PASS: TestParseTLSVersion/tls13 (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/tls13","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/invalid"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/invalid","Output":"=== RUN   TestParseTLSVersion/invalid\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/invalid","Output":"--- PASS: TestParseTLSVersion/invalid (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion/invalid","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion","Output":"--- PASS: TestParseTLSVersion (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseTLSVersion","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBoltKVOperations"}
+{"Time":"2026-11-07T18:28:17.6259112-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBoltKVOperations","Output":"=== RUN   TestBoltKVOperations\n"}
+{"Time":"2026-11-07T18:28:17.6501777-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBoltKVOperations","Output":"--- PASS: TestBoltKVOperations (0.02s)\n"}
+{"Time":"2026-11-07T18:28:17.6501777-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBoltKVOperations","Elapsed":0.02}
+{"Time":"2026-11-07T18:28:17.6508843-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestBadgerKVOperations"}
+{"Time":"2026-11-07T18:28:17.6508843-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBadgerKVOperations","Output":"=== RUN   TestBadgerKVOperations\n"}
+{"Time":"2026-11-07T18:28:17.7181008-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestBadgerKVOperations","Output":"--- PASS: TestBadgerKVOperations (0.07s)\n"}
+{"Time":"2026-11-07T18:28:17.7181008-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestBadgerKVOperations","Elapsed":0.07}
+{"Time":"2026-11-07T18:28:17.7181008-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestRedisKVOperations"}
+{"Time":"2026-11-07T18:28:17.718689-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRedisKVOperations","Output":"=== RUN   TestRedisKVOperations\n"}
+{"Time":"2026-11-07T18:28:17.730673-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestRedisKVOperations","Output":"--- PASS: TestRedisKVOperations (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.730673-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestRedisKVOperations","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.730673-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestEtcdKVOperations"}
+{"Time":"2026-11-07T18:28:17.730673-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestEtcdKVOperations","Output":"=== RUN   TestEtcdKVOperations\n"}
+{"Time":"2026-11-07T18:28:17.7503964-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestEtcdKVOperations","Output":"--- PASS: TestEtcdKVOperations (0.02s)\n"}
+{"Time":"2026-11-07T18:28:17.7511834-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestEtcdKVOperations","Elapsed":0.02}
+{"Time":"2026-11-07T18:28:17.7511834-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestFileSaveAndRead"}
+{"Time":"2026-11-07T18:28:17.7511834-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFileSaveAndRead","Output":"=== RUN   TestFileSaveAndRead\n"}
+{"Time":"2026-11-07T18:28:17.7718882-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestFileSaveAndRead","Output":"--- PASS: TestFileSaveAndRead (0.02s)\n"}
+{"Time":"2026-11-07T18:28:17.7718882-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestFileSaveAndRead","Elapsed":0.02}
+{"Time":"2026-11-07T18:28:17.7718882-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestTemplate"}
+{"Time":"2026-11-07T18:28:17.7718882-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestTemplate","Output":"=== RUN   TestTemplate\n"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestTemplate","Output":"--- PASS: TestTemplate (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestTemplate","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDatabasePoolConfigParsing"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDatabasePoolConfigParsing","Output":"=== RUN   TestDatabasePoolConfigParsing\n"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDatabasePoolConfigParsing","Output":"--- PASS: TestDatabasePoolConfigParsing (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDatabasePoolConfigParsing","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExcelReadAndWrite"}
+{"Time":"2026-11-07T18:28:17.7825072-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelReadAndWrite","Output":"=== RUN   TestExcelReadAndWrite\n"}
+{"Time":"2026-11-07T18:28:17.8070102-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelReadAndWrite","Output":"--- PASS: TestExcelReadAndWrite (0.02s)\n"}
+{"Time":"2026-11-07T18:28:17.8070102-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExcelReadAndWrite","Elapsed":0.02}
+{"Time":"2026-11-07T18:28:17.8070102-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestXMLXPath"}
+{"Time":"2026-11-07T18:28:17.8070102-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestXMLXPath","Output":"=== RUN   TestXMLXPath\n"}
+{"Time":"2026-11-07T18:28:17.8168088-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestXMLXPath","Output":"--- PASS: TestXMLXPath (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.8168088-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestXMLXPath","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.8168088-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestJSONPath"}
+{"Time":"2026-11-07T18:28:17.8168088-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestJSONPath","Output":"=== RUN   TestJSONPath\n"}
+{"Time":"2026-11-07T18:28:17.8266731-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestJSONPath","Output":"--- PASS: TestJSONPath (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.8266731-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestJSONPath","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.8266731-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath"}
+{"Time":"2026-11-07T18:28:17.8266731-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath","Output":"=== RUN   TestYAMLPath\n"}
+{"Time":"2026-11-07T18:28:17.8384401-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath","Output":"    new_features_test.go:522: pricesJson raw output: \"[8.95,12.99]\"\n"}
+{"Time":"2026-11-07T18:28:17.8384401-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath","Output":"    new_features_test.go:536: bicycle_yaml raw output: \"- color: red\\n  price: 19.95\\n\"\n"}
+{"Time":"2026-11-07T18:28:17.8407732-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath","Output":"--- PASS: TestYAMLPath (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.8407732-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestYAMLPath","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.8407732-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExcelMultiTabs"}
+{"Time":"2026-11-07T18:28:17.8407732-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelMultiTabs","Output":"=== RUN   TestExcelMultiTabs\n"}
+{"Time":"2026-11-07T18:28:17.8864716-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExcelMultiTabs","Output":"--- PASS: TestExcelMultiTabs (0.05s)\n"}
+{"Time":"2026-11-07T18:28:17.8864716-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExcelMultiTabs","Elapsed":0.05}
+{"Time":"2026-11-07T18:28:17.8864716-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunRecordsNestedNodeLifecycle"}
+{"Time":"2026-11-07T18:28:17.8864716-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunRecordsNestedNodeLifecycle","Output":"=== RUN   TestExecuteRunRecordsNestedNodeLifecycle\n"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunRecordsNestedNodeLifecycle","Output":"--- PASS: TestExecuteRunRecordsNestedNodeLifecycle (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunRecordsNestedNodeLifecycle","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors","Output":"=== RUN   TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors\n"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors","Output":"--- PASS: TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunClassifiesFailuresAndIsolatesSinkErrors","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesRuntimeIdentityInRunAndEvents"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesRuntimeIdentityInRunAndEvents","Output":"=== RUN   TestExecuteRunIncludesRuntimeIdentityInRunAndEvents\n"}
+{"Time":"2026-11-07T18:28:17.8868636-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesRuntimeIdentityInRunAndEvents","Output":"--- PASS: TestExecuteRunIncludesRuntimeIdentityInRunAndEvents (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesRuntimeIdentityInRunAndEvents","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesOptionsPathInRunAndEvents"}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesOptionsPathInRunAndEvents","Output":"=== RUN   TestExecuteRunIncludesOptionsPathInRunAndEvents\n"}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesOptionsPathInRunAndEvents","Output":"--- PASS: TestExecuteRunIncludesOptionsPathInRunAndEvents (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecuteRunIncludesOptionsPathInRunAndEvents","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestJSONLineSinkWritesEventAndRedactsSensitiveErrors"}
+{"Time":"2026-11-07T18:28:17.8873804-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestJSONLineSinkWritesEventAndRedactsSensitiveErrors","Output":"=== RUN   TestJSONLineSinkWritesEventAndRedactsSensitiveErrors\n"}
+{"Time":"2026-11-07T18:28:17.8879748-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestJSONLineSinkWritesEventAndRedactsSensitiveErrors","Output":"--- PASS: TestJSONLineSinkWritesEventAndRedactsSensitiveErrors (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.8879748-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestJSONLineSinkWritesEventAndRedactsSensitiveErrors","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.8879748-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ParsingAndExecution"}
+{"Time":"2026-11-07T18:28:17.8879748-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ParsingAndExecution","Output":"=== RUN   TestPreflight_ParsingAndExecution\n"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ParsingAndExecution","Output":"--- PASS: TestPreflight_ParsingAndExecution (0.01s)\n"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ParsingAndExecution","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ValidationDuplicateID"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ValidationDuplicateID","Output":"=== RUN   TestPreflight_ValidationDuplicateID\n"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ValidationDuplicateID","Output":"--- PASS: TestPreflight_ValidationDuplicateID (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestPreflight_ValidationDuplicateID","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestGetSchemaXSD"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetSchemaXSD","Output":"=== RUN   TestGetSchemaXSD\n"}
+{"Time":"2026-11-07T18:28:17.9003402-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestGetSchemaXSD","Output":"--- PASS: TestGetSchemaXSD (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestGetSchemaXSD","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16LE_without_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-16BE_without_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM"}
+{"Time":"2026-11-07T18:28:17.9018596-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-8_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration","Output":"=== RUN   TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings/UTF-8_with_UTF-16_declaration","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings","Output":"--- PASS: TestNormalizeXMLBytes_AllEncodings (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestNormalizeXMLBytes_AllEncodings","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes","Output":"=== RUN   TestDecodeTextBytes\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_Plain"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_Plain","Output":"=== RUN   TestDecodeTextBytes/UTF-8_Plain\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_Plain","Output":"--- PASS: TestDecodeTextBytes/UTF-8_Plain (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_Plain","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_with_BOM","Output":"=== RUN   TestDecodeTextBytes/UTF-8_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_with_BOM","Output":"--- PASS: TestDecodeTextBytes/UTF-8_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-8_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16LE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16LE_with_BOM","Output":"=== RUN   TestDecodeTextBytes/UTF-16LE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16LE_with_BOM","Output":"--- PASS: TestDecodeTextBytes/UTF-16LE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16LE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16BE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16BE_with_BOM","Output":"=== RUN   TestDecodeTextBytes/UTF-16BE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16BE_with_BOM","Output":"--- PASS: TestDecodeTextBytes/UTF-16BE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes/UTF-16BE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes","Output":"--- PASS: TestDecodeTextBytes (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestDecodeTextBytes","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9024314-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_with_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16LE_without_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-16BE_without_BOM","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration"}
+{"Time":"2026-11-07T18:28:17.9030137-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration","Output":"=== RUN   TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration\n"}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings/UTF-8_with_UTF-16_declaration","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings","Output":"--- PASS: TestParseXMLConfig_UTF16Encodings (0.00s)\n"}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestParseXMLConfig_UTF16Encodings","Elapsed":0}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16"}
+{"Time":"2026-11-07T18:28:17.9036121-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16","Output":"=== RUN   TestValidateXSD_UTF16\n"}
+{"Time":"2026-11-07T18:28:17.9060143-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_with_BOM"}
+{"Time":"2026-11-07T18:28:17.9065959-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_with_BOM","Output":"=== RUN   TestValidateXSD_UTF16/UTF-16LE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:18.0440484-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_with_BOM","Output":"--- PASS: TestValidateXSD_UTF16/UTF-16LE_with_BOM (0.14s)\n"}
+{"Time":"2026-11-07T18:28:18.044561-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_with_BOM","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:18.044561-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16BE_with_BOM"}
+{"Time":"2026-11-07T18:28:18.044561-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16BE_with_BOM","Output":"=== RUN   TestValidateXSD_UTF16/UTF-16BE_with_BOM\n"}
+{"Time":"2026-11-07T18:28:18.190948-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16BE_with_BOM","Output":"--- PASS: TestValidateXSD_UTF16/UTF-16BE_with_BOM (0.15s)\n"}
+{"Time":"2026-11-07T18:28:18.1916244-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16BE_with_BOM","Elapsed":0.15}
+{"Time":"2026-11-07T18:28:18.1916244-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_without_BOM"}
+{"Time":"2026-11-07T18:28:18.1916244-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_without_BOM","Output":"=== RUN   TestValidateXSD_UTF16/UTF-16LE_without_BOM\n"}
+{"Time":"2026-11-07T18:28:18.3333234-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_without_BOM","Output":"--- PASS: TestValidateXSD_UTF16/UTF-16LE_without_BOM (0.14s)\n"}
+{"Time":"2026-11-07T18:28:18.3339337-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-16LE_without_BOM","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:18.3339337-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration"}
+{"Time":"2026-11-07T18:28:18.3339337-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration","Output":"=== RUN   TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration\n"}
+{"Time":"2026-11-07T18:28:18.4674121-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration","Output":"--- PASS: TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration (0.13s)\n"}
+{"Time":"2026-11-07T18:28:18.4674121-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16/UTF-8_with_UTF-16_declaration","Elapsed":0.13}
+{"Time":"2026-11-07T18:28:18.471424-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16","Output":"--- PASS: TestValidateXSD_UTF16 (0.57s)\n"}
+{"Time":"2026-11-07T18:28:18.471424-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestValidateXSD_UTF16","Elapsed":0.57}
+{"Time":"2026-11-07T18:28:18.471424-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_XMLXPath_UTF16File"}
+{"Time":"2026-11-07T18:28:18.471424-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_XMLXPath_UTF16File","Output":"=== RUN   TestExecutor_XMLXPath_UTF16File\n"}
+{"Time":"2026-11-07T18:28:18.4813179-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_XMLXPath_UTF16File","Output":"--- PASS: TestExecutor_XMLXPath_UTF16File (0.01s)\n"}
+{"Time":"2026-11-07T18:28:18.4813179-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_XMLXPath_UTF16File","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:18.4813179-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutor_FileRead_UTF16"}
+{"Time":"2026-11-07T18:28:18.4813179-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_FileRead_UTF16","Output":"=== RUN   TestExecutor_FileRead_UTF16\n"}
+{"Time":"2026-11-07T18:28:18.4914541-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutor_FileRead_UTF16","Output":"--- PASS: TestExecutor_FileRead_UTF16 (0.01s)\n"}
+{"Time":"2026-11-07T18:28:18.4914541-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutor_FileRead_UTF16","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:18.4914541-05:00","Action":"run","Package":"github.com/etl-madness/flow","Test":"TestExecutorVerboseMode"}
+{"Time":"2026-11-07T18:28:18.4914541-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorVerboseMode","Output":"=== RUN   TestExecutorVerboseMode\n"}
+{"Time":"2026-11-07T18:28:18.502027-05:00","Action":"output","Package":"github.com/etl-madness/flow","Test":"TestExecutorVerboseMode","Output":"--- PASS: TestExecutorVerboseMode (0.01s)\n"}
+{"Time":"2026-11-07T18:28:18.502027-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Test":"TestExecutorVerboseMode","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:18.502027-05:00","Action":"output","Package":"github.com/etl-madness/flow","Output":"PASS\n"}
+{"Time":"2026-11-07T18:28:18.5939243-05:00","Action":"output","Package":"github.com/etl-madness/flow","Output":"coverage: 80.3% of statements\n"}
+{"Time":"2026-11-07T18:28:18.7043068-05:00","Action":"output","Package":"github.com/etl-madness/flow","Output":"ok  \tgithub.com/etl-madness/flow\t2.697s\tcoverage: 80.3% of statements\n"}
+{"Time":"2026-11-07T18:28:18.9457873-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestGenerateSecureKey"}
+{"Time":"2026-11-07T18:28:18.9463905-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestGenerateSecureKey","Output":"=== RUN   TestGenerateSecureKey\n"}
+{"Time":"2026-11-07T18:28:18.9463905-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestGenerateSecureKey","Output":"--- PASS: TestGenerateSecureKey (0.00s)\n"}
+{"Time":"2026-11-07T18:28:18.9463905-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestGenerateSecureKey","Elapsed":0}
+{"Time":"2026-11-07T18:28:18.9463905-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestKeyPairGenerationOptions"}
+{"Time":"2026-11-07T18:28:18.9463905-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestKeyPairGenerationOptions","Output":"=== RUN   TestKeyPairGenerationOptions\n"}
+{"Time":"2026-11-07T18:28:19.2570107-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestKeyPairGenerationOptions","Output":"--- PASS: TestKeyPairGenerationOptions (0.31s)\n"}
+{"Time":"2026-11-07T18:28:19.2576062-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestKeyPairGenerationOptions","Elapsed":0.31}
+{"Time":"2026-11-07T18:28:19.2576062-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptDecryptBytesRoundTrip"}
+{"Time":"2026-11-07T18:28:19.2576062-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptDecryptBytesRoundTrip","Output":"=== RUN   TestEncryptDecryptBytesRoundTrip\n"}
+{"Time":"2026-11-07T18:28:19.2725401-05:00","Action":"pass","Package":"github.com/etl-madness/flow","Elapsed":3.313}
+{"Time":"2026-11-07T18:28:19.3956966-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptDecryptBytesRoundTrip","Output":"--- PASS: TestEncryptDecryptBytesRoundTrip (0.14s)\n"}
+{"Time":"2026-11-07T18:28:19.3968352-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptDecryptBytesRoundTrip","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:19.3974019-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptArmoredRoundTrip"}
+{"Time":"2026-11-07T18:28:19.3974019-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptArmoredRoundTrip","Output":"=== RUN   TestEncryptArmoredRoundTrip\n"}
+{"Time":"2026-11-07T18:28:19.522265-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptArmoredRoundTrip","Output":"--- PASS: TestEncryptArmoredRoundTrip (0.13s)\n"}
+{"Time":"2026-11-07T18:28:19.5229179-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestEncryptArmoredRoundTrip","Elapsed":0.13}
+{"Time":"2026-11-07T18:28:19.5229179-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptWithInvalidKeyFails"}
+{"Time":"2026-11-07T18:28:19.5229179-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptWithInvalidKeyFails","Output":"=== RUN   TestDecryptWithInvalidKeyFails\n"}
+{"Time":"2026-11-07T18:28:19.7104316-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptWithInvalidKeyFails","Output":"--- PASS: TestDecryptWithInvalidKeyFails (0.18s)\n"}
+{"Time":"2026-11-07T18:28:19.7109479-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptWithInvalidKeyFails","Elapsed":0.18}
+{"Time":"2026-11-07T18:28:19.7109479-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptTamperedCiphertextFails"}
+{"Time":"2026-11-07T18:28:19.7109479-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptTamperedCiphertextFails","Output":"=== RUN   TestDecryptTamperedCiphertextFails\n"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptTamperedCiphertextFails","Output":"--- PASS: TestDecryptTamperedCiphertextFails (0.16s)\n"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptTamperedCiphertextFails","Elapsed":0.16}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptEmptyKeyError"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptEmptyKeyError","Output":"=== RUN   TestDecryptEmptyKeyError\n"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptEmptyKeyError","Output":"--- PASS: TestDecryptEmptyKeyError (0.00s)\n"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptEmptyKeyError","Elapsed":0}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAuto"}
+{"Time":"2026-11-07T18:28:19.8609851-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAuto","Output":"=== RUN   TestDecryptAuto\n"}
+{"Time":"2026-11-07T18:28:19.9980078-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAuto","Output":"--- PASS: TestDecryptAuto (0.14s)\n"}
+{"Time":"2026-11-07T18:28:19.9989102-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAuto","Elapsed":0.14}
+{"Time":"2026-11-07T18:28:19.9989102-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAutoRawBinaryAndMissingKey"}
+{"Time":"2026-11-07T18:28:19.9989102-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAutoRawBinaryAndMissingKey","Output":"=== RUN   TestDecryptAutoRawBinaryAndMissingKey\n"}
+{"Time":"2026-11-07T18:28:20.1206064-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAutoRawBinaryAndMissingKey","Output":"--- PASS: TestDecryptAutoRawBinaryAndMissingKey (0.12s)\n"}
+{"Time":"2026-11-07T18:28:20.1206064-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestDecryptAutoRawBinaryAndMissingKey","Elapsed":0.12}
+{"Time":"2026-11-07T18:28:20.1206064-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignatureHelpersAndSignedEnvelopeErrors"}
+{"Time":"2026-11-07T18:28:20.1206064-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignatureHelpersAndSignedEnvelopeErrors","Output":"=== RUN   TestSignatureHelpersAndSignedEnvelopeErrors\n"}
+{"Time":"2026-11-07T18:28:20.1221239-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignatureHelpersAndSignedEnvelopeErrors","Output":"--- PASS: TestSignatureHelpersAndSignedEnvelopeErrors (0.00s)\n"}
+{"Time":"2026-11-07T18:28:20.1221239-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignatureHelpersAndSignedEnvelopeErrors","Elapsed":0}
+{"Time":"2026-11-07T18:28:20.1221239-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignDataAndVerifyAutoFormats"}
+{"Time":"2026-11-07T18:28:20.1221239-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignDataAndVerifyAutoFormats","Output":"=== RUN   TestSignDataAndVerifyAutoFormats\n"}
+{"Time":"2026-11-07T18:28:20.9697539-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignDataAndVerifyAutoFormats","Output":"--- PASS: TestSignDataAndVerifyAutoFormats (0.85s)\n"}
+{"Time":"2026-11-07T18:28:20.9703371-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignDataAndVerifyAutoFormats","Elapsed":0.85}
+{"Time":"2026-11-07T18:28:20.9703371-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyRSA"}
+{"Time":"2026-11-07T18:28:20.9703371-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyRSA","Output":"=== RUN   TestSignAndVerifyRSA\n"}
+{"Time":"2026-11-07T18:28:21.2805285-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyRSA","Output":"--- PASS: TestSignAndVerifyRSA (0.31s)\n"}
+{"Time":"2026-11-07T18:28:21.2812269-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyRSA","Elapsed":0.31}
+{"Time":"2026-11-07T18:28:21.2812269-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyECDSA"}
+{"Time":"2026-11-07T18:28:21.2812269-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyECDSA","Output":"=== RUN   TestSignAndVerifyECDSA\n"}
+{"Time":"2026-11-07T18:28:21.2817439-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyECDSA","Output":"--- PASS: TestSignAndVerifyECDSA (0.00s)\n"}
+{"Time":"2026-11-07T18:28:21.2817439-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyECDSA","Elapsed":0}
+{"Time":"2026-11-07T18:28:21.2817439-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyEd25519"}
+{"Time":"2026-11-07T18:28:21.2817439-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyEd25519","Output":"=== RUN   TestSignAndVerifyEd25519\n"}
+{"Time":"2026-11-07T18:28:21.2872933-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyEd25519","Output":"--- PASS: TestSignAndVerifyEd25519 (0.01s)\n"}
+{"Time":"2026-11-07T18:28:21.2872933-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyEd25519","Elapsed":0.01}
+{"Time":"2026-11-07T18:28:21.2872933-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifySelfSignedCertificate"}
+{"Time":"2026-11-07T18:28:21.2872933-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifySelfSignedCertificate","Output":"=== RUN   TestSignAndVerifySelfSignedCertificate\n"}
+{"Time":"2026-11-07T18:28:21.5069541-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifySelfSignedCertificate","Output":"--- PASS: TestSignAndVerifySelfSignedCertificate (0.22s)\n"}
+{"Time":"2026-11-07T18:28:21.5069541-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifySelfSignedCertificate","Elapsed":0.22}
+{"Time":"2026-11-07T18:28:21.5069541-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestVerifyOpenSSLWithCAAcrossEnvelopeFormats"}
+{"Time":"2026-11-07T18:28:21.5069541-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestVerifyOpenSSLWithCAAcrossEnvelopeFormats","Output":"=== RUN   TestVerifyOpenSSLWithCAAcrossEnvelopeFormats\n"}
+{"Time":"2026-11-07T18:28:21.6610751-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestVerifyOpenSSLWithCAAcrossEnvelopeFormats","Output":"--- PASS: TestVerifyOpenSSLWithCAAcrossEnvelopeFormats (0.15s)\n"}
+{"Time":"2026-11-07T18:28:21.6613827-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestVerifyOpenSSLWithCAAcrossEnvelopeFormats","Elapsed":0.15}
+{"Time":"2026-11-07T18:28:21.6613827-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyPKCS7Detached"}
+{"Time":"2026-11-07T18:28:21.6613827-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyPKCS7Detached","Output":"=== RUN   TestSignAndVerifyPKCS7Detached\n"}
+{"Time":"2026-11-07T18:28:21.9369119-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyPKCS7Detached","Output":"--- PASS: TestSignAndVerifyPKCS7Detached (0.28s)\n"}
+{"Time":"2026-11-07T18:28:21.9378602-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyPKCS7Detached","Elapsed":0.28}
+{"Time":"2026-11-07T18:28:21.9378602-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyOpenPGP"}
+{"Time":"2026-11-07T18:28:21.9378602-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyOpenPGP","Output":"=== RUN   TestSignAndVerifyOpenPGP\n"}
+{"Time":"2026-11-07T18:28:22.2416098-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyOpenPGP","Output":"--- PASS: TestSignAndVerifyOpenPGP (0.30s)\n"}
+{"Time":"2026-11-07T18:28:22.2422139-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestSignAndVerifyOpenPGP","Elapsed":0.3}
+{"Time":"2026-11-07T18:28:22.2422139-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestFlowSignedEnvelopeAndCombinedEncryption"}
+{"Time":"2026-11-07T18:28:22.2422139-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestFlowSignedEnvelopeAndCombinedEncryption","Output":"=== RUN   TestFlowSignedEnvelopeAndCombinedEncryption\n"}
+{"Time":"2026-11-07T18:28:22.717683-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestFlowSignedEnvelopeAndCombinedEncryption","Output":"--- PASS: TestFlowSignedEnvelopeAndCombinedEncryption (0.48s)\n"}
+{"Time":"2026-11-07T18:28:22.717683-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestFlowSignedEnvelopeAndCombinedEncryption","Elapsed":0.48}
+{"Time":"2026-11-07T18:28:22.7179997-05:00","Action":"run","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestPKCS7RequiresTrustAnchor"}
+{"Time":"2026-11-07T18:28:22.7179997-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestPKCS7RequiresTrustAnchor","Output":"=== RUN   TestPKCS7RequiresTrustAnchor\n"}
+{"Time":"2026-11-07T18:28:22.9150363-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestPKCS7RequiresTrustAnchor","Output":"--- PASS: TestPKCS7RequiresTrustAnchor (0.20s)\n"}
+{"Time":"2026-11-07T18:28:22.9150363-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Test":"TestPKCS7RequiresTrustAnchor","Elapsed":0.2}
+{"Time":"2026-11-07T18:28:22.9150363-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Output":"PASS\n"}
+{"Time":"2026-11-07T18:28:22.9767696-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Output":"coverage: 80.8% of statements\n"}
+{"Time":"2026-11-07T18:28:23.0563507-05:00","Action":"output","Package":"github.com/etl-madness/flow/flowcrypto","Output":"ok  \tgithub.com/etl-madness/flow/flowcrypto\t7.037s\tcoverage: 80.8% of statements\n"}
+{"Time":"2026-11-07T18:28:23.1512559-05:00","Action":"pass","Package":"github.com/etl-madness/flow/flowcrypto","Elapsed":7.192}
