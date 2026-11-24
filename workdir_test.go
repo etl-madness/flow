@@ -48,6 +48,168 @@ func TestResolveConfinedPath(t *testing.T) {
 	if filepath.Base(got) != "inside.txt" {
 		t.Fatalf("unexpected inside path: %q", got)
 	}
+
+	// Empty path and NUL byte fail
+	if _, err := ResolveConfinedPath(workDir, ""); err == nil {
+		t.Fatal("expected error for empty path")
+	}
+	if _, err := ResolveConfinedPath(workDir, "bad\x00name.txt"); err == nil {
+		t.Fatal("expected error for NUL byte path")
+	}
+
+	// Current directory "." resolves to workDir
+	if gotDot, err := ResolveConfinedPath(workDir, "."); err != nil || gotDot == "" {
+		t.Fatalf("expected '.' to resolve cleanly: got (%q, %v)", gotDot, err)
+	}
+
+	// Symlink escape check (skip if OS/privileges disallow creating symlinks)
+	outsideDir := t.TempDir()
+	linkPath := filepath.Join(workDir, "escape_link")
+	if symErr := os.Symlink(outsideDir, linkPath); symErr == nil {
+		if _, err := ResolveConfinedPath(workDir, filepath.Join("escape_link", "secret.txt")); err == nil {
+			t.Fatal("expected error for symlink escape")
+		}
+	}
+}
+
+func TestResolveLocalDBDSN(t *testing.T) {
+	workDir := t.TempDir()
+
+	// Empty workDir passes through unchanged
+	if got, err := resolveLocalDBDSN("", "sqlite", "../raw.db"); err != nil || got != "../raw.db" {
+		t.Fatalf("empty workDir: got (%q, %v)", got, err)
+	}
+
+	// Network drivers pass through unchanged
+	if got, err := resolveLocalDBDSN(workDir, "postgres", "postgres://user:pass@host/db"); err != nil || got != "postgres://user:pass@host/db" {
+		t.Fatalf("postgres passthrough: got (%q, %v)", got, err)
+	}
+
+	// SQLite in-memory variants pass through unchanged
+	for _, memDSN := range []string{"", ":memory:", "file::memory:?cache=shared", "file::memory:"} {
+		if got, err := resolveLocalDBDSN(workDir, "sqlite", memDSN); err != nil || got != memDSN {
+			t.Fatalf("sqlite memory DSN %q: got (%q, %v)", memDSN, got, err)
+		}
+	}
+
+	// SQLite relative file & file: URI with query params confined inside workDir
+	gotSQLite, err := resolveLocalDBDSN(workDir, "sqlite", "db/local.sqlite?cache=shared")
+	if err != nil || !strings.Contains(filepath.ToSlash(gotSQLite), "/db/local.sqlite?cache=shared") {
+		t.Fatalf("sqlite relative: got (%q, %v)", gotSQLite, err)
+	}
+	gotFileURI, err := resolveLocalDBDSN(workDir, "sqlite3", "file:db2/app.db?mode=rwc")
+	if err != nil || !strings.HasPrefix(gotFileURI, "file:") || !strings.HasSuffix(filepath.ToSlash(gotFileURI), "/db2/app.db?mode=rwc") {
+		t.Fatalf("sqlite file URI: got (%q, %v)", gotFileURI, err)
+	}
+	if _, err := resolveLocalDBDSN(workDir, "sqlite", "../escape.db"); err == nil {
+		t.Fatal("expected error for sqlite escape")
+	}
+
+	// bbolt and badger confined inside workDir
+	if got, err := resolveLocalDBDSN(workDir, "bbolt", "kv/state.bolt"); err != nil || !strings.HasSuffix(filepath.ToSlash(got), "/kv/state.bolt") {
+		t.Fatalf("bbolt relative: got (%q, %v)", got, err)
+	}
+	if _, err := resolveLocalDBDSN(workDir, "bolt", "../escape.bolt"); err == nil {
+		t.Fatal("expected error for bbolt escape")
+	}
+	if got, err := resolveLocalDBDSN(workDir, "badger", "kv/badger_dir"); err != nil || !strings.HasSuffix(filepath.ToSlash(got), "/kv/badger_dir") {
+		t.Fatalf("badger relative: got (%q, %v)", got, err)
+	}
+	if _, err := resolveLocalDBDSN(workDir, "badgerdb", "../escape_badger"); err == nil {
+		t.Fatal("expected error for badger escape")
+	}
+}
+
+func TestApplyWorkDirEnv(t *testing.T) {
+	base := []string{"PATH=/usr/bin", "TMPDIR=/old", "TEMP=/old", "TMP=/old", "FLOW_JOB_DIR=/old"}
+	if got := applyWorkDirEnv(base, ""); len(got) != len(base) {
+		t.Fatalf("empty workDir should return env unchanged")
+	}
+	got := applyWorkDirEnv(base, "/sandbox/job1")
+	joined := strings.Join(got, "\n")
+	for _, want := range []string{"PATH=/usr/bin", "TMPDIR=/sandbox/job1", "TEMP=/sandbox/job1", "TMP=/sandbox/job1", "FLOW_JOB_DIR=/sandbox/job1"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("expected %q in env, got:\n%s", want, joined)
+		}
+	}
+	if strings.Contains(joined, "/old") {
+		t.Errorf("expected old temp vars to be replaced, got:\n%s", joined)
+	}
+}
+
+func TestRegistryWorkDirDatabases(t *testing.T) {
+	workDir := t.TempDir()
+	reg := NewRegistry()
+	reg.SetWorkDir(workDir)
+
+	if reg.WorkDir() != workDir {
+		t.Fatalf("WorkDir() = %q, want %q", reg.WorkDir(), workDir)
+	}
+
+	// Valid confined sqlite, bbolt, and badger databases
+	err := reg.InitDatabases([]DatabaseConfig{
+		{Name: "sq", Driver: "sqlite", ConnectionString: "dbs/app.db"},
+		{Name: "bb", Driver: "bbolt", ConnectionString: "dbs/kv.bolt"},
+		{Name: "bg", Driver: "badger", ConnectionString: "dbs/badger"},
+	})
+	if err != nil {
+		t.Fatalf("InitDatabases with confined paths failed: %v", err)
+	}
+	reg.CloseDatabases()
+
+	for _, rel := range []string{"dbs/kv.bolt", "dbs/badger"} {
+		if _, statErr := os.Stat(filepath.Join(workDir, filepath.FromSlash(rel))); statErr != nil {
+			t.Fatalf("expected %s inside workDir: %v", rel, statErr)
+		}
+	}
+
+	// Escape attempts must fail for sqlite, bbolt, and badger
+	for _, tc := range []DatabaseConfig{
+		{Name: "bad_sq", Driver: "sqlite", ConnectionString: "../escape.db"},
+		{Name: "bad_bb", Driver: "bbolt", ConnectionString: "../escape.bolt"},
+		{Name: "bad_bg", Driver: "badger", ConnectionString: "../escape_badger"},
+	} {
+		if err := reg.InitDatabases([]DatabaseConfig{tc}); err == nil {
+			t.Errorf("expected InitDatabases to reject escape for %s", tc.Driver)
+		}
+	}
+}
+
+func TestExecutorWorkDirAllNodeEscapes(t *testing.T) {
+	workDir := t.TempDir()
+	reg := NewRegistry()
+	exec := NewExecutor(reg)
+	exec.SetWorkDir(workDir)
+	if exec.WorkDir() != workDir {
+		t.Fatalf("Executor.WorkDir() = %q, want %q", exec.WorkDir(), workDir)
+	}
+
+	pipelines := []struct {
+		name string
+		xml  string
+	}{
+		{"script_file", `<flow><script id="s1" language="go" file_path="../escape.go"/></flow>`},
+		{"template", `<flow><template id="t1" file="../escape.tmpl" output_var="o"/></flow>`},
+		{"file_read", `<flow><file_read id="fr1" file="../escape.txt" var="o"/></flow>`},
+		{"excel_read", `<flow><excel_read id="er1" file="../escape.xlsx" output_var="o"/></flow>`},
+		{"excel_write", `<flow><excel_write id="ew1" file="../escape.xlsx"/></flow>`},
+		{"xml_xpath", `<flow><xml_xpath id="x1" file="../escape.xml" xpath="//a" output_var="o"/></flow>`},
+		{"json_path", `<flow><json_path id="j1" file="../escape.json" path="$.a" output_var="o"/></flow>`},
+		{"yaml_path", `<flow><yaml_path id="y1" file="../escape.yaml" path="$.a" output_var="o"/></flow>`},
+	}
+
+	for _, tc := range pipelines {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := ParseXMLConfig([]byte(`<?xml version="1.0" encoding="UTF-8"?>` + tc.xml))
+			if err != nil {
+				t.Fatalf("ParseXMLConfig(%s): %v", tc.name, err)
+			}
+			results, _ := exec.Execute(context.Background(), cfg.FlowNodes)
+			if len(results) == 0 || results[0].ReturnCode == 0 {
+				t.Fatalf("%s: expected escape to fail, got results=%+v", tc.name, results)
+			}
+		})
+	}
 }
 
 func TestExecutorWorkDirFileNodesAndShellConfinement(t *testing.T) {
