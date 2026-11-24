@@ -60,6 +60,7 @@ type Executor struct {
 	verbose       atomic.Bool
 	goPath        string
 	optionsPath   string
+	workDir       string
 	txMu          sync.RWMutex
 	activeTxs     map[string][]*sql.Tx   // Stack of active transactions per database
 	activeConns   map[string][]*sql.Conn // Stack of pinned session connections per database
@@ -71,13 +72,37 @@ type Executor struct {
 
 // NewExecutor creates and returns a new Executor configured with the provided Registry.
 func NewExecutor(r *Registry) *Executor {
+	wd := ""
+	if r != nil {
+		wd = r.WorkDir()
+	}
 	return &Executor{
 		registry:      r,
+		workDir:       wd,
 		activeTxs:     make(map[string][]*sql.Tx),
 		activeConns:   make(map[string][]*sql.Conn),
 		textTmplCache: make(map[templateCacheKey]*template.Template),
 		htmlTmplCache: make(map[templateCacheKey]*htmltemplate.Template),
 	}
+}
+
+// SetWorkDir configures a per-execution confined working directory for all
+// script subprocesses (cmd.Dir) and file-based pipeline nodes. When non-empty,
+// all relative paths resolve inside dir and any attempt to escape dir fails.
+func (e *Executor) SetWorkDir(dir string) {
+	e.workDir = strings.TrimSpace(dir)
+	if e.registry != nil {
+		e.registry.SetWorkDir(e.workDir)
+	}
+}
+
+// WorkDir returns the configured per-execution working directory, or empty string if unset.
+func (e *Executor) WorkDir() string {
+	return e.workDir
+}
+
+func (e *Executor) resolvePath(rawPath string) (string, error) {
+	return ResolveConfinedPath(e.workDir, rawPath)
 }
 
 func (e *Executor) getOrParseTextTemplate(name, content string) (*template.Template, error) {
@@ -947,7 +972,13 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 
 	if strings.TrimSpace(script.FilePath) != "" {
 		variables := e.registry.CopyVariables()
-		resolvedPath := strings.TrimSpace(interpolateVars(script.FilePath, variables))
+		resolvedPath, pathErr := e.resolvePath(interpolateVars(script.FilePath, variables))
+		if pathErr != nil {
+			res.ReturnCode = fmt.Sprintf("invalid script file path '%s': %v", script.FilePath, pathErr)
+			res.ResultsString = fmt.Sprintf("invalid script file path '%s': %v", script.FilePath, pathErr)
+			appendWithDuration(res)
+			return true
+		}
 		rawBytes, err := os.ReadFile(resolvedPath)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("failed to read script file '%s': %v", resolvedPath, err)
@@ -1016,7 +1047,7 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		e.storeScriptOutput(script.OutputVar, strings.TrimSpace(outBuf.String()))
 		appendWithDuration(res)
 	} else if script.Language == "dotnet-script" || script.Language == "csx" {
-		tmpFile, err := os.CreateTemp("", "flow_script_*.csx")
+		tmpFile, err := os.CreateTemp(e.workDir, "flow_script_*.csx")
 		if err != nil {
 			res.ReturnCode = 1
 			res.ResultsString = fmt.Sprintf("failed to create temp file: %v", err)
@@ -1036,7 +1067,7 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 		tmpFile.Close()
 
 		variables := e.registry.CopyVariables()
-		envVars := os.Environ()
+		envVars := applyWorkDirEnv(os.Environ(), e.workDir)
 		for name, val := range variables {
 			envVars = append(envVars, fmt.Sprintf("%s=%v", name, val))
 		}
@@ -1046,6 +1077,9 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 			cmd = exec.CommandContext(ctx, "dotnet-script", tempPath)
 		} else {
 			cmd = exec.CommandContext(ctx, "dotnet", "script", tempPath)
+		}
+		if e.workDir != "" {
+			cmd.Dir = e.workDir
 		}
 		cmd.Env = envVars
 
@@ -1066,7 +1100,7 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 
 	} else if isShellLanguage(script.Language) {
 		variables := e.registry.CopyVariables()
-		envVars := os.Environ()
+		envVars := applyWorkDirEnv(os.Environ(), e.workDir)
 		for name, val := range variables {
 			envVars = append(envVars, fmt.Sprintf("%s=%v", name, val))
 			// Still support simple {{Var}} templates if needed
@@ -1109,6 +1143,9 @@ func (e *Executor) executeScriptNode(ctx context.Context, script ScriptItem, res
 					cmd = exec.CommandContext(ctx, "sh", "-c", codeToEval)
 				}
 			}
+		}
+		if e.workDir != "" {
+			cmd.Dir = e.workDir
 		}
 		cmd.Env = envVars
 
@@ -1919,7 +1956,14 @@ func (e *Executor) executeRenderTemplateNode(elem TemplateElement, html bool, re
 	variables := e.registry.CopyVariables()
 	var templateText string
 	if elem.File != "" {
-		filePath := interpolateVars(elem.File, variables)
+		rawFilePath := interpolateVars(elem.File, variables)
+		filePath, pathErr := e.resolvePath(rawFilePath)
+		if pathErr != nil {
+			res.ReturnCode = fmt.Sprintf("invalid template file path %s: %v", rawFilePath, pathErr)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
 		fileBytes, err := os.ReadFile(filePath)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("failed to read template file %s: %v", filePath, err)
@@ -1979,9 +2023,16 @@ func (e *Executor) executeFileSaveNode(ctx context.Context, elem FileSaveElement
 	res := ScriptResult{ScriptID: elem.ID}
 
 	variables := e.registry.CopyVariables()
-	filePath := interpolateVars(elem.GetFilePath(), variables)
-	if filePath == "" {
+	rawFilePath := interpolateVars(elem.GetFilePath(), variables)
+	if rawFilePath == "" {
 		res.ReturnCode = "missing target file path attribute (file, path, or filename)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+	filePath, pathErr := e.resolvePath(rawFilePath)
+	if pathErr != nil {
+		res.ReturnCode = fmt.Sprintf("invalid destination file path %s: %v", rawFilePath, pathErr)
 		res.Duration = time.Since(startTime).String()
 		e.appendResult(results, res)
 		return true
@@ -2051,9 +2102,16 @@ func (e *Executor) executeFileReadNode(ctx context.Context, elem FileReadElement
 	res := ScriptResult{ScriptID: elem.ID}
 
 	variables := e.registry.CopyVariables()
-	filePath := interpolateVars(elem.GetFilePath(), variables)
-	if filePath == "" {
+	rawFilePath := interpolateVars(elem.GetFilePath(), variables)
+	if rawFilePath == "" {
 		res.ReturnCode = "missing target file path attribute (file, path, or filename)"
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
+	filePath, pathErr := e.resolvePath(rawFilePath)
+	if pathErr != nil {
+		res.ReturnCode = fmt.Sprintf("invalid destination file path %s: %v", rawFilePath, pathErr)
 		res.Duration = time.Since(startTime).String()
 		e.appendResult(results, res)
 		return true
@@ -2097,7 +2155,14 @@ func (e *Executor) executeExcelReadNode(ctx context.Context, elem ExcelReadEleme
 	res := ScriptResult{ScriptID: elem.ID}
 
 	variables := e.registry.CopyVariables()
-	filePath := interpolateVars(elem.File, variables)
+	rawFilePath := interpolateVars(elem.File, variables)
+	filePath, pathErr := e.resolvePath(rawFilePath)
+	if pathErr != nil {
+		res.ReturnCode = fmt.Sprintf("invalid excel file path %s: %v", rawFilePath, pathErr)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
 
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -2168,7 +2233,14 @@ func (e *Executor) executeExcelWriteNode(ctx context.Context, elem ExcelWriteEle
 	res := ScriptResult{ScriptID: elem.ID}
 
 	variables := e.registry.CopyVariables()
-	filePath := interpolateVars(elem.File, variables)
+	rawFilePath := interpolateVars(elem.File, variables)
+	filePath, pathErr := e.resolvePath(rawFilePath)
+	if pathErr != nil {
+		res.ReturnCode = fmt.Sprintf("invalid excel destination path %s: %v", rawFilePath, pathErr)
+		res.Duration = time.Since(startTime).String()
+		e.appendResult(results, res)
+		return true
+	}
 	sheet := elem.Sheet
 	if sheet == "" {
 		sheet = "Sheet1"
@@ -2307,7 +2379,14 @@ func (e *Executor) executeXMLXPathNode(ctx context.Context, elem XmlXPathElement
 	// 2. Determine XML Source
 	var rawXML string
 	if elem.File != "" {
-		filePath := interpolateVars(elem.File, variables)
+		rawFilePath := interpolateVars(elem.File, variables)
+		filePath, pathErr := e.resolvePath(rawFilePath)
+		if pathErr != nil {
+			res.ReturnCode = fmt.Sprintf("invalid template file path %s: %v", rawFilePath, pathErr)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
 		fileBytes, err := os.ReadFile(filePath)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("failed to read xml file: %v", err)
@@ -2427,7 +2506,14 @@ func (e *Executor) executeJSONPathNode(ctx context.Context, elem JsonPathElement
 	// 2. Determine JSON source content (file or variable)
 	var rawJSON string
 	if elem.File != "" {
-		filePath := interpolateVars(elem.File, variables)
+		rawFilePath := interpolateVars(elem.File, variables)
+		filePath, pathErr := e.resolvePath(rawFilePath)
+		if pathErr != nil {
+			res.ReturnCode = fmt.Sprintf("invalid template file path %s: %v", rawFilePath, pathErr)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
 		fileBytes, err := os.ReadFile(filePath)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("failed to read json file %s: %v", filePath, err)
@@ -2515,7 +2601,14 @@ func (e *Executor) executeYAMLPathNode(ctx context.Context, elem YamlPathElement
 	// 2. Load source YAML content
 	var rawYAML string
 	if elem.File != "" {
-		filePath := interpolateVars(elem.File, variables)
+		rawFilePath := interpolateVars(elem.File, variables)
+		filePath, pathErr := e.resolvePath(rawFilePath)
+		if pathErr != nil {
+			res.ReturnCode = fmt.Sprintf("invalid template file path %s: %v", rawFilePath, pathErr)
+			res.Duration = time.Since(startTime).String()
+			e.appendResult(results, res)
+			return true
+		}
 		fileBytes, err := os.ReadFile(filePath)
 		if err != nil {
 			res.ReturnCode = fmt.Sprintf("failed to read yaml file %s: %v", filePath, err)

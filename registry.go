@@ -41,6 +41,7 @@ type Registry struct {
 	varRegistry    map[string]interface{}
 	varMu          sync.RWMutex
 	dirtyVars      map[string]struct{} // Tracks keys set after snapshotting
+	workDir        string              // Optional confined working directory for file-backed stores
 }
 
 // NewRegistry instantiates and returns an empty Registry context.
@@ -54,6 +55,21 @@ func NewRegistry() *Registry {
 		varRegistry:    make(map[string]interface{}),
 		dirtyVars:      make(map[string]struct{}),
 	}
+}
+
+// SetWorkDir configures a confined working directory for local file-backed databases
+// and key-value stores (sqlite, bbolt, badger). An empty string disables confinement.
+func (r *Registry) SetWorkDir(dir string) {
+	r.dbMu.Lock()
+	defer r.dbMu.Unlock()
+	r.workDir = strings.TrimSpace(dir)
+}
+
+// WorkDir returns the configured working directory, or empty string if unset.
+func (r *Registry) WorkDir() string {
+	r.dbMu.RLock()
+	defer r.dbMu.RUnlock()
+	return r.workDir
 }
 
 // SetVar sets an environment variable value in a thread-safe manner.
@@ -387,6 +403,13 @@ func (r *Registry) InitDatabasesWithContext(ctx context.Context, configs []Datab
 		driverName := strings.ToLower(cfg.Driver)
 
 		if driverName == "bbolt" || driverName == "bolt" {
+			resolvedConnStr, pathErr := resolveLocalDBDSN(r.workDir, driverName, connStr)
+			if pathErr != nil {
+				cleanupOpened()
+				return fmt.Errorf("invalid bbolt database path for '%s': %w", cfg.Name, pathErr)
+			}
+			connStr = resolvedConnStr
+
 			// Ensure path directory exists
 			dir := filepath.Dir(connStr)
 			if dir != "" && dir != "." {
@@ -406,6 +429,13 @@ func (r *Registry) InitDatabasesWithContext(ctx context.Context, configs []Datab
 			continue
 		}
 		if driverName == "badger" || driverName == "badgerdb" {
+			resolvedConnStr, pathErr := resolveLocalDBDSN(r.workDir, driverName, connStr)
+			if pathErr != nil {
+				cleanupOpened()
+				return fmt.Errorf("invalid badger database path for '%s': %w", cfg.Name, pathErr)
+			}
+			connStr = resolvedConnStr
+
 			// Badger stores data inside a directory
 			if err := os.MkdirAll(connStr, 0755); err != nil {
 				cleanupOpened()
@@ -475,6 +505,14 @@ func (r *Registry) InitDatabasesWithContext(ctx context.Context, configs []Datab
 		}
 		if driverName == "" {
 			driverName = "sqlserver"
+		}
+		if driverName == "sqlite" || driverName == "sqlite3" {
+			resolvedConnStr, pathErr := resolveLocalDBDSN(r.workDir, driverName, connStr)
+			if pathErr != nil {
+				cleanupOpened()
+				return fmt.Errorf("invalid sqlite database path for '%s': %w", cfg.Name, pathErr)
+			}
+			connStr = resolvedConnStr
 		}
 
 		dbConn, err := sql.Open(driverName, connStr)
