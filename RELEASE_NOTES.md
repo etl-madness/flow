@@ -1,3 +1,38 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.4.5)
+
+## Overview
+
+Version **v1.4.5** introduces three major cross-ecosystem capabilities shared across **`flow`**, **`go-flow`** (CLI, `builder`, `db_importer`), and **`go-flowAPI`**:
+1. **Per-Execution Sandboxed Working Directory Confinement (`workdir.go`)** for multi-tenant server isolation (`-data-dir`).
+2. **Shared Database Schema & Table Name Configuration + DDL Generation (`tables.go`)** supporting both build-time `-ldflags` overrides and runtime JSON/YAML mapping files.
+3. **Built-In Unix Kerberos (`krb5`) SQL Server Integrated Authentication (`krb5_auth.go`)** for Linux, FreeBSD, OpenBSD, and macOS hosts.
+
+All additions are **100% backwards-compatible** with existing XML pipelines and Go API callers.
+
+---
+
+## 🌟 What's New in v1.4.5
+
+### 1. Per-Execution Working Directory Confinement (`workdir.go`, `executor.go`, `registry.go`)
+- Added `Registry.SetWorkDir(dir string)` / `WorkDir()` and `Executor.SetWorkDir(dir string)` / `WorkDir()` to support concurrent per-job sandboxed workspaces without mutating process-global working directories (`os.Chdir`).
+- Added `ResolveConfinedPath(workDir, rawPath string) (string, error)` to resolve relative paths inside `workDir` while strictly rejecting `..` path traversal, symlink escapes, and external absolute paths (remaining a no-op pass-through when `workDir == ""`).
+- Confined all file-based pipeline nodes (`<file_read>`, `<file_save>`, `<excel_read>`, `<excel_write>`, `<template>`, `<html_template>`, `<xml_xpath>`, `<json_path>`, `<yaml_path>`, and external `<script file_path="...">`) and local file-backed stores (`sqlite`, `bbolt`, `badger`) inside `workDir`.
+- Configured script subprocesses (`pwsh`, `powershell`, `bash`, `sh`, `zsh`, `cmd`, `dotnet-script` / `.csx`) with `cmd.Dir = workDir` and `TMPDIR`, `TEMP`, `TMP`, and `FLOW_JOB_DIR` pointing to `workDir`.
+
+### 2. Configurable Database Schema & Table Names + DDL Renderer (`tables.go`)
+- Added package-level `var` defaults (`DefaultSchema` and all 12 `DefaultTable*` symbols) so custom enterprise builds can override database schema and table names at compile time via `-ldflags "-X github.com/etl-madness/flow.DefaultSchema=..."`.
+- Added `TableConfig`, `DefaultTableConfig()`, `LoadTableConfigFile(path)`, and `ParseTableConfigBytes(data)` supporting JSON and YAML mapping files with strict SQL identifier validation (`^[A-Za-z_][A-Za-z0-9_]{0,127}$`).
+- Added dialect-aware `TableConfig.Resolve(dialect, tableName)`, `BaseTableName`, `Map(dialect)`, and `RenderDDL(dialect)` generating complete `CREATE SCHEMA` / `CREATE TABLE` / `CREATE INDEX` DDL for `sqlserver`, `postgres`, `mysql`, `sqlite`, and `oracle`.
+
+### 3. Built-In Unix Kerberos SQL Server Integrated Auth (`krb5_auth.go`)
+- Imported `github.com/microsoft/go-mssqldb/integratedauth/krb5` and added `ConfigureUnixKerberosSQLServerAuth()` (registered automatically in `init()` on non-Windows platforms).
+- Added `NormalizeKrb5Config`, `StripKrb5FilePrefix`, `ResolveKerberosPrincipalUser`, `QualifyKerberosServerSPN`, and `DefaultRealmFromKrb5Conf` so `sqlserver://...?integrated+security=true&authenticator=krb5` and `KRB5CCNAME=FILE:/...` work identically across `flow`, `go-flow`, `db_importer`, and `go-flowAPI` on Linux, FreeBSD, OpenBSD, and macOS.
+
+### 4. Test Coverage
+- Added `workdir_test.go`, `tables_test.go`, and `krb5_auth_test.go` covering path confinement, concurrent executors, JSON/YAML table configs, SQL injection rejection, live SQLite DDL execution, and Kerberos config normalization (**90.6%** statement coverage in `github.com/etl-madness/flow`, **90.1%** overall).
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.4.1)
 
 ## Overview
