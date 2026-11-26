@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/microsoft/go-mssqldb/integratedauth"
 	"github.com/microsoft/go-mssqldb/msdsn"
 )
 
@@ -85,5 +86,91 @@ func TestNormalizeKrb5ConfigAndPrincipal(t *testing.T) {
 	t.Setenv("KRB5_PRINCIPAL", "u00001@EXAMPLE.COM")
 	if got := ResolveKerberosPrincipalUser(); got != "u00001" {
 		t.Fatalf("ResolveKerberosPrincipalUser = %q, want u00001", got)
+	}
+}
+
+type stubAuthenticator struct{}
+
+func (stubAuthenticator) InitialBytes() ([]byte, error)     { return nil, nil }
+func (stubAuthenticator) NextBytes([]byte) ([]byte, error)  { return nil, nil }
+func (stubAuthenticator) Free()                             {}
+
+func TestSmartUnixAuthenticator(t *testing.T) {
+	dir := t.TempDir()
+	krbConf := filepath.Join(dir, "krb5.conf")
+	if err := os.WriteFile(krbConf, []byte("[libdefaults]\n    default_realm = EXAMPLE.COM\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ccFile := filepath.Join(dir, "krb5cc_1001")
+	if err := os.WriteFile(ccFile, []byte("dummy"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ktFile := filepath.Join(dir, "flow.keytab")
+	if err := os.WriteFile(ktFile, []byte("dummy"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("KRB5_CONFIG", krbConf)
+	t.Setenv("KRB5CCNAME", "FILE:"+ccFile)
+	t.Setenv("KRB5_KTNAME", "")
+
+	ntlmCalled := false
+	ntlmStub := integratedauth.ProviderFunc(func(cfg msdsn.Config) (integratedauth.IntegratedAuthenticator, error) {
+		ntlmCalled = true
+		return stubAuthenticator{}, nil
+	})
+
+	// 1. SQL Server Authentication (bare user + password) must NOT trigger Kerberos or NTLM.
+	auth, err := smartUnixAuthenticator(msdsn.Config{
+		User:     "sa",
+		Password: "secret",
+		ServerSPN: "MSSQLSvc/DB01:1433",
+	}, ntlmStub)
+	if err != nil {
+		t.Fatalf("SQL auth returned unexpected error: %v", err)
+	}
+	if auth != nil {
+		t.Fatalf("SQL auth must return nil integrated authenticator, got %T", auth)
+	}
+	if ntlmCalled {
+		t.Fatalf("SQL auth must not invoke NTLM")
+	}
+
+	// 2. DOMAIN\user + password must invoke NTLM.
+	auth, err = smartUnixAuthenticator(msdsn.Config{
+		User:     `EXAMPLE\svc_flow`,
+		Password: "secret",
+	}, ntlmStub)
+	if err != nil {
+		t.Fatalf("NTLM returned unexpected error: %v", err)
+	}
+	if auth == nil || !ntlmCalled {
+		t.Fatalf("expected NTLM authenticator to be returned")
+	}
+
+	// 3. Integrated security (no user/password) with KRB5CCNAME must return a krb5 authenticator.
+	auth, err = smartUnixAuthenticator(msdsn.Config{
+		ServerSPN: "MSSQLSvc/DB01:1433",
+	}, ntlmStub)
+	if err != nil {
+		t.Fatalf("Kerberos ccache returned unexpected error: %v", err)
+	}
+	if auth == nil {
+		t.Fatalf("expected non-nil krb5 authenticator for ccache")
+	}
+
+	// 4. Keytab auth (user with empty password) must return a krb5 authenticator.
+	auth, err = smartUnixAuthenticator(msdsn.Config{
+		User:      "svc_flow",
+		ServerSPN: "MSSQLSvc/DB01:1433",
+		Parameters: map[string]string{
+			"krb5-keytabfile": "FILE:" + ktFile,
+		},
+	}, ntlmStub)
+	if err != nil {
+		t.Fatalf("Kerberos keytab returned unexpected error: %v", err)
+	}
+	if auth == nil {
+		t.Fatalf("expected non-nil krb5 authenticator for keytab")
 	}
 }

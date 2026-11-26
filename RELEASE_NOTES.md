@@ -27,9 +27,10 @@ All additions are **100% backwards-compatible** with existing XML pipelines and 
 ### 3. Built-In Unix Kerberos SQL Server Integrated Auth (`krb5_auth.go`)
 - Imported `github.com/microsoft/go-mssqldb/integratedauth/krb5` and added `ConfigureUnixKerberosSQLServerAuth()` (registered automatically in `init()` on non-Windows platforms).
 - Added `NormalizeKrb5Config`, `StripKrb5FilePrefix`, `ResolveKerberosPrincipalUser`, `QualifyKerberosServerSPN`, and `DefaultRealmFromKrb5Conf` so `sqlserver://...?integrated+security=true&authenticator=krb5` and `KRB5CCNAME=FILE:/...` work identically across `flow`, `go-flow`, `db_importer`, and `go-flowAPI` on Linux, FreeBSD, OpenBSD, and macOS.
+- The default Unix provider (`smart_unix`) routes `DOMAIN\user` + password to NTLM, returns `(nil, nil)` for bare `user:password` SQL logins (such as `sa`) so `go-mssqldb` uses standard SQL Server Authentication without attempting a Kerberos AS-REQ, and uses Kerberos (`krb5`) for integrated/ccache/keytab connections (or whenever `authenticator=krb5` is explicitly specified).
 
 ### 4. Test Coverage
-- Added `workdir_test.go`, `tables_test.go`, and `krb5_auth_test.go` covering path confinement, concurrent executors, JSON/YAML table configs, SQL injection rejection, live SQLite DDL execution, and Kerberos config normalization (**90.6%** statement coverage in `github.com/etl-madness/flow`, **90.1%** overall).
+- Added `workdir_test.go`, `tables_test.go`, and `krb5_auth_test.go` covering path confinement, concurrent executors, JSON/YAML table configs, SQL injection rejection, live SQLite DDL execution, and Kerberos config normalization and auth selection (**90.7%** statement coverage in `github.com/etl-madness/flow`).
 
 ---
 

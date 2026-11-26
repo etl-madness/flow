@@ -27,14 +27,24 @@ func ConfigureUnixKerberosSQLServerAuth() {
 		return krb5.AuthProviderFunc.GetIntegratedAuthenticator(cfg)
 	}))
 	_ = integratedauth.SetIntegratedAuthenticationProvider("smart_unix", integratedauth.ProviderFunc(func(cfg msdsn.Config) (integratedauth.IntegratedAuthenticator, error) {
-		// If DOMAIN\user + password is provided, use NTLM
-		if strings.ContainsRune(cfg.User, '\\') && cfg.Password != "" && ntlmProvider != nil {
-			return ntlmProvider.GetIntegratedAuthenticator(cfg)
-		}
-		NormalizeKrb5Config(&cfg)
-		return krb5.AuthProviderFunc.GetIntegratedAuthenticator(cfg)
+		return smartUnixAuthenticator(cfg, ntlmProvider)
 	}))
 	integratedauth.DefaultProviderName = "smart_unix"
+}
+
+func smartUnixAuthenticator(cfg msdsn.Config, ntlmProvider integratedauth.Provider) (integratedauth.IntegratedAuthenticator, error) {
+	// If DOMAIN\user + password is provided, use NTLM
+	if strings.ContainsRune(cfg.User, '\\') && cfg.Password != "" && ntlmProvider != nil {
+		return ntlmProvider.GetIntegratedAuthenticator(cfg)
+	}
+	// Bare username + password (e.g. SQL Server login like "sa") without an explicit
+	// authenticator=krb5 parameter must fall back to SQL Server Authentication rather
+	// than attempting a Kerberos AS-REQ with the SQL username.
+	if cfg.User != "" && cfg.Password != "" {
+		return nil, nil
+	}
+	NormalizeKrb5Config(&cfg)
+	return krb5.AuthProviderFunc.GetIntegratedAuthenticator(cfg)
 }
 
 func getRegisteredAuthProvider(name string) (integratedauth.Provider, error) {
