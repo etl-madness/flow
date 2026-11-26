@@ -1,3 +1,15 @@
+# Release Notes - Flow Pipeline & ETL Engine (v1.4.7)
+
+## Overview
+
+Version **v1.4.7** extends the shared telemetry DDL in `tables.go` with database server tracking across all 5 supported SQL dialects (`sqlserver`, `postgres`, `mysql`, `sqlite`, `oracle`).
+
+### What's New in v1.4.7
+- **Database Server Telemetry Column (`tables.go`)**: Added the optional `db_server` column (`NVARCHAR(255)` / `VARCHAR(255)` / `VARCHAR2(255)` / `TEXT`) to both `pipeline_runs` and `pipeline_events` in `TableConfig.RenderDDL(dialect)` across all 5 dialects so `go-flowAPI`, `go-flow`, and `FlowUI` can record and display the database server/catalog (`<server>/<database>`, or `<src_server>-><tgt_server>` for cross-database `<sql_bulk>` operations).
+- **100% Backwards-Compatible**: Existing databases without `db_server` continue to work without modification; dynamic column detection in `go-flow` and `go-flowAPI` automatically populates `db_server` when present.
+
+---
+
 # Release Notes - Flow Pipeline & ETL Engine (v1.4.5)
 
 ## Overview
